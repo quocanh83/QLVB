@@ -1,0 +1,22 @@
+:root, [data-theme='light'] {
+  --primary-color: var(--ant-color-primary);
+  --success-color: var(--ant-color-success);
+  --warning-color: var(--ant-color-warning);
+  --error-color: var(--ant-color-error);
+  --info-color: var(--ant-color-info);
+  
+  --bg-layout: var(--ant-color-bg-layout);
+  --bg-container: var(--ant-color-bg-container);
+  --bg-elevated: var(--ant-color-bg-elevated);
+  --bg-spotlight: var(--ant-color-bg-spotlight);
+  
+  --text-color: var(--ant-color-text);
+  --text-secondary: var(--ant-color-text-description);
+  --text-tertiary: var(--ant-color-text-placeholder);
+  --text-quaternary: var(--ant-color-text-quaternary);
+  
+  --border-color: var(--ant-color-border);
+  --border-secondary: var(--ant-color-border-secondary);
+  
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
