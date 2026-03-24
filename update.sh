@@ -34,6 +34,7 @@ cd $PROJECT_DIR/backend
 sudo -u qlvb ./venv/bin/pip install -r requirements.txt
 sudo -u qlvb ./venv/bin/python manage.py collectstatic --noinput
 sudo -u qlvb ./venv/bin/python manage.py migrate
+sudo -u qlvb ./venv/bin/python manage.py seed_report_template
 
 # 4. Khởi động lại các dịch vụ
 echo "=> ♻️ Đang khởi động lại các dịch vụ (Gunicorn, Celery, Nginx)..."

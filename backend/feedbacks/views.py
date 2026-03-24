@@ -633,8 +633,33 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             
             if not feedbacks.exists():
                 return Response({"error": "Không có ý kiến góp ý nào thỏa mãn bộ lọc để xuất báo cáo."}, status=404)
+            
+            # Đọc cấu hình mẫu từ DB (nếu có)
+            template_config = None
+            try:
+                from reports.models import ReportTemplate
+                tpl = ReportTemplate.objects.filter(template_type='mau_10', is_active=True).first()
+                if tpl:
+                    enabled_fields = tpl.field_configs.filter(is_enabled=True).order_by('column_order')
+                    if enabled_fields.exists():
+                        template_config = {
+                            'header_org_name': tpl.header_org_name,
+                            'header_org_location': tpl.header_org_location,
+                            'footer_signer_name': tpl.footer_signer_name,
+                            'footer_signer_title': tpl.footer_signer_title,
+                            'fields': [
+                                {
+                                    'field_key': f.field_key,
+                                    'field_label': f.field_label,
+                                    'column_width_cm': f.column_width_cm,
+                                }
+                                for f in enabled_fields
+                            ]
+                        }
+            except Exception:
+                pass  # Nếu chưa có template, dùng mặc định
                 
-            file_stream = generate_mau_10(document, feedbacks)
+            file_stream = generate_mau_10(document, feedbacks, template_config=template_config)
             
             response = FileResponse(
                 file_stream, 

@@ -9,5 +9,6 @@ urlpatterns = [
     path('api/feedbacks/', include('feedbacks.urls')),
     path('api/settings/', include('core.urls')),
     path('api/notifications/', include('core.notification_urls')),
+    path('api/reports/', include('reports.urls')),
     path('api/public/stats/', PublicStatsAPIView.as_view(), name='public-stats'),
 ]
