@@ -28,7 +28,8 @@ import {
   Loader2,
   Globe,
   Database,
-  Eye
+  Eye,
+  AlertCircle
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
