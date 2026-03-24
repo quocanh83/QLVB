@@ -1,125 +1,149 @@
 /* =====================================================
-   QLVB DARK THEME — Refined & Premium
-   Tone: Navy-slate ấm, contrast vừa phải, mắt dễ chịu
+   QLVB DARK THEME — GitHub-inspired, dễ đọc, tinh tế
+   Palette: giống GitHub Dark Default
+   Nền: #0d1117 → #161b22 → #21262d
+   Chữ: #e6edf3 (chính), #8b949e (phụ)
+   Border: #30363d
    ===================================================== */
 
 [data-theme='dark'] {
-  --primary-color: var(--ant-color-primary);
-  --success-color: var(--ant-color-success);
-  --warning-color: var(--ant-color-warning);
-  --error-color: var(--ant-color-error);
-  --info-color: var(--ant-color-info);
+  --primary-color: #58a6ff;
+  --success-color: #3fb950;
+  --warning-color: #d29922;
+  --error-color: #f85149;
+  --info-color: #58a6ff;
 
-  --bg-layout: #111827;
-  --bg-container: #1f2937;
-  --bg-elevated: #2a3444;
-  --bg-spotlight: #374151;
+  --bg-layout: #0d1117;
+  --bg-container: #161b22;
+  --bg-elevated: #21262d;
+  --bg-spotlight: #30363d;
 
-  --text-color: #d1d5db;
-  --text-secondary: #9ca3af;
-  --text-tertiary: #6b7280;
-  --text-quaternary: #4b5563;
+  --text-color: #e6edf3;
+  --text-secondary: #8b949e;
+  --text-tertiary: #6e7681;
+  --text-quaternary: #484f58;
 
-  --border-color: #374151;
-  --border-secondary: #2d3748;
+  --border-color: #30363d;
+  --border-secondary: #21262d;
 
-  --header-bg: #1f2937;
-  --sider-bg: #111827;
-  --primary-gradient: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
-  --text-heading: #60a5fa;
+  --header-bg: #161b22;
+  --sider-bg: #0d1117;
+  --primary-gradient: linear-gradient(135deg, #58a6ff 0%, #3fb950 100%);
+  --text-heading: #58a6ff;
 
-  --shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 /* ===================== GLOBAL ===================== */
 
 [data-theme='dark'] .min-h-screen.bg-slate-50,
 [data-theme='dark'] .min-h-screen {
-  background-color: #111827 !important;
-  color: #d1d5db !important;
+  background-color: #0d1117 !important;
+  color: #e6edf3 !important;
 }
 
 /* ===================== TOP NAVBAR ===================== */
 
 [data-theme='dark'] header.bg-white,
 [data-theme='dark'] header {
-  background-color: #1f2937 !important;
-  border-color: #2d3748 !important;
-  color: #e5e7eb !important;
+  background-color: #161b22 !important;
+  border-color: #30363d !important;
+  color: #e6edf3 !important;
 }
 
-[data-theme='dark'] header .text-xl.font-bold {
+/* Logo gradient stays */
+[data-theme='dark'] .bg-clip-text.text-transparent {
   color: transparent !important;
 }
 
 /* ===================== SIDEBAR ===================== */
 
 [data-theme='dark'] aside.bg-slate-900 {
-  background-color: #0f1729 !important;
+  background-color: #0d1117 !important;
 }
 
 [data-theme='dark'] aside .bg-slate-800\/50 {
-  background-color: rgba(31, 41, 55, 0.6) !important;
+  background-color: rgba(22, 27, 34, 0.7) !important;
+}
+
+/* Sidebar menu items: text sáng rõ */
+[data-theme='dark'] aside .text-slate-400 {
+  color: #8b949e !important;
+}
+
+/* Sidebar active item: xanh dương nhạt thay vì xanh chói */
+[data-theme='dark'] aside .bg-blue-600 {
+  background-color: #1f6feb !important;
+  box-shadow: 0 0 0 1px rgba(31, 111, 235, 0.4) !important;
+}
+
+/* Sidebar border */
+[data-theme='dark'] aside .border-slate-800 {
+  border-color: #21262d !important;
+}
+
+/* Version info */
+[data-theme='dark'] aside .text-slate-500 {
+  color: #6e7681 !important;
 }
 
 /* ===================== MAIN CONTENT ===================== */
 
 [data-theme='dark'] main.bg-slate-50,
 [data-theme='dark'] main {
-  background-color: #111827 !important;
+  background-color: #0d1117 !important;
 }
 
 /* ===================== BACKGROUNDS ===================== */
 
-/* White panels → deep navy */
 [data-theme='dark'] .bg-white {
-  background-color: #1f2937 !important;
-  color: #d1d5db !important;
+  background-color: #161b22 !important;
+  color: #e6edf3 !important;
 }
 
-/* Light gray → slightly lighter navy */
 [data-theme='dark'] .bg-slate-50,
-[data-theme='dark'] .bg-slate-50\/50 {
-  background-color: #1a2332 !important;
+[data-theme='dark'] .bg-slate-50\/50,
+[data-theme='dark'] .bg-slate-50\/30 {
+  background-color: #0d1117 !important;
 }
 
 [data-theme='dark'] .bg-slate-100,
 [data-theme='dark'] .bg-slate-100\/50 {
-  background-color: #243044 !important;
+  background-color: #21262d !important;
 }
 
 [data-theme='dark'] .bg-slate-200 {
-  background-color: #374151 !important;
+  background-color: #30363d !important;
 }
 
 /* ===================== TEXT ===================== */
 
 [data-theme='dark'] .text-slate-900 {
-  color: #f3f4f6 !important;
+  color: #e6edf3 !important;
 }
 
 [data-theme='dark'] .text-slate-800 {
-  color: #e5e7eb !important;
+  color: #e6edf3 !important;
 }
 
 [data-theme='dark'] .text-slate-700 {
-  color: #d1d5db !important;
+  color: #c9d1d9 !important;
 }
 
 [data-theme='dark'] .text-slate-600 {
-  color: #9ca3af !important;
+  color: #b1bac4 !important;
 }
 
 [data-theme='dark'] .text-slate-500 {
-  color: #6b7280 !important;
+  color: #8b949e !important;
 }
 
 [data-theme='dark'] .text-slate-400 {
-  color: #6b7280 !important;
+  color: #8b949e !important;
 }
 
 [data-theme='dark'] .text-slate-300 {
-  color: #4b5563 !important;
+  color: #6e7681 !important;
 }
 
 /* ===================== BORDERS ===================== */
@@ -127,20 +151,19 @@
 [data-theme='dark'] .border-slate-200,
 [data-theme='dark'] .border-slate-100,
 [data-theme='dark'] .border-slate-50 {
-  border-color: #2d3748 !important;
+  border-color: #30363d !important;
 }
 
 [data-theme='dark'] .border-slate-300 {
-  border-color: #374151 !important;
+  border-color: #30363d !important;
 }
 
 [data-theme='dark'] .border-slate-800 {
-  border-color: #1f2937 !important;
+  border-color: #21262d !important;
 }
 
-/* Dashed borders */
 [data-theme='dark'] .border-dashed {
-  border-color: #374151 !important;
+  border-color: #30363d !important;
 }
 
 /* ===================== DIVIDERS ===================== */
@@ -148,7 +171,7 @@
 [data-theme='dark'] .divide-slate-50 > * + *,
 [data-theme='dark'] .divide-slate-100 > * + *,
 [data-theme='dark'] .divide-slate-200 > * + * {
-  border-color: #2d3748 !important;
+  border-color: #21262d !important;
 }
 
 /* ===================== FORM ELEMENTS ===================== */
@@ -156,143 +179,181 @@
 [data-theme='dark'] input:not([type="file"]):not([type="checkbox"]):not([type="radio"]),
 [data-theme='dark'] select,
 [data-theme='dark'] textarea {
-  background-color: #1a2332 !important;
-  color: #e5e7eb !important;
-  border-color: #374151 !important;
+  background-color: #0d1117 !important;
+  color: #e6edf3 !important;
+  border-color: #30363d !important;
 }
 
 [data-theme='dark'] input::placeholder,
 [data-theme='dark'] textarea::placeholder {
-  color: #4b5563 !important;
+  color: #6e7681 !important;
 }
 
 [data-theme='dark'] select option {
-  background-color: #1f2937 !important;
-  color: #e5e7eb !important;
+  background-color: #161b22 !important;
+  color: #e6edf3 !important;
 }
 
 [data-theme='dark'] textarea:disabled {
-  background-color: #111827 !important;
-  color: #4b5563 !important;
+  background-color: #0d1117 !important;
+  color: #484f58 !important;
 }
 
 /* ===================== COLORED BADGES ===================== */
-/* Sử dụng màu trong suốt mềm mại, giữ nguyên text color */
 
 [data-theme='dark'] .bg-green-100 {
-  background-color: rgba(34, 197, 94, 0.12) !important;
+  background-color: rgba(63, 185, 80, 0.15) !important;
 }
 [data-theme='dark'] .bg-green-50,
 [data-theme='dark'] .bg-green-50\/50 {
-  background-color: rgba(34, 197, 94, 0.08) !important;
+  background-color: rgba(63, 185, 80, 0.1) !important;
+}
+[data-theme='dark'] .text-green-700 {
+  color: #3fb950 !important;
+}
+[data-theme='dark'] .text-green-600 {
+  color: #3fb950 !important;
+}
+[data-theme='dark'] .text-green-500 {
+  color: #3fb950 !important;
 }
 
 [data-theme='dark'] .bg-orange-100 {
-  background-color: rgba(249, 115, 22, 0.12) !important;
+  background-color: rgba(210, 153, 34, 0.15) !important;
+}
+[data-theme='dark'] .text-orange-700 {
+  color: #d29922 !important;
 }
 
 [data-theme='dark'] .bg-blue-100 {
-  background-color: rgba(59, 130, 246, 0.12) !important;
+  background-color: rgba(88, 166, 255, 0.15) !important;
 }
 [data-theme='dark'] .bg-blue-50,
 [data-theme='dark'] .bg-blue-50\/50 {
-  background-color: rgba(59, 130, 246, 0.08) !important;
+  background-color: rgba(88, 166, 255, 0.1) !important;
+}
+[data-theme='dark'] .text-blue-700 {
+  color: #58a6ff !important;
+}
+[data-theme='dark'] .text-blue-600 {
+  color: #58a6ff !important;
 }
 
 [data-theme='dark'] .bg-purple-100 {
-  background-color: rgba(168, 85, 247, 0.12) !important;
+  background-color: rgba(188, 140, 255, 0.15) !important;
+}
+[data-theme='dark'] .text-purple-700,
+[data-theme='dark'] .text-purple-600 {
+  color: #bc8cff !important;
 }
 
 [data-theme='dark'] .bg-indigo-50 {
-  background-color: rgba(99, 102, 241, 0.08) !important;
+  background-color: rgba(121, 131, 255, 0.1) !important;
 }
 
 [data-theme='dark'] .bg-red-100 {
-  background-color: rgba(239, 68, 68, 0.12) !important;
+  background-color: rgba(248, 81, 73, 0.15) !important;
 }
 
 /* Badge borders */
 [data-theme='dark'] .border-green-100 {
-  border-color: rgba(34, 197, 94, 0.2) !important;
+  border-color: rgba(63, 185, 80, 0.25) !important;
 }
 [data-theme='dark'] .border-blue-100,
 [data-theme='dark'] .border-blue-200 {
-  border-color: rgba(59, 130, 246, 0.2) !important;
+  border-color: rgba(88, 166, 255, 0.25) !important;
 }
 
 /* ===================== TABLES ===================== */
 
 [data-theme='dark'] table {
-  color: #d1d5db !important;
+  color: #e6edf3 !important;
 }
 
 [data-theme='dark'] thead tr {
-  background-color: #1a2332 !important;
+  background-color: #161b22 !important;
 }
 
 [data-theme='dark'] tbody tr:hover {
-  background-color: rgba(55, 65, 81, 0.3) !important;
+  background-color: rgba(48, 54, 61, 0.4) !important;
 }
 
 /* ===================== INTERACTIVE STATES ===================== */
 
-/* Tree node hover (VibeDashboard sidebar) */
 [data-theme='dark'] .hover\:bg-slate-200\/50:hover {
-  background-color: rgba(55, 65, 81, 0.4) !important;
+  background-color: rgba(48, 54, 61, 0.5) !important;
 }
 
-/* Feedback card hover */
 [data-theme='dark'] .hover\:border-blue-400:hover {
-  border-color: rgba(96, 165, 250, 0.4) !important;
+  border-color: rgba(88, 166, 255, 0.4) !important;
 }
 
-/* Hover bg-slate-50/50 */
 [data-theme='dark'] .hover\:bg-slate-50\/50:hover {
-  background-color: rgba(26, 35, 50, 0.5) !important;
+  background-color: rgba(13, 17, 23, 0.5) !important;
+}
+
+[data-theme='dark'] .hover\:bg-blue-100:hover {
+  background-color: rgba(88, 166, 255, 0.2) !important;
+}
+
+[data-theme='dark'] .hover\:bg-red-100:hover {
+  background-color: rgba(248, 81, 73, 0.2) !important;
+}
+
+[data-theme='dark'] .hover\:bg-indigo-100:hover {
+  background-color: rgba(121, 131, 255, 0.2) !important;
+}
+
+[data-theme='dark'] .hover\:bg-slate-100:hover {
+  background-color: #21262d !important;
+}
+
+[data-theme='dark'] .hover\:bg-slate-200:hover {
+  background-color: #30363d !important;
 }
 
 /* ===================== ACTION BUTTONS ===================== */
 
-/* "Lưu Giải trình" button */
-[data-theme='dark'] .bg-slate-900.text-white {
-  background-color: #3b82f6 !important;
+/* "Lưu Giải trình" dark button → muted blue */
+[data-theme='dark'] button.bg-slate-900 {
+  background-color: #1f6feb !important;
 }
 
 [data-theme='dark'] .hover\:bg-slate-800:hover {
-  background-color: #2563eb !important;
+  background-color: #388bfd !important;
 }
 
 /* ===================== MODALS & OVERLAYS ===================== */
 
 [data-theme='dark'] .bg-slate-900\/60 {
-  background-color: rgba(0, 0, 0, 0.65) !important;
+  background-color: rgba(0, 0, 0, 0.6) !important;
 }
 
 [data-theme='dark'] .bg-white\/80 {
-  background-color: rgba(17, 24, 39, 0.85) !important;
+  background-color: rgba(13, 17, 23, 0.85) !important;
 }
 
 /* ===================== SHADOWS ===================== */
 
 [data-theme='dark'] .shadow-sm {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+  box-shadow: 0 0 0 1px rgba(48, 54, 61, 0.5) !important;
 }
 
 [data-theme='dark'] .shadow-md {
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(48, 54, 61, 0.4) !important;
 }
 
 [data-theme='dark'] .shadow-lg {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3) !important;
 }
 
 [data-theme='dark'] .shadow-xl,
 [data-theme='dark'] .shadow-2xl {
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
 }
 
 [data-theme='dark'] .shadow-inner {
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2) !important;
 }
 
 /* ===================== SCROLLBAR ===================== */
@@ -303,80 +364,69 @@
 }
 
 [data-theme='dark'] ::-webkit-scrollbar-track {
-  background: #111827;
+  background: #0d1117;
 }
 
 [data-theme='dark'] ::-webkit-scrollbar-thumb {
-  background: #374151;
+  background: #30363d;
   border-radius: 3px;
 }
 
 [data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
-  background: #4b5563;
+  background: #484f58;
 }
 
 /* ===================== RECHARTS ===================== */
 
 [data-theme='dark'] .recharts-cartesian-grid line {
-  stroke: #2d3748 !important;
+  stroke: #21262d !important;
 }
 
 [data-theme='dark'] .recharts-text {
-  fill: #9ca3af !important;
+  fill: #8b949e !important;
 }
 
 [data-theme='dark'] .recharts-tooltip-wrapper .recharts-default-tooltip {
-  background-color: #1f2937 !important;
-  border-color: #374151 !important;
-  color: #e5e7eb !important;
+  background-color: #161b22 !important;
+  border-color: #30363d !important;
+  color: #e6edf3 !important;
 }
 
-/* ===================== PROSE (Article view) ===================== */
+/* ===================== PROSE ===================== */
 
 [data-theme='dark'] .prose,
 [data-theme='dark'] .prose-slate {
-  color: #d1d5db !important;
+  color: #c9d1d9 !important;
 }
 
-[data-theme='dark'] .prose .text-slate-700,
-[data-theme='dark'] .prose .italic {
-  color: #9ca3af !important;
-}
-
-/* ===================== LOGO ===================== */
-
-[data-theme='dark'] .bg-clip-text.text-transparent {
-  color: transparent !important;
-}
-
-/* ===================== ROUNDED CARDS / REPORTS ===================== */
+/* ===================== ROUNDED PANELS ===================== */
 
 [data-theme='dark'] .rounded-\[3rem\],
 [data-theme='dark'] .rounded-\[2\.5rem\],
 [data-theme='dark'] .rounded-\[2rem\] {
-  border-color: #2d3748 !important;
+  border-color: #30363d !important;
 }
 
-/* ===================== ANT DESIGN OVERRIDES ===================== */
+/* ===================== ANT DESIGN ===================== */
 
 [data-theme='dark'] .ant-select-selector {
-  background-color: #1a2332 !important;
-  border-color: #374151 !important;
-  color: #e5e7eb !important;
+  background-color: #0d1117 !important;
+  border-color: #30363d !important;
+  color: #e6edf3 !important;
 }
 
 [data-theme='dark'] .ant-input {
-  background-color: #1a2332 !important;
-  border-color: #374151 !important;
-  color: #e5e7eb !important;
+  background-color: #0d1117 !important;
+  border-color: #30363d !important;
+  color: #e6edf3 !important;
 }
 
 [data-theme='dark'] .ant-table {
-  background-color: #1f2937 !important;
-  color: #d1d5db !important;
+  background-color: #161b22 !important;
+  color: #e6edf3 !important;
 }
 
 [data-theme='dark'] .ant-modal-content {
-  background-color: #1f2937 !important;
-  color: #d1d5db !important;
+  background-color: #161b22 !important;
+  color: #e6edf3 !important;
 }
