@@ -63,9 +63,17 @@ echo "=> Chuyển đổi quyền sở hữu thư mục chứa code cho $USER_NAM
 chown -R $USER_NAME:$USER_NAME $PROJECT_DIR
 
 # -------------------------------------------------------------
+# PHẦN FRONTEND (REACT / VITE)
+# -------------------------------------------------------------
+echo "[4/8] Cài đặt & Build Frontend (Node.js)..."
+cd $PROJECT_DIR/frontend
+sudo -u $USER_NAME npm install
+sudo -u $USER_NAME npm run build
+
+# -------------------------------------------------------------
 # PHẦN BACKEND (DJANGO)
 # -------------------------------------------------------------
-echo "[4/7] Thiết lập môi trường Backend..."
+echo "[5/8] Thiết lập môi trường Backend..."
 cd $BACKEND_DIR
 
 # Tạo môi trường ảo & cài đặt
