@@ -117,7 +117,7 @@ def _build_dieu_list(feedbacks):
     return [nodes_map[k] for k in node_order]
 
 
-def generate_from_v2_template(document, feedbacks, template_config=None):
+def generate_from_v2_template(document, feedbacks, template_config=None, template_type='mau_10'):
     """
     Sinh file Word từ template V2 sử dụng docxtpl.
 
@@ -129,7 +129,8 @@ def generate_from_v2_template(document, feedbacks, template_config=None):
     Args:
         document: Document model instance
         feedbacks: QuerySet feedback đã filter
-        template_config: dict cấu hình admin (tuỳ chọn):
+        template_config: dict cấu hình admin (tuỳ chọn)
+        template_type: 'mau_10' (ngang) hoặc 'custom' (dọc)
             {
                 'header_org_name': str,
                 'header_org_location': str,
@@ -187,7 +188,7 @@ def generate_from_v2_template(document, feedbacks, template_config=None):
     }
 
     # Render và trả về BytesIO
-    tpl = DocxTemplate(_get_template_path('mau_10'))
+    tpl = DocxTemplate(_get_template_path(template_type))
     tpl.render(context)
 
     file_stream = io.BytesIO()

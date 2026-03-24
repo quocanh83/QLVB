@@ -637,54 +637,48 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             
             # Sử dụng generator V2 với file template Word chuẩn
             # Đọc cấu hình admin từ DB (nếu có)
+                        # Phan nhanh theo loai bao cao (report_type param)
+            report_type = request.query_params.get('report_type', 'mau10')
+            
+            # Doc cau hinh tu DB cho loai tuong ung
             template_config = None
+            tpl_db = None
             try:
                 from reports.models import ReportTemplate
-                tpl = ReportTemplate.objects.filter(template_type='mau_10', is_active=True).first()
-                if tpl:
+                tpl_db = ReportTemplate.objects.filter(template_type=report_type, is_active=True).first()
+                if tpl_db:
                     template_config = {
-                        'header_org_name': tpl.header_org_name,
-                        'header_org_location': tpl.header_org_location,
-                        'footer_signer_name': tpl.footer_signer_name,
-                        'footer_signer_title': tpl.footer_signer_title,
+                        'header_org_name': tpl_db.header_org_name,
+                        'header_org_location': tpl_db.header_org_location,
+                        'footer_signer_name': tpl_db.footer_signer_name,
+                        'footer_signer_title': tpl_db.footer_signer_title,
                     }
             except Exception:
-                pass  # Nếu chưa có template DB, dùng giá trị mặc định
+                pass
 
-            # Phan nhanh theo loai bao cao (report_type param)
-            report_type = request.query_params.get('report_type', 'mau10')
-
-            if report_type == 'custom':
-                # Bao cao Tuy chinh: dung mau10_generator + field configs tu DB
+            if report_type == 'custom' and (not tpl_db or not tpl_db.file_path):
+                # Truong hop Bao cao Tuy chinh ma chua upload file .docx -> dung generator dong (Portrait)
                 custom_config = dict(template_config) if template_config else {}
                 try:
-                    from reports.models import ReportTemplate as RT2
-                    tpl2 = RT2.objects.filter(template_type='mau_10', is_active=True).first()
-                    if tpl2:
-                        enabled_fields = tpl2.field_configs.filter(is_enabled=True).order_by('column_order')
-                        if enabled_fields.exists():
-                            custom_config['fields'] = [
-                                {
-                                    'field_key': f.field_key,
-                                    'field_label': f.field_label,
-                                    'column_width_cm': f.column_width_cm,
-                                }
-                                for f in enabled_fields
-                            ]
+                    enabled_fields = tpl_db.field_configs.filter(is_enabled=True).order_by('column_order')
+                    if enabled_fields.exists():
+                        custom_config['fields'] = [
+                            {'field_key': f.field_key, 'field_label': f.field_label, 'column_width_cm': f.column_width_cm}
+                            for f in enabled_fields
+                        ]
                 except Exception:
                     pass
                 file_stream = generate_mau_10(document, feedbacks, template_config=custom_config or None)
                 filename = f"Bao_cao_Tuy_chinh_{document.id}.docx"
             else:
-                # Mau 10 chuan: dung template file V2
-                file_stream = generate_from_v2_template(document, feedbacks, template_config=template_config)
-                filename = f"Bao_cao_Mau_10_{document.id}.docx"
+                # Dung generator V2 (Landscape cho mau_10, hoac Portrait cho custom neu co file)
+                file_stream = generate_from_v2_template(document, feedbacks, template_config=template_config, template_type=report_type)
+                filename = f"Bao_cao_{'Mau_10' if report_type=='mau10' else 'Tuy_chinh'}_{document.id}.docx"
             
             response = FileResponse(
                 file_stream, 
                 content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             )
-            
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
             return response
             

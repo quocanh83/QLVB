@@ -3,13 +3,14 @@ from reports.models import ReportTemplate, ReportFieldConfig
 
 
 class Command(BaseCommand):
-    help = 'Tạo mẫu báo cáo Mẫu 10 mặc định với 5 trường cơ bản'
+    help = 'Tạo mẫu báo cáo mặc định (Mẫu 10 Ngang và Báo cáo Tuỳ chỉnh Dọc)'
 
     def handle(self, *args, **options):
+        # 1. Mẫu số 10 (Ngang - Chuẩn NĐ 30)
         template, created = ReportTemplate.objects.get_or_create(
             template_type='mau_10',
             defaults={
-                'name': 'Mẫu 10 - Tổng hợp, Giải trình, Tiếp thu',
+                'name': 'Mẫu số 10 (Xoay Ngang - Chuẩn NĐ 30)',
                 'is_active': True,
                 'header_org_name': 'BỘ/CƠ QUAN CHỦ TRÌ',
                 'header_org_location': 'Hà Nội',
@@ -23,7 +24,7 @@ class Command(BaseCommand):
         else:
             self.stdout.write(self.style.WARNING(f'⚠ Mẫu đã tồn tại: {template.name}'))
 
-        # Tạo 5 trường mặc định
+        # Tạo 5 trường mặc định cho mẫu 10
         default_fields = [
             ('stt', 'TT', 1.0, 0),
             ('noi_dung_du_thao', 'Nội dung dự thảo', 4.0, 1),
@@ -44,9 +45,25 @@ class Command(BaseCommand):
                     'column_width_cm': width,
                 }
             )
-            if field_created:
-                self.stdout.write(f'  + Trường: {field_label} ({field_key})')
-            else:
-                self.stdout.write(f'  = Đã có: {field_label}')
+
+        # 2. Báo cáo Tuỳ chỉnh (Xoay Dọc)
+        custom_tpl, c_created = ReportTemplate.objects.get_or_create(
+            template_type='custom',
+            defaults={
+                'name': 'Báo cáo Tuỳ chỉnh (Xoay Dọc - Cột tuỳ biến)',
+                'is_active': True,
+                'header_org_name': 'BỘ/CƠ QUAN CHỦ TRÌ',
+                'header_org_location': 'Hà Nội',
+                'footer_signer_name': '',
+                'footer_signer_title': 'ĐẠI DIỆN CƠ QUAN CHỦ TRÌ',
+            }
+        )
+        if c_created:
+            self.stdout.write(self.style.SUCCESS(f'✓ Đã tạo mẫu tuỳ chỉnh: {custom_tpl.name}'))
+        else:
+            # Cập nhật tên nếu đã tồn tại mẫu cũ
+            custom_tpl.name = 'Báo cáo Tuỳ chỉnh (Xoay Dọc - Cột tuỳ biến)'
+            custom_tpl.save()
+            self.stdout.write(self.style.WARNING(f'⚠ Đã cập nhật tên mẫu tuỳ chỉnh: {custom_tpl.name}'))
 
         self.stdout.write(self.style.SUCCESS('\n✓ Hoàn tất seed dữ liệu mẫu báo cáo!'))
