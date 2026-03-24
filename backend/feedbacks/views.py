@@ -660,8 +660,8 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                 # Truong hop Bao cao Tuy chinh ma chua upload file .docx -> dung generator dong (Portrait)
                 custom_config = dict(template_config) if template_config else {}
                 try:
-                    enabled_fields = tpl_db.field_configs.filter(is_enabled=True).order_by('column_order')
-                    if enabled_fields.exists():
+                    enabled_fields = tpl_db.field_configs.filter(is_enabled=True).order_by('column_order') if tpl_db else None
+                    if enabled_fields and enabled_fields.exists():
                         custom_config['fields'] = [
                             {'field_key': f.field_key, 'field_label': f.field_label, 'column_width_cm': f.column_width_cm}
                             for f in enabled_fields
