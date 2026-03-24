@@ -4,7 +4,7 @@
 # Dùng cho tính năng Cập nhật qua Web
 # ==============================================================================
 
-PROJECT_DIR="/home/qlvb/qlvb"
+PROJECT_DIR="/home/qlvb"
 BACKEND_DIR="$PROJECT_DIR/backend"
 FRONTEND_DIR="$PROJECT_DIR/frontend"
 LOG_FILE="$PROJECT_DIR/update_system.log"

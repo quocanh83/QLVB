@@ -7,7 +7,7 @@
 
 set -e
 
-PROJECT_DIR="/var/www/html/qlvb"
+PROJECT_DIR="/home/qlvb"
 
 echo "🚀 BẮT ĐẦU QUÁ TRÌNH CẬP NHẬT HỆ THỐNG..."
 
@@ -16,7 +16,10 @@ cd $PROJECT_DIR
 
 # 1. Pull code mới nhất
 echo "=> 📥 Đang tải code mới nhất từ GitHub..."
-git pull origin main
+git pull origin master
+
+echo "=> 🔑 Cấp quyền sở hữu thư mục cho qlvb..."
+sudo chown -R qlvb:qlvb $PROJECT_DIR
 
 # 2. Cập nhật và Build Frontend
 echo "=> 🚧 Đang xây dựng lại Frontend..."
@@ -35,7 +38,7 @@ deactivate
 
 # 4. Khởi động lại các dịch vụ
 echo "=> ♻️ Đang khởi động lại các dịch vụ (Gunicorn, Celery, Nginx)..."
-sudo systemctl restart qlvb_gunicorn qlvb_celery nginx
+sudo systemctl restart gunicorn_qlvb celery_qlvb nginx
 
 echo "=========================================================="
 echo "✨ CẬP NHẬT HỆ THỐNG THÀNH CÔNG!"
