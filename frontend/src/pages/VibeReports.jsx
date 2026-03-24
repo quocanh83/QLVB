@@ -10,10 +10,10 @@ import {
   RefreshCw,
   MoreVertical,
   ChevronRight,
-  ChevronDown,
-  TrendingUp,
-  Building2,
-  CheckCircle2,
+  ChevronDown, 
+  TrendingUp, 
+  Building2, 
+  CheckCircle2, 
   X,
   Printer,
   Settings,
@@ -35,9 +35,64 @@ import {
   Legend, ResponsiveContainer, PieChart, Pie, Cell 
 } from 'recharts';
 import { getAuthHeader } from '../utils/authHelpers';
-import * as XLSX from 'xlsx';
 
 const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+// ===== DEMO PREVIEW COMPONENT (Separated for robustness) =====
+const ReportPreviewDemo = ({ template, fieldConfigs }) => {
+  const enabledFields = (fieldConfigs || []).filter(f => f?.is_enabled);
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-xl p-10 max-w-4xl mx-auto font-serif text-slate-800 scale-[0.85] origin-top border-t-8 border-t-indigo-500">
+      <div className="flex justify-between items-start mb-8">
+          <div className="text-center w-52">
+              <p className="font-bold text-[13px] uppercase">{template?.header_org_name || 'BỘ/CƠ QUAN CHỦ TRÌ'}</p>
+              <div className="w-16 h-[1px] bg-slate-800 mx-auto mt-1"></div>
+          </div>
+          <div className="text-center w-72">
+              <p className="font-bold text-[13px] uppercase">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p>
+              <p className="font-bold text-[13px]">Độc lập - Tự do - Hạnh phúc</p>
+              <div className="w-24 h-[1px] bg-slate-800 mx-auto mt-1"></div>
+          </div>
+      </div>
+      <div className="text-center mb-10">
+          <h2 className="font-bold text-lg uppercase leading-tight">BẢN TỔNG HỢP, GIẢI TRÌNH, TIẾP THU Ý KIẾN</h2>
+          <p className="font-bold text-sm italic mt-1">Đối với dự thảo: [Tên Dự thảo hiển thị ở đây]</p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse border border-slate-800 text-[11px]">
+            <thead>
+                <tr className="bg-slate-50">
+                    {enabledFields.map((f, i) => (
+                        <th key={i} className="border border-slate-800 p-2 text-center uppercase font-bold" style={{ width: `${f?.column_width_cm || 2}cm` }}>
+                            {f?.field_label}
+                        </th>
+                    ))}
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    {enabledFields.map((f, i) => (
+                        <td key={i} className="border border-slate-800 p-2 text-slate-400 italic">
+                             {f?.field_key === 'stt' ? '1' : `[Dữ liệu ${f?.field_label}]`}
+                        </td>
+                    ))}
+                </tr>
+            </tbody>
+        </table>
+      </div>
+      <div className="mt-10 flex flex-col items-end">
+          <p className="italic text-xs mb-1">{template?.header_org_location || 'Hà Nội'}, ngày ... tháng ... năm ...</p>
+          <div className="text-center min-w-[200px]">
+              <p className="font-bold uppercase text-[12px]">{template?.footer_signer_title || 'CƠ QUAN CHỦ TRÌ'}</p>
+              <p className="italic text-[10px] mt-1">(Ký tên, đóng dấu)</p>
+              <div className="h-16"></div>
+              {template?.footer_signer_name && <p className="font-bold text-[12px] mt-4">{template?.footer_signer_name}</p>}
+          </div>
+      </div>
+    </div>
+  );
+};
+
 
 const VibeReports = () => {
   const [activeTab, setActiveTab] = useState('stats'); // 'stats', 'custom', 'config'
@@ -108,7 +163,7 @@ const VibeReports = () => {
       const url = `/api/feedbacks/subject_stats/${docId ? `?document_id=${docId}` : ''}`;
       const res = await axios.get(url, auth);
       setStatsData(res.data);
-    } catch (error) { console.error("Lỗi tải thống kê", error); }
+    } catch (error) { console.error("Lỗi tải thống kê", error); setStatsData({ agency_stats: [], category_stats: {} }); }
     finally { setLoading(false); }
   };
 
@@ -261,63 +316,11 @@ const VibeReports = () => {
 
   const categoryMap = { ministry: 'Bộ/Ngành', local: 'Địa phương', organization: 'Tổ chức', enterprise: 'Doanh nghiệp', other: 'Khác' };
 
-  const pieData = Object.keys(statsData.category_stats || {}).map(key => ({
+  const pieData = Object.keys(statsData?.category_stats || {}).map(key => ({
     name: categoryMap[key] || key,
-    value: statsData.category_stats[key]
-  }));
+    value: statsData?.category_stats?.[key] || 0
+  })).filter(d => d.value > 0);
 
-  // ===== DEMO PREVIEW COMPONENT =====
-  const ReportPreviewDemo = () => {
-    const enabledFields = fieldConfigs.filter(f => f.is_enabled);
-    return (
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xl p-10 max-w-4xl mx-auto font-serif text-slate-800 scale-[0.85] origin-top border-t-8 border-t-indigo-500">
-        <div className="flex justify-between items-start mb-8">
-            <div className="text-center w-52">
-                <p className="font-bold text-[13px] uppercase">{headerOrgName || 'BỘ/CƠ QUAN CHỦ TRÌ'}</p>
-                <div className="w-16 h-[1px] bg-slate-800 mx-auto mt-1"></div>
-            </div>
-            <div className="text-center w-72">
-                <p className="font-bold text-[13px] uppercase">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p>
-                <p className="font-bold text-[13px]">Độc lập - Tự do - Hạnh phúc</p>
-                <div className="w-24 h-[1px] bg-slate-800 mx-auto mt-1"></div>
-            </div>
-        </div>
-        <div className="text-center mb-10">
-            <h2 className="font-bold text-lg uppercase leading-tight">BẢN TỔNG HỢP, GIẢI TRÌNH, TIẾP THU Ý KIẾN</h2>
-            <p className="font-bold text-sm italic mt-1">Đối với dự thảo: [Tên Dự thảo hiển thị ở đây]</p>
-        </div>
-        <table className="w-full border-collapse border border-slate-800 text-[11px]">
-            <thead>
-                <tr className="bg-slate-50">
-                    {enabledFields.map((f, i) => (
-                        <th key={i} className="border border-slate-800 p-2 text-center uppercase font-bold" style={{ width: `${f.column_width_cm}cm` }}>
-                            {f.field_label}
-                        </th>
-                    ))}
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    {enabledFields.map((f, i) => (
-                        <td key={i} className="border border-slate-800 p-2 text-slate-400 italic">
-                             {f.field_key === 'stt' ? '1' : `[Dữ liệu ${f.field_label}]`}
-                        </td>
-                    ))}
-                </tr>
-            </tbody>
-        </table>
-        <div className="mt-10 flex flex-col items-end">
-            <p className="italic text-xs mb-1">{headerOrgLocation || 'Hà Nội'}, ngày ... tháng ... năm ...</p>
-            <div className="text-center min-w-[200px]">
-                <p className="font-bold uppercase text-[12px]">{footerSignerTitle || 'CƠ QUAN CHỦ TRÌ'}</p>
-                <p className="italic text-[10px] mt-1">(Ký tên, đóng dấu)</p>
-                <div className="h-16"></div>
-                {footerSignerName && <p className="font-bold text-[12px] mt-4">{footerSignerName}</p>}
-            </div>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="flex-1 bg-slate-50 p-6 lg:p-10 space-y-8 overflow-y-auto font-sans">
@@ -357,12 +360,35 @@ const VibeReports = () => {
                 <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm space-y-6">
                     <h3 className="text-lg font-black text-slate-800 flex items-center space-x-2"><TrendingUp className="text-blue-500" size={20} /><span>Top 10 Đơn vị</span></h3>
                     <div className="h-80 w-full">
-                        <ResponsiveContainer><BarChart data={(statsData.agency_stats || []).slice(0, 10)} layout="vertical"><CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" /><XAxis type="number" hide /><YAxis dataKey="agency" type="category" width={100} tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 700 }} /><RechartsTooltip contentStyle={{ borderRadius: '16px', border: 'none' }} /><Bar dataKey="total" fill="#3b82f6" radius={[0, 4, 4, 0]} /><Bar dataKey="resolved" fill="#10b981" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer>
+                        <ResponsiveContainer>
+                            <BarChart data={(statsData?.agency_stats || []).slice(0, 10)} layout="vertical">
+                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                                <XAxis type="number" hide />
+                                <YAxis dataKey="agency" type="category" width={100} tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 700 }} />
+                                <RechartsTooltip contentStyle={{ borderRadius: '16px', border: 'none' }} />
+                                <Bar dataKey="total" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                                <Bar dataKey="resolved" fill="#10b981" radius={[0, 4, 4, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
                 <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm space-y-6">
                     <h3 className="text-lg font-black text-slate-800 flex items-center space-x-2"><PieIcon className="text-indigo-500" size={20} /><span>Nhóm cơ quan</span></h3>
-                    <div className="h-80 w-full"><ResponsiveContainer><PieChart><Pie data={pieData} innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value">{pieData.map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><RechartsTooltip /><Legend /></PieChart></ResponsiveContainer></div>
+                    <div className="h-80 w-full">
+                        <ResponsiveContainer>
+                            {pieData.length > 0 ? (
+                                <PieChart>
+                                    <Pie data={pieData} innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value">
+                                        {pieData.map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                                    </Pie>
+                                    <RechartsTooltip />
+                                    <Legend />
+                                </PieChart>
+                            ) : (
+                                <div className="h-full flex items-center justify-center text-slate-300 text-xs font-bold uppercase italic">Chưa có dữ liệu phân loại</div>
+                            )}
+                        </ResponsiveContainer>
+                    </div>
                 </div>
             </div>
         </div>
@@ -410,9 +436,9 @@ const VibeReports = () => {
                         <thead><tr className="bg-slate-100/50 text-[10px] font-black text-slate-400 uppercase tracking-widest"><th className="px-6 py-5 text-center">TT</th><th className="px-6 py-5">Điều/Khoản</th><th className="px-6 py-5">Cơ quan</th><th className="px-6 py-5">Nội dung</th><th className="px-6 py-5">Giải trình</th></tr></thead>
                         <tbody className="divide-y divide-slate-100 text-sm">
                             {isCustomLoading ? <tr><td colSpan="5" className="py-20 text-center"><Loader2 className="animate-spin inline text-blue-500" /></td></tr> : 
-                             customStatsData.length === 0 ? <tr><td colSpan="5" className="py-20 text-center text-slate-400 font-bold uppercase text-xs">Không có dữ liệu</td></tr> : 
-                             customStatsData.map((r, i) => (
-                                <tr key={i} className="hover:bg-white bg-white/50"><td className="px-6 py-4 font-black text-slate-300 text-center">{r.stt}</td><td className="px-6 py-4 font-bold text-slate-800">{r.dieu_khoan}</td><td className="px-6 py-4"><span className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold">{r.co_quan}</span></td><td className="px-6 py-4 text-slate-600 line-clamp-2 hover:line-clamp-none transition-all">{r.noi_dung_gop_y}</td><td className="px-6 py-4 text-slate-800 font-medium italic">{r.noi_dung_giai_trinh || '---'}</td></tr>
+                             (customStatsData?.length || 0) === 0 ? <tr><td colSpan="5" className="py-20 text-center text-slate-400 font-bold uppercase text-xs">Không có dữ liệu</td></tr> : 
+                             customStatsData?.map((r, i) => (
+                                <tr key={i} className="hover:bg-white bg-white/50"><td className="px-6 py-4 font-black text-slate-300 text-center">{r?.stt}</td><td className="px-6 py-4 font-bold text-slate-800">{r?.dieu_khoan}</td><td className="px-6 py-4"><span className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold">{r?.co_quan}</span></td><td className="px-6 py-4 text-slate-600 line-clamp-2 hover:line-clamp-none transition-all">{r?.noi_dung_gop_y}</td><td className="px-6 py-4 text-slate-800 font-medium italic">{r?.noi_dung_giai_trinh || '---'}</td></tr>
                              ))
                             }
                         </tbody>
@@ -500,7 +526,15 @@ const VibeReports = () => {
                         <span className="text-[10px] font-black text-green-600 tracking-widest uppercase">Live View</span>
                     </div>
                 </div>
-                <ReportPreviewDemo />
+                <ReportPreviewDemo 
+                    template={{
+                        header_org_name: headerOrgName,
+                        header_org_location: headerOrgLocation,
+                        footer_signer_name: footerSignerName,
+                        footer_signer_title: footerSignerTitle
+                    }} 
+                    fieldConfigs={fieldConfigs} 
+                />
                 <div className="bg-amber-50 p-6 rounded-[2.5rem] border border-amber-100 flex gap-4 mx-6">
                     <AlertCircle className="text-amber-500 shrink-0" size={20} />
                     <p className="text-[10px] text-amber-700 leading-relaxed font-bold">Lưu ý: Demo này hiển thị cấu trúc trang Word chuẩn Nghị định 30. Nội dung bảng chỉ mang tính chất minh họa để bạn dễ dàng căn chỉnh cột.</p>
