@@ -204,6 +204,12 @@ const VibeReports = () => {
             >
                 Xuất Báo cáo
             </button>
+            <button 
+                onClick={() => setActiveTab('custom')}
+                className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'custom' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-500 hover:text-blue-600'}`}
+            >
+                Báo cáo Tuỳ biến
+            </button>
         </div>
       </div>
 
