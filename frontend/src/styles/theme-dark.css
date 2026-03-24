@@ -319,8 +319,18 @@
   background-color: #1f6feb !important;
 }
 
+/* Sidebar hover: xám nhẹ, KHÔNG phải xanh */
 [data-theme='dark'] .hover\:bg-slate-800:hover {
-  background-color: #388bfd !important;
+  background-color: #21262d !important;
+}
+
+/* Sidebar active shadow: bỏ glow xanh chói */
+[data-theme='dark'] .shadow-blue-600\/20 {
+  box-shadow: none !important;
+}
+
+[data-theme='dark'] .shadow-lg.shadow-blue-600\/20 {
+  box-shadow: 0 0 0 1px rgba(31, 111, 235, 0.3) !important;
 }
 
 /* ===================== MODALS & OVERLAYS ===================== */
