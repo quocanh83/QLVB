@@ -19,6 +19,11 @@ class FeedbackViewSet(viewsets.ModelViewSet):
     serializer_class = FeedbackSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_permissions(self):
+        if self.action == 'export_mau_10':
+            return [permissions.AllowAny()]
+        return super().get_permissions()
+
     def create(self, request, *args, **kwargs):
         node_id = request.data.get('node')
         if node_id:
