@@ -10,6 +10,11 @@ class ReportTemplateViewSet(viewsets.ModelViewSet):
     serializer_class = ReportTemplateSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_permissions(self):
+        if self.action == 'download_schema':
+            return [permissions.AllowAny()]
+        return super().get_permissions()
+
     @action(detail=True, methods=['get'])
     def field_logs(self, request, pk=None):
         """Lịch sử thay đổi cấu hình trường của mẫu này"""
@@ -78,6 +83,49 @@ class ReportTemplateViewSet(viewsets.ModelViewSet):
         template.save()
         serializer = self.get_serializer(template)
         return Response({"message": f"Đã tải lên mẫu: {uploaded_file.name}", "template": serializer.data})
+
+
+    @action(detail=True, methods=['get'], url_path='download_schema')
+    def download_schema(self, request, pk=None):
+        """
+        Tải xuống file .docx template gốc có chứa các JSON tag {{ }}, {% for %}.
+        - Nếu có file đã upload: trả về file đó (user có thể xem lại file đã chỉnh)
+        - Nếu không: trả về file template mặc định trong source code
+        """
+        from django.http import FileResponse
+        import mimetypes, os
+        template = self.get_object()
+
+        # Ưu tiên file đã upload
+        if template.file_path:
+            try:
+                path = template.file_path.path
+                if os.path.exists(path):
+                    fname = os.path.basename(path)
+                    return FileResponse(
+                        open(path, 'rb'),
+                        as_attachment=True,
+                        filename=fname,
+                        content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                    )
+            except Exception:
+                pass
+
+        # Fallback: template mặc định trong source code
+        default_path = os.path.join(
+            os.path.dirname(__file__),
+            '..', '..', 'feedbacks', 'utils', 'template_bao_cao_V2_fixed.docx'
+        )
+        default_path = os.path.normpath(default_path)
+        if os.path.exists(default_path):
+            return FileResponse(
+                open(default_path, 'rb'),
+                as_attachment=True,
+                filename='template_bao_cao_V2_fixed.docx',
+                content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            )
+
+        return Response({"error": "Không tìm thấy file template."}, status=404)
 
     @action(detail=True, methods=['post'], url_path='remove_template')
     def remove_template(self, request, pk=None):

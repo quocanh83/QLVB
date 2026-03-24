@@ -16,7 +16,8 @@ import {
   Upload,
   FileText,
   Trash2,
-  FileCheck
+  FileCheck,
+  Download
 } from 'lucide-react';
 import { getAuthHeader } from '../utils/authHelpers';
 
@@ -210,6 +211,14 @@ const VibeSettings = () => {
                                             <Trash2 size={14} /> Xóa
                                         </button>
                                     )}
+                                    <a
+                                        href={`/api/reports/templates/${tpl.id}/download_schema/?token=${localStorage.getItem('access_token') || ''}`}
+                                        title="Tải file template gốc có JSON tags để chỉnh trong Word"
+                                        className="flex items-center gap-2 px-5 py-3 bg-slate-100 text-slate-600 rounded-2xl text-xs font-bold hover:bg-slate-200 transition-colors"
+                                        download
+                                    >
+                                        <Download size={14} /> Tải mẫu gốc
+                                    </a>
                                     <label className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest cursor-pointer transition-all ${uploadingTpl === tpl.id ? 'bg-slate-100 text-slate-400' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/20'}`}>
                                         {uploadingTpl === tpl.id ? <><RefreshCw size={14} className="animate-spin" /><span>Đang tải...</span></> : <><Upload size={14} /><span>Tải lên .docx</span></>}
                                         <input type="file" accept=".docx" className="hidden" onChange={e => { if (e.target.files[0]) uploadTemplate(tpl.id, e.target.files[0]); }} disabled={uploadingTpl === tpl.id} />
