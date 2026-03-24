@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Card, Tag, Button, Typography, Layout, Tree, Alert, Space, Spin, message } from 'antd';
+import { Table, Card, Tag, Button, Typography, Layout, Tree, Alert, Space, Spin, message, Select } from 'antd';
 import {
     BookOutlined,
     CheckCircleOutlined,
     SyncOutlined,
     ArrowLeftOutlined,
-    FileSearchOutlined
+    FileSearchOutlined,
+    ExportOutlined
 } from '@ant-design/icons';
 import axios from 'axios';
 import { getAuthHeader } from '../utils/authHelpers';
@@ -23,6 +24,7 @@ const DraftExplanation = () => {
     const [stats, setStats] = useState([]);
     const [treeData, setTreeData] = useState([]);
     const [selectedNodeId, setSelectedNodeId] = useState(null);
+    const [filterType, setFilterType] = useState('has_feedback');
 
     useEffect(() => {
         if (view === 'overview') {
@@ -30,10 +32,16 @@ const DraftExplanation = () => {
         }
     }, [view]);
 
+    useEffect(() => {
+        if (view === 'detail' && selectedDoc) {
+            fetchTree(selectedDoc.id, filterType);
+        }
+    }, [filterType]);
+
     const fetchStats = async () => {
         setLoading(true);
         try {
-            const res = await axios.get('http://localhost:8000/api/documents/explanation_stats/', getAuthHeader());
+            const res = await axios.get('/api/documents/explanation_stats/', getAuthHeader());
             setStats(res.data);
         } catch (e) {
             message.error("Lỗi khi tải thống kê dự thảo.");
@@ -41,15 +49,17 @@ const DraftExplanation = () => {
         setLoading(false);
     };
 
-    const fetchTree = async (docId) => {
+    const fetchTree = async (docId, filter) => {
         setLoading(true);
         try {
-            const res = await axios.get(`http://localhost:8000/api/documents/${docId}/feedback_nodes/`, getAuthHeader());
+            const res = await axios.get(`/api/documents/${docId}/feedback_nodes/?filter_type=${filter}`, getAuthHeader());
             const formatted = formatTreeData(res.data);
             setTreeData(formatted);
             if (formatted.length > 0) {
-                // Tự động chọn node đầu tiên có góp ý
+                // Tự động chọn node đầu tiên
                 setSelectedNodeId(formatted[0].key);
+            } else {
+                setSelectedNodeId(null);
             }
         } catch (e) {
             message.error("Lỗi khi tải danh mục dự thảo.");
@@ -111,13 +121,21 @@ const DraftExplanation = () => {
             title: 'Thao tác',
             key: 'action',
             render: (_, record) => (
-                <Button
-                    type="primary"
-                    icon={<SyncOutlined />}
-                    onClick={() => handleOpenDetail(record)}
-                >
-                    Giải trình
-                </Button>
+                <Space>
+                    <Button
+                        type="primary"
+                        icon={<SyncOutlined />}
+                        onClick={() => handleOpenDetail(record)}
+                    >
+                        Giải trình
+                    </Button>
+                    <Button 
+                        icon={<ExportOutlined />}
+                        onClick={() => handleExport(record.id)}
+                    >
+                        Xuất Báo cáo
+                    </Button>
+                </Space>
             )
         }
     ];
@@ -151,6 +169,19 @@ const DraftExplanation = () => {
                     <Button icon={<ArrowLeftOutlined />} onClick={() => setView('overview')} type="text" />
                     <Title level={4} style={{ margin: 0, marginLeft: 8 }}>Danh mục Dự thảo</Title>
                 </div>
+                <div style={{ padding: '16px 16px', borderBottom: '1px solid var(--border-color)' }}>
+                    <Select
+                        value={filterType}
+                        onChange={(val) => setFilterType(val)}
+                        style={{ width: '100%' }}
+                        options={[
+                            { label: 'Tất cả điều khoản có góp ý', value: 'has_feedback' },
+                            { label: 'Nội dung chưa giải trình', value: 'unresolved' },
+                            { label: 'Nội dung đã giải trình', value: 'resolved' },
+                            { label: 'Toàn bộ dự thảo', value: 'all' }
+                        ]}
+                    />
+                </div>
                 <div style={{ padding: '16px 0' }}>
                     <Tree
                         defaultExpandAll
@@ -164,7 +195,7 @@ const DraftExplanation = () => {
             <Content style={{ padding: 24, overflow: 'auto', background: 'transparent' }}>
                 <Card title={`Dự thảo: ${selectedDoc?.project_name}`} extra={<Tag color="processing">{selectedDoc?.status}</Tag>}>
                     {selectedNodeId ? (
-                        <ExplanationTable documentId={selectedDoc.id} nodeId={selectedNodeId} />
+                        <ExplanationTable documentId={selectedDoc.id} nodeId={selectedNodeId} filterType={filterType} />
                     ) : (
                         <div style={{ textAlign: 'center', padding: '100px 0' }}>
                             <Spin size="large" />

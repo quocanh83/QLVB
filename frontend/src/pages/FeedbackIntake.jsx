@@ -15,6 +15,7 @@ const FeedbackIntake = () => {
     const [nodes, setNodes] = useState([]);
     const [feedbacks, setFeedbacks] = useState([]);
     const [metadata, setMetadata] = useState({});
+    const [agencies, setAgencies] = useState([]);
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -39,14 +40,17 @@ const FeedbackIntake = () => {
 
     const fetchDocuments = async () => {
         try {
-            const res = await axios.get('http://localhost:8000/api/documents/', getAuthHeader());
+            const res = await axios.get('/api/documents/', getAuthHeader());
             setDocuments(res.data);
+            
+            const agencyRes = await axios.get('/api/settings/agencies/', getAuthHeader());
+            setAgencies(agencyRes.data);
         } catch (e) { message.error("Lấy danh sách dự thảo thất bại"); }
     };
 
     const fetchNodes = async (docId) => {
         try {
-            const res = await axios.get(`http://localhost:8000/api/feedbacks/get_document_nodes/?document_id=${docId}`, getAuthHeader());
+            const res = await axios.get(`/api/feedbacks/get_document_nodes/?document_id=${docId}`, getAuthHeader());
             setNodes(res.data);
         } catch (e) { }
     };
@@ -60,10 +64,10 @@ const FeedbackIntake = () => {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('document_id', selectedDocId);
-        if (agency) formData.append('contributing_agency', agency);
+        if (agency) formData.append('agency_id', agency);
 
         try {
-            const res = await axios.post('http://localhost:8000/api/feedbacks/parse_file/', formData, {
+            const res = await axios.post('/api/feedbacks/parse_file/', formData, {
                 headers: { ...getAuthHeader().headers, 'Content-Type': 'multipart/form-data' }
             });
             
@@ -88,7 +92,7 @@ const FeedbackIntake = () => {
             key: `manual-${Date.now()}`,
             node_label: '',
             node_id: null,
-            contributing_agency: '',
+            agency_id: null,
             content: ''
         };
         setFeedbacks([...feedbacks, newFb]);
@@ -108,7 +112,7 @@ const FeedbackIntake = () => {
 
         setSaving(true);
         try {
-            await axios.post('http://localhost:8000/api/feedbacks/bulk_create/', {
+            await axios.post('/api/feedbacks/bulk_create/', {
                 document_id: selectedDocId,
                 feedbacks: feedbacks,
                 metadata: metadata
@@ -137,10 +141,20 @@ const FeedbackIntake = () => {
         },
         {
             title: 'Cơ quan',
-            dataIndex: 'contributing_agency',
-            key: 'contributing_agency',
+            dataIndex: 'agency_id',
+            key: 'agency_id',
+            width: '25%',
             render: (text, record) => (
-                <Input value={text} onChange={e => updateFeedbackField(record.key, 'contributing_agency', e.target.value)} />
+                <Select
+                    showSearch
+                    allowClear
+                    style={{ width: '100%' }}
+                    placeholder="Chọn cơ quan..."
+                    value={record.agency_id || undefined}
+                    onChange={val => updateFeedbackField(record.key, 'agency_id', val)}
+                    filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                    options={agencies.map(a => ({ value: a.id, label: a.name }))}
+                />
             )
         },
         {
@@ -190,13 +204,23 @@ const FeedbackIntake = () => {
                             
                             <Divider>Hoặc tải File Góp ý</Divider>
                             
-                            <Form.Item label="Tên cơ quan góp ý (nếu file chỉ của 1 CQ)">
-                                <Input id="agency_name" placeholder="VD: Bộ Tài chính" />
+                            <Form.Item label="Cơ quan góp ý (nếu file của 1 đơn vị)">
+                                <Select 
+                                    id="agency_select"
+                                    showSearch
+                                    allowClear
+                                    placeholder="Chọn cơ quan..."
+                                    options={agencies.map(a => ({ value: a.id, label: a.name }))}
+                                    onChange={val => {
+                                        // Store in a window variable or local state to pass to upload
+                                        window.selectedAgencyForUpload = val;
+                                    }}
+                                />
                             </Form.Item>
                             
                             <Upload.Dragger
                                 disabled={!selectedDocId || uploading}
-                                beforeUpload={(file) => handleFileUpload(file, document.getElementById('agency_name')?.value)}
+                                beforeUpload={(file) => handleFileUpload(file, window.selectedAgencyForUpload)}
                                 showUploadList={false}
                                 accept=".docx"
                             >

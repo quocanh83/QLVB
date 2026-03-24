@@ -32,7 +32,7 @@ const DraftDetails = () => {
   const fetchUnresolved = async () => {
     if (!docId) return;
     try {
-      const res = await axios.get(`http://localhost:8000/api/documents/${docId}/unresolved_feedbacks/`, getAuthHeader());
+      const res = await axios.get(`/api/documents/${docId}/unresolved_feedbacks/`, getAuthHeader());
       setUnresolvedFeedbacks(res.data);
     } catch (e) { }
   };
@@ -40,12 +40,12 @@ const DraftDetails = () => {
   useEffect(() => {
     if (docId) {
       // Load Document info to check lead
-      axios.get(`http://localhost:8000/api/documents/${docId}/`, getAuthHeader())
+      axios.get(`/api/documents/${docId}/`, getAuthHeader())
         .then(res => setDocInfo(res.data))
         .catch(() => { });
 
       // Load Tree Nodes
-      axios.get(`http://localhost:8000/api/documents/${docId}/nodes/`, getAuthHeader())
+      axios.get(`/api/documents/${docId}/nodes/`, getAuthHeader())
         .then(res => {
           const flat = [];
           const formatTree = (nodes) => (Array.isArray(nodes) ? nodes : []).map(n => {

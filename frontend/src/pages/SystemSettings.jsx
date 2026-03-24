@@ -21,7 +21,7 @@ const SystemSettings = () => {
     const fetchSettings = async () => {
         setLoading(true);
         try {
-            const res = await axios.get('http://localhost:8000/api/settings/', getAuthHeader());
+            const res = await axios.get('/api/settings/', getAuthHeader());
             setSettings(res.data);
             
             // Khởi tạo giá trị đang sửa
@@ -42,7 +42,7 @@ const SystemSettings = () => {
 
     const saveSetting = async (id) => {
         try {
-            await axios.patch(`http://localhost:8000/api/settings/${id}/`, {
+            await axios.patch(`/api/settings/${id}/`, {
                 value: editingValues[id]
             }, getAuthHeader());
             message.success('Cập nhật thành công!');

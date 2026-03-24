@@ -26,12 +26,34 @@ class Feedback(models.Model):
     document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='feedbacks')
     node = models.ForeignKey(DocumentNode, on_delete=models.CASCADE, related_name='feedbacks')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='feedbacks')
-    contributing_agency = models.CharField(max_length=500, blank=True, null=True, help_text="Cơ quan góp ý")
+    contributing_agency = models.CharField(max_length=500, blank=True, null=True, help_text="Tên text tự nhập (Legacy)")
+    agency = models.ForeignKey('core.Agency', on_delete=models.SET_NULL, null=True, blank=True, related_name='feedbacks', help_text="Cơ quan góp ý chuẩn hóa")
     content = models.TextField()
     attached_file_path = models.FileField(upload_to='feedbacks/files/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    
+    STATUS_CHOICES = (
+        ('pending', 'Chờ xử lý'),
+        ('reviewed', 'Đã thẩm định'),
+        ('approved', 'Đã phê duyệt'),
+        ('rejected', 'Từ chối'),
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     
     explanations = GenericRelation(Explanation, related_query_name='feedback_obj')
 
     def __str__(self):
         return f"Feedback by {self.user.username} on {self.node.node_label}"
+
+class ActionLog(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='action_logs')
+    feedback = models.ForeignKey(Feedback, on_delete=models.CASCADE, related_name='logs')
+    action = models.CharField(max_length=255) # e.g., "Lưu giải trình", "Gửi duyệt"
+    details = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.action} - {self.created_at}"

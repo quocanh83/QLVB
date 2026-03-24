@@ -1,5 +1,12 @@
 from rest_framework import serializers
-from .models import Feedback, Explanation
+from .models import Feedback, Explanation, ActionLog
+
+class ActionLogSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    created_at_fmt = serializers.DateTimeField(source='created_at', format='%H:%M %d/%m/%Y', read_only=True)
+    class Meta:
+        model = ActionLog
+        fields = ['id', 'user', 'username', 'action', 'details', 'created_at', 'created_at_fmt']
 
 class ExplanationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -8,6 +15,7 @@ class ExplanationSerializer(serializers.ModelSerializer):
 
 class FeedbackSerializer(serializers.ModelSerializer):
     explanations = ExplanationSerializer(many=True, read_only=True)
+    logs = ActionLogSerializer(many=True, read_only=True)
     class Meta:
         model = Feedback
         fields = '__all__'

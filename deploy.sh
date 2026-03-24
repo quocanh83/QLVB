@@ -50,6 +50,16 @@ source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 pip install gunicorn # Cài Gunicorn làm WSGI Server
+pip install psycopg2-binary python-dotenv dj-database-url
+
+echo "=> 📝 Tạo file .env cho backend..."
+cat <<EOF > .env
+DEBUG=False
+SECRET_KEY=long-random-secret-key-replace-me-\$(openssl rand -hex 16)
+ALLOWED_HOSTS=*
+DATABASE_URL=postgres://qlvb_db_user:Qa061088@192.168.0.218:5432/qlvb_db
+CELERY_BROKER_URL=redis://localhost:6379/0
+EOF
 
 echo "=> Dọn dẹp File Tĩnh và Migrate Database..."
 python manage.py collectstatic --noinput

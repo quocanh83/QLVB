@@ -24,7 +24,7 @@ const SplitScreenResolution = ({ documentId, selectedNodeId }) => {
     const fetchNodeDetails = async () => {
         setLoading(true);
         try {
-            const res = await axios.get(`http://localhost:8000/api/documents/${documentId}/node_details/?node_id=${selectedNodeId}`, getAuthHeader());
+            const res = await axios.get(`/api/documents/${documentId}/node_details/?node_id=${selectedNodeId}`, getAuthHeader());
             const nodes = Array.isArray(res.data) ? res.data : [res.data];
             setNodeData(nodes);
             
@@ -50,7 +50,7 @@ const SplitScreenResolution = ({ documentId, selectedNodeId }) => {
         const content = explanations[contentKey];
         setSaving(prev => ({...prev, [contentKey]: true}));
         try {
-            await axios.post('http://localhost:8000/api/feedbacks/save_explanation/', {
+            await axios.post('/api/feedbacks/save_explanation/', {
                 document_id: documentId,
                 target_type: targetType,
                 object_id: objectId,
@@ -66,7 +66,7 @@ const SplitScreenResolution = ({ documentId, selectedNodeId }) => {
     const handleAiSuggest = async (nodeContent, feedbackContent, contentKey) => {
         setAiLoading(prev => ({ ...prev, [contentKey]: true }));
         try {
-            const res = await axios.post('http://localhost:8000/api/feedbacks/ai_suggest/', {
+            const res = await axios.post('/api/feedbacks/ai_suggest/', {
                 document_id: documentId,
                 node_content: nodeContent,
                 feedback_content: feedbackContent

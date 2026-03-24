@@ -38,7 +38,7 @@ const DocumentManagement = () => {
   const fetchDocuments = async () => {
     setLoading(true);
     try {
-      const response = await axios.get('http://localhost:8000/api/documents/', getAuthHeader());
+      const response = await axios.get('/api/documents/', getAuthHeader());
       setData(response.data);
     } catch (error) {
       message.error("Lấy danh sách thất bại!");
@@ -48,7 +48,7 @@ const DocumentManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      const res = await axios.get('http://localhost:8000/api/accounts/users/', getAuthHeader());
+      const res = await axios.get('/api/accounts/users/', getAuthHeader());
       const ud = res.data.results || res.data;
       setUsers(Array.isArray(ud) ? ud : []);
     } catch (e) { }
@@ -64,7 +64,7 @@ const DocumentManagement = () => {
       formData.append('attached_file_path', values.attached_file.fileList[0].originFileObj);
     }
     try {
-      await axios.post('http://localhost:8000/api/documents/', formData, {
+      await axios.post('/api/documents/', formData, {
         headers: { ...getAuthHeader().headers, 'Content-Type': 'multipart/form-data' }
       });
       message.success("Tải lên và bóc tách dự thảo thành công!");
@@ -97,7 +97,7 @@ const DocumentManagement = () => {
   const handleUpdate = async (values) => {
     setUpdateLoading(true);
     try {
-      await axios.patch(`http://localhost:8000/api/documents/${editingDoc.id}/`, values, getAuthHeader());
+      await axios.patch(`/api/documents/${editingDoc.id}/`, values, getAuthHeader());
       message.success('Cập nhật thông tin dự thảo thành công!');
       setIsEditModalVisible(false);
       fetchDocuments();
@@ -109,7 +109,7 @@ const DocumentManagement = () => {
 
   const handleSetLead = async (values) => {
     try {
-      await axios.post(`http://localhost:8000/api/documents/${editingDoc.id}/set_lead/`, values, getAuthHeader());
+      await axios.post(`/api/documents/${editingDoc.id}/set_lead/`, values, getAuthHeader());
       message.success('Đã cập nhật Chủ trì (Lead) thành công!');
       setIsLeadModalVisible(false);
       fetchDocuments();
@@ -120,7 +120,7 @@ const DocumentManagement = () => {
 
   const handleDelete = async (id) => {
     try {
-      await axios.delete(`http://localhost:8000/api/documents/${id}/`, getAuthHeader());
+      await axios.delete(`/api/documents/${id}/`, getAuthHeader());
       message.success('Đã huỷ dự thảo!');
       fetchDocuments();
     } catch (error) {
@@ -133,7 +133,7 @@ const DocumentManagement = () => {
       // Sử dụng Native Browser Download để trình duyệt nhận diện file Word chuẩn mực
       // Tránh lỗi bảo mật MOTW của Windows khi tải qua JS Blob
       const token = localStorage.getItem('access_token');
-      const url = `http://localhost:8000/api/documents/${id}/export_report/?token=${token}`;
+      const url = `/api/documents/${id}/export_report/?token=${token}`;
       
       const link = document.createElement('a');
       link.href = url;

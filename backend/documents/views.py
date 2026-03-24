@@ -13,6 +13,7 @@ from datetime import datetime
 from django.http import FileResponse, HttpResponse
 from docxtpl import DocxTemplate
 import os
+from .utils.parser_engine import ParserEngine
 
 def clean_text(text):
     """Giữ lại các ký tự hợp lệ cho XML 1.0, loại bỏ ký tự điều khiển và escape các ký tự đặc biệt."""
@@ -72,51 +73,50 @@ class DocumentViewSet(viewsets.ModelViewSet):
                 document = serializer.save(uploaded_by=request.user)
                 file_obj = request.FILES.get('attached_file_path')
                 if file_obj:
-                    doc = docx.Document(file_obj)
-                    current_dieu = None
-                    current_khoan = None
+                    parser = ParserEngine(file_obj)
+                    structure = parser.parse()
+                    
+                    def save_nodes_recursive(node_list, parent=None):
+                        nonlocal index
+                        for node_data in node_list:
+                            children = node_data.pop('children', [])
+                            node = DocumentNode.objects.create(
+                                document=document,
+                                parent=parent,
+                                **node_data
+                            )
+                            if children:
+                                save_nodes_recursive(children, parent=node)
+
                     index = 0
-                    for para in doc.paragraphs:
-                        text = para.text.strip()
-                        if not text: continue
-                        dieu_match = re.match(r'^(Điều\s+\d+[\w\.]*)\.\s*(.*)', text, re.IGNORECASE)
-                        if dieu_match:
-                            current_dieu = DocumentNode.objects.create(
-                                document=document, node_type='Điều',
-                                node_label=dieu_match.group(1).strip(), content=dieu_match.group(2).strip(),
-                                order_index=index
-                            )
-                            current_khoan = None
-                            index += 1
-                            continue
-                        khoan_match = re.match(r'^(\d+)\.\s*(.*)', text)
-                        if khoan_match and current_dieu:
-                            current_khoan = DocumentNode.objects.create(
-                                document=document, parent=current_dieu, node_type='Khoản',
-                                node_label=f"Khoản {khoan_match.group(1)}", content=khoan_match.group(2).strip(),
-                                order_index=index
-                            )
-                            index += 1
-                            continue
-                        if current_khoan:
-                            current_khoan.content += f"\n{text}"
-                            current_khoan.save()
-                        elif current_dieu:
-                            current_dieu.content += f"\n{text}"
-                            current_dieu.save()
-                            
+                    save_nodes_recursive(structure)
+                    
                     # Tự động tạo node Vấn đề khác ở cuối cùng
                     DocumentNode.objects.create(
                         document=document,
                         node_type='Vấn đề khác',
                         node_label='Vấn đề khác',
                         content='',
-                        order_index=index
+                        order_index=9999
                     )                    
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    @action(detail=False, methods=['post'])
+    def parse_preview(self, request):
+        """Trả về cấu trúc cây thư mục của file docx mà không lưu database"""
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response({"error": "Vui lòng đính kèm file .docx"}, status=400)
+        
+        try:
+            parser = ParserEngine(file_obj)
+            structure = parser.parse()
+            return Response(structure)
+        except Exception as e:
+            return Response({"error": f"Lỗi parse: {str(e)}"}, status=400)
 
     @action(detail=True, methods=['get'], permission_classes=[])
     def nodes(self, request, pk=None):
@@ -127,7 +127,10 @@ class DocumentViewSet(viewsets.ModelViewSet):
         is_lead = (document.lead == user)
         
         if is_admin or is_lead:
-            all_nodes = DocumentNode.objects.filter(document=document).prefetch_related('assignments', 'assignments__user').order_by('order_index')
+            all_nodes = DocumentNode.objects.filter(document=document).annotate(
+                total_feedbacks=Count('feedbacks', distinct=True),
+                resolved_feedbacks=Count('feedbacks', filter=Q(feedbacks__explanations__isnull=False), distinct=True)
+            ).prefetch_related('assignments', 'assignments__user').order_by('order_index')
             for n in all_nodes:
                 n.is_editable = True
         else:
@@ -141,6 +144,9 @@ class DocumentViewSet(viewsets.ModelViewSet):
                 Q(id__in=assigned_node_ids) |
                 Q(children__id__in=assigned_node_ids) |
                 Q(children__children__id__in=assigned_node_ids)
+            ).annotate(
+                total_feedbacks=Count('feedbacks', distinct=True),
+                resolved_feedbacks=Count('feedbacks', filter=Q(feedbacks__explanations__isnull=False), distinct=True)
             ).prefetch_related('assignments', 'assignments__user').distinct().order_by('order_index')
             
             assigned_set = set(assigned_node_ids)
@@ -245,19 +251,189 @@ class DocumentViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=True, methods=['get'])
+    def export_report(self, request, pk=None):
+        from docxtpl import DocxTemplate
+        import os
+        from django.conf import settings
+        from django.http import HttpResponse
+        from datetime import date
+        from django.contrib.contenttypes.models import ContentType
+        from feedbacks.models import Feedback, Explanation
+        from .models import DocumentNode
+
+        doc_obj = self.get_object()
+        
+        # Prepare Data
+        feedback_ct = ContentType.objects.get_for_model(Feedback)
+        
+        data = {
+            "agency_name": getattr(doc_obj, 'drafting_agency', '') or "BỘ TƯ PHÁP",
+            "headquarters_location": getattr(doc_obj, 'agency_location', '') or "Hà Nội",
+            "document_title": doc_obj.project_name,
+            "export_date": date.today().strftime("%d/%m/%Y"),
+            "dieu_list": []
+        }
+        
+        dieu_nodes = DocumentNode.objects.filter(document=doc_obj, node_type="Điều").order_by('order_index')
+        for dieu in dieu_nodes:
+            dieu_dict = {
+                "node_label": dieu.node_label,
+                "content": dieu.content,
+                "feedbacks": [],
+                "khoan_list": []
+            }
+            
+            # Feedbacks on Điều
+            for fb in dieu.feedbacks.all():
+                exps = Explanation.objects.filter(content_type=feedback_ct, object_id=fb.id)
+                fb_dict = {
+                    "user_name": getattr(fb.user, 'username', '') if fb.user else (fb.contributing_agency or "Ẩn danh"),
+                    "content": fb.content,
+                    "explanations": [{"user_name": getattr(exp.user, 'username', ''), "content": exp.content} for exp in exps]
+                }
+                dieu_dict["feedbacks"].append(fb_dict)
+                
+            # Khoản
+            for khoan in dieu.children.filter(node_type="Khoản").order_by('order_index'):
+                khoan_dict = {
+                    "node_label": khoan.node_label,
+                    "content": khoan.content,
+                    "feedbacks": [],
+                    "diem_list": []
+                }
+                
+                for fb in khoan.feedbacks.all():
+                    exps = Explanation.objects.filter(content_type=feedback_ct, object_id=fb.id)
+                    fb_dict = {
+                        "user_name": getattr(fb.user, 'username', '') if fb.user else (fb.contributing_agency or "Ẩn danh"),
+                        "content": fb.content,
+                        "explanations": [{"user_name": getattr(exp.user, 'username', ''), "content": exp.content} for exp in exps]
+                    }
+                    khoan_dict["feedbacks"].append(fb_dict)
+                    
+                # Điểm
+                for diem in khoan.children.filter(node_type="Điểm").order_by('order_index'):
+                    diem_dict = {
+                        "node_label": diem.node_label,
+                        "content": diem.content,
+                        "feedbacks": []
+                    }
+                    for fb in diem.feedbacks.all():
+                        exps = Explanation.objects.filter(content_type=feedback_ct, object_id=fb.id)
+                        fb_dict = {
+                            "user_name": getattr(fb.user, 'username', '') if fb.user else (fb.contributing_agency or "Ẩn danh"),
+                            "content": fb.content,
+                            "explanations": [{"user_name": getattr(exp.user, 'username', ''), "content": exp.content} for exp in exps]
+                        }
+                        diem_dict["feedbacks"].append(fb_dict)
+                        
+                    khoan_dict["diem_list"].append(diem_dict)
+                    
+                dieu_dict["khoan_list"].append(khoan_dict)
+                
+            data["dieu_list"].append(dieu_dict)
+            
+        template_path = os.path.join(settings.BASE_DIR, '..', 'template_bao_cao_chuan_v2.docx')
+        if not os.path.exists(template_path):
+            return Response({"error": "Template không tồn tại"}, status=404)
+            
+        tpl = DocxTemplate(template_path)
+        tpl.render(data)
+        
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        response['Content-Disposition'] = f'attachment; filename="bao_cao_{doc_obj.id}.docx"'
+        tpl.save(response)
+        
+        return response
+
+    @action(detail=False, methods=['get'])
+    def dashboard_stats(self, request):
+        """API cung cấp dữ liệu cho trang Tổng quan (Dashboard)"""
+        from feedbacks.models import Feedback
+        from django.db.models.functions import TruncDate
+        from datetime import timedelta
+        from django.utils import timezone
+
+        # KPI Cards
+        total_docs = Document.objects.count()
+        total_feedbacks = Feedback.objects.count()
+        resolved_feedbacks = Feedback.objects.filter(explanations__isnull=False).distinct().count()
+        
+        # Lấy count danh sách agencies distinct không bị none/rỗng
+        agencies_qs = Feedback.objects.exclude(contributing_agency__isnull=True).exclude(contributing_agency='').values('contributing_agency').distinct()
+        agencies_count = agencies_qs.count()
+        
+        # Top Documents (Dự thảo nóng nhất - Top 5)
+        top_docs_qs = Document.objects.annotate(
+            feedback_count=Count('feedbacks', distinct=True)
+        ).order_by('-feedback_count', '-id')[:5]
+        
+        top_docs = [{"name": d.project_name, "feedbacks": d.feedback_count} for d in top_docs_qs]
+        
+        # Trend Data (Góp ý theo ngày - 7 ngày gần nhất)
+        today = timezone.now()
+        seven_days_ago = (today - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        trend_qs = Feedback.objects.filter(created_at__gte=seven_days_ago).annotate(
+            date=TruncDate('created_at')
+        ).values('date').annotate(count=Count('id', distinct=True)).order_by('date')
+        
+        trend_dict = {item['date'].strftime('%d/%m'): item['count'] for item in trend_qs if item['date']}
+        
+        trend_data = []
+        for i in range(6, -1, -1):
+            day_str = (today - timedelta(days=i)).strftime('%d/%m')
+            trend_data.append({
+                "date": day_str,
+                "count": trend_dict.get(day_str, 0)
+            })
+        
+        # Recent Activity (5 hoạt động mới nhất)
+        recent_feedbacks = Feedback.objects.select_related('user', 'document').order_by('-created_at')[:5]
+        recent_activity = []
+        for fb in recent_feedbacks:
+            recent_activity.append({
+                "id": f"fb-{fb.id}",
+                "type": "feedback",
+                "user": fb.user.username if fb.user else "Hệ thống",
+                "document": fb.document.project_name,
+                "time": fb.created_at,
+                "content": "đã gửi góp ý mới"
+            })
+            
+        return Response({
+            "cards": {
+                "totalDocs": total_docs,
+                "totalFeedbacks": total_feedbacks,
+                "resolvedFeedbacks": resolved_feedbacks,
+                "agenciesCount": agencies_count
+            },
+            "topDocs": top_docs,
+            "trendData": trend_data,
+            "recentActivity": recent_activity
+        })
+
+    @action(detail=True, methods=['get'])
     def feedback_nodes(self, request, pk=None):
-        """Lấy cây thư mục chỉ chứa các node có góp ý"""
+        """Lấy cây thư mục chỉ chứa các node có góp ý, hỗ trợ lọc theo cơ quan"""
         document = self.get_object()
+        agency = request.query_params.get('agency')
         
         # Tìm tất cả các node có góp ý hoặc có con/cháu có góp ý
-        # Lấy nhãn số lượng: (đã giải trình / tổng số góp ý)
+        # Lọc nhãn số lượng theo cơ quan nếu có
+        query_all_fb = Q(feedbacks__isnull=False)
+        query_exp_fb = Q(feedbacks__explanations__isnull=False)
+        
+        if agency:
+            query_all_fb &= Q(feedbacks__contributing_agency__icontains=agency)
+            query_exp_fb &= Q(feedbacks__contributing_agency__icontains=agency)
+
         nodes = DocumentNode.objects.filter(document=document).annotate(
-            total_fb=Count('feedbacks', distinct=True),
-            explained_fb=Count('feedbacks', filter=Q(feedbacks__explanations__isnull=False), distinct=True)
+            total_fb=Count('feedbacks', filter=query_all_fb, distinct=True),
+            explained_fb=Count('feedbacks', filter=query_exp_fb, distinct=True)
         ).order_by('order_index')
         
-        # Lọc ra các node có góp ý TRỰC TIẾP hoặc có con có góp ý
-        # Để đơn giản, ta lấy tất cả và build tree in-memory, sau đó prune (cắt tỉa) các cành không có góp ý
+        # Build tree in-memory
         node_dict = {n.id: n for n in nodes}
         for n in nodes:
             n.prefetched_children = []
@@ -271,6 +447,8 @@ class DocumentViewSet(viewsets.ModelViewSet):
             else:
                 root_nodes.append(n)
         
+        filter_type = request.query_params.get('filter_type', 'has_feedback')
+
         # Hàm đệ quy để tính tổng số lượng góp ý từ dưới lên
         def aggregate_counts_recursive(node):
             total = node.total_fb
@@ -278,22 +456,35 @@ class DocumentViewSet(viewsets.ModelViewSet):
             
             valid_children = []
             for child in node.prefetched_children:
-                child_total, child_resolved, has_fb = aggregate_counts_recursive(child)
-                if has_fb:
-                    total += child_total
-                    resolved += child_resolved
+                child_total, child_resolved, should_keep = aggregate_counts_recursive(child)
+                
+                # Luôn cộng dồn số lượng để hiển thị đúng tổng số, bất kể filter
+                total += child_total
+                resolved += child_resolved
+                
+                if should_keep:
                     valid_children.append(child)
             
             node.total_feedbacks = total
             node.resolved_feedbacks = resolved
             node.prefetched_children = valid_children
-            node.has_fb_in_branch = (total > 0)
-            return total, resolved, node.has_fb_in_branch
+            
+            # Quyết định xem branch này có được giữ lại không dựa trên filter_type
+            if filter_type == 'all':
+                keep_node = True
+            elif filter_type == 'resolved':
+                keep_node = (resolved > 0)
+            elif filter_type == 'unresolved':
+                keep_node = ((total - resolved) > 0)
+            else: # has_feedback (default)
+                keep_node = (total > 0)
+                
+            return total, resolved, keep_node
 
         pruned_roots = []
         for r in root_nodes:
-            _, _, has_fb = aggregate_counts_recursive(r)
-            if has_fb:
+            _, _, should_keep = aggregate_counts_recursive(r)
+            if should_keep:
                 pruned_roots.append(r)
         
         serializer = DocumentNodeSerializer(pruned_roots, many=True)
@@ -505,9 +696,10 @@ class DocumentViewSet(viewsets.ModelViewSet):
                     return ", ".join(path)
 
             last_printed_path = None
+            last_printed_node_id = None
 
             def add_node_rows(node):
-                nonlocal last_printed_path
+                nonlocal last_printed_path, last_printed_node_id
                 """Thêm rows cho một node và các feedbacks của nó vào main_table."""
                 fbs = Feedback.objects.filter(node=node).prefetch_related('explanations')
                 
@@ -519,10 +711,11 @@ class DocumentViewSet(viewsets.ModelViewSet):
                 
                 for fb in fbs:
                     row = main_table.add_row()
-                    # Cột 0: Điều/Khoản (chỉ hiện khi chuyển sang nhóm mới)
-                    if path_text != last_printed_path:
+                    # Cột 0: Điều/Khoản (chỉ hiện khi chuyển sang nhóm mới hoặc node mới)
+                    if path_text != last_printed_path or node.id != last_printed_node_id:
                         set_cell_text(row.cells[0], path_text, size=11)
                         last_printed_path = path_text
+                        last_printed_node_id = node.id
                     else:
                         row.cells[0].text = ""
 

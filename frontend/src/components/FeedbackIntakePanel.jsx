@@ -27,7 +27,7 @@ const FeedbackIntakePanel = ({ documentId, selectedNode, isGeneralFeedback }) =>
               content: values.content,
               contributing_agency: values.contributing_agency[0] || 'Cá nhân/Đơn vị ẩn'
           };
-          await axios.post('http://localhost:8000/api/feedbacks/', payload, getAuthHeader());
+          await axios.post('/api/feedbacks/', payload, getAuthHeader());
           message.success('Đã nạp góp ý thành công!');
           form.resetFields();
       } catch (err) {

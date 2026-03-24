@@ -23,7 +23,7 @@ const NodeAssignmentPanel = ({ documentId }) => {
 
     const fetchUsers = async () => {
         try {
-            const res = await axios.get('http://localhost:8000/api/accounts/users/', getAuthHeader());
+            const res = await axios.get('/api/accounts/users/', getAuthHeader());
             setUsers(res.data);
         } catch (e) {
             console.error(e);
@@ -33,7 +33,7 @@ const NodeAssignmentPanel = ({ documentId }) => {
     const fetchNodes = async () => {
         setLoading(true);
         try {
-            const res = await axios.get(`http://localhost:8000/api/documents/${documentId}/nodes/`, getAuthHeader());
+            const res = await axios.get(`/api/documents/${documentId}/nodes/`, getAuthHeader());
             setTreeData(res.data);
             
             // Lấy ID phân công ban đầu
@@ -67,7 +67,7 @@ const NodeAssignmentPanel = ({ documentId }) => {
                 user_ids: assignmentsMap[nodeId]
             }));
             
-            await axios.post(`http://localhost:8000/api/documents/${documentId}/assign_nodes/`, {
+            await axios.post(`/api/documents/${documentId}/assign_nodes/`, {
                 assignments: assignmentsArray
             }, getAuthHeader());
             message.success('Cập nhật phân công thành công!');

@@ -24,9 +24,11 @@ class Document(models.Model):
 
 class DocumentNode(models.Model):
     NODE_TYPE_CHOICES = (
+        ('Chương', 'Chương'),
         ('Điều', 'Điều'),
         ('Khoản', 'Khoản'),
         ('Điểm', 'Điểm'),
+        ('Phụ lục', 'Phụ lục'),
         ('Vấn đề khác', 'Vấn đề khác'),
     )
     document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='nodes')

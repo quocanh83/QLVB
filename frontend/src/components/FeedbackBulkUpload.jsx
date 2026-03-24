@@ -68,7 +68,7 @@ const FeedbackBulkUpload = ({ documentId }) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('access_token');
-            const res = await axios.post('http://localhost:8000/api/feedbacks/parse_file/', formData, {
+            const res = await axios.post('/api/feedbacks/parse_file/', formData, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setData(res.data.feedbacks);
@@ -86,7 +86,7 @@ const FeedbackBulkUpload = ({ documentId }) => {
         setSubmitting(true);
         try {
             const token = localStorage.getItem('access_token');
-            await axios.post('http://localhost:8000/api/feedbacks/bulk_create/', {
+            await axios.post('/api/feedbacks/bulk_create/', {
                 document_id: documentId,
                 feedbacks: data,
                 metadata: metadata

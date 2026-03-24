@@ -12,22 +12,22 @@ import { getAuthHeader } from '../utils/authHelpers';
 const { TextArea } = Input;
 const { Text } = Typography;
 
-const ExplanationTable = ({ documentId, nodeId }) => {
+const ExplanationTable = ({ documentId, nodeId, filterType }) => {
     const [feedbacks, setFeedbacks] = useState([]);
     const [loading, setLoading] = useState(false);
     const [savingRow, setSavingRow] = useState(null);
     const [aiLoading, setAiLoading] = useState(null);
 
     useEffect(() => {
-        if (nodeId) {
+        if (nodeId && filterType) {
             fetchFeedbacks();
         }
-    }, [nodeId]);
+    }, [nodeId, filterType]);
 
     const fetchFeedbacks = async () => {
         setLoading(true);
         try {
-            const res = await axios.get(`http://localhost:8000/api/feedbacks/by_node/?node_id=${nodeId}`, getAuthHeader());
+            const res = await axios.get(`/api/feedbacks/by_node/?node_id=${nodeId}&filter_type=${filterType}`, getAuthHeader());
             setFeedbacks(res.data);
         } catch (e) {
             message.error("Lỗi khi tải danh sách góp ý.");
@@ -42,7 +42,7 @@ const ExplanationTable = ({ documentId, nodeId }) => {
     const handleAiSuggest = async (record) => {
         setAiLoading(record.id);
         try {
-            const res = await axios.post('http://localhost:8000/api/feedbacks/ai_suggest/', {
+            const res = await axios.post('/api/feedbacks/ai_suggest/', {
                 document_id: documentId,
                 node_content: record.node_content,
                 feedback_content: record.content
@@ -59,7 +59,7 @@ const ExplanationTable = ({ documentId, nodeId }) => {
     const handleSaveRow = async (record) => {
         setSavingRow(record.id);
         try {
-            await axios.post('http://localhost:8000/api/feedbacks/save_explanation/', {
+            await axios.post('/api/feedbacks/save_explanation/', {
                 document_id: documentId,
                 target_type: 'Feedback',
                 object_id: record.id,
@@ -77,7 +77,7 @@ const ExplanationTable = ({ documentId, nodeId }) => {
         try {
             // Bulk save logic (looping for now as backend doesn't have bulk_save_explanation yet)
             const promises = feedbacks.map(f => 
-                axios.post('http://localhost:8000/api/feedbacks/save_explanation/', {
+                axios.post('/api/feedbacks/save_explanation/', {
                     document_id: documentId,
                     target_type: 'Feedback',
                     object_id: f.id,
@@ -119,13 +119,10 @@ const ExplanationTable = ({ documentId, nodeId }) => {
             dataIndex: 'content',
             key: 'content',
             width: 400,
-            ellipsis: true,
             render: (text) => (
-                <Tooltip title={text}>
-                    <div style={{ maxHeight: '100px', overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
-                        {text}
-                    </div>
-                </Tooltip>
+                <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                    {text}
+                </div>
             )
         },
         {
@@ -135,7 +132,7 @@ const ExplanationTable = ({ documentId, nodeId }) => {
             render: (_, record) => (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <TextArea 
-                        rows={3} 
+                        autoSize={{ minRows: 3 }}
                         value={record.explanation} 
                         onChange={(e) => handleUpdateContent(record.id, e.target.value)}
                         placeholder="Nhập nội dung tiếp thu, giải trình..."

@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import { logout, checkUserHasRole, isAdminFromToken } from '../utils/authHelpers';
 import { useAppTheme } from '../context/ThemeContext';
+import NotificationBell from '../components/NotificationBell';
 
 const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
@@ -36,6 +37,7 @@ const MainLayout = () => {
         else if (key === 'explanation') navigate('/draft-explanation');
         else if (key === 'drafts') navigate('/');
         else if (key === 'intake') navigate('/feedback-intake');
+        else if (key === 'reports') navigate('/reports');
         else message.info('Tính năng đang được thiết kế, vui lòng quay lại sau!');
     };
 
@@ -65,8 +67,7 @@ const MainLayout = () => {
             type: 'group',
             children: [
                 { key: 'documents', icon: <FileTextOutlined />, label: 'Danh sách Dự thảo' },
-                { key: 'stats', icon: <BarChartOutlined />, label: 'Thống kê Chủ thể' },
-                { key: 'reports', icon: <PrinterOutlined />, label: 'Xuất báo cáo T.Hợp' },
+                { key: 'reports', icon: <BarChartOutlined />, label: 'Báo cáo' },
             ]
         }
     ];
@@ -89,6 +90,7 @@ const MainLayout = () => {
     if (location.pathname.includes('/settings')) selectedKey = 'settings';
     if (location.pathname.includes('/feedback-intake')) selectedKey = 'intake';
     if (location.pathname.includes('/draft-explanation')) selectedKey = 'explanation';
+    if (location.pathname.includes('/reports')) selectedKey = 'reports';
     if (location.pathname === '/' || location.search.includes('docId')) selectedKey = 'drafts';
 
     return (
@@ -141,9 +143,7 @@ const MainLayout = () => {
                             onClick={toggleTheme}
                             style={{ fontSize: '18px' }}
                         />
-                        <Badge count={3} size="small">
-                            <BellOutlined style={{ fontSize: 20, cursor: 'pointer', color: isDarkMode ? '#fff' : 'var(--text-secondary)' }} />
-                        </Badge>
+                        <NotificationBell isDarkMode={isDarkMode} />
                         <Dropdown menu={userMenu} placement="bottomRight">
                             <Space style={{ cursor: 'pointer' }}>
                                 <Avatar style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.2)' : 'var(--primary-color)' }} icon={<UserOutlined />} />

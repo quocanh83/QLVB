@@ -26,8 +26,8 @@ const UserManagement = () => {
     setLoading(true);
     try {
       const [usersRes, rolesRes] = await Promise.all([
-        axios.get('http://localhost:8000/api/accounts/users/', getAuthHeader()),
-        axios.get('http://localhost:8000/api/accounts/roles/', getAuthHeader())
+        axios.get('/api/accounts/users/', getAuthHeader()),
+        axios.get('/api/accounts/roles/', getAuthHeader())
       ]);
       const usersData = usersRes.data.results || usersRes.data;
       const rolesData = rolesRes.data.results || rolesRes.data;
@@ -44,10 +44,10 @@ const UserManagement = () => {
        if (editingUser) {
            const payload = { ...values };
            if (!payload.password) delete payload.password; // Ko update password nếu để trống
-           await axios.patch(`http://localhost:8000/api/accounts/users/${editingUser.id}/`, payload, getAuthHeader());
+           await axios.patch(`/api/accounts/users/${editingUser.id}/`, payload, getAuthHeader());
            message.success('Cập nhật thông tin cán bộ thành công!');
        } else {
-           await axios.post('http://localhost:8000/api/accounts/users/', values, getAuthHeader());
+           await axios.post('/api/accounts/users/', values, getAuthHeader());
            message.success('Đã cấp tài khoản cán bộ mới!');
        }
        setIsModalVisible(false);
@@ -61,7 +61,7 @@ const UserManagement = () => {
 
   const handleDeleteUser = async (id) => {
       try {
-          await axios.delete(`http://localhost:8000/api/accounts/users/${id}/`, getAuthHeader());
+          await axios.delete(`/api/accounts/users/${id}/`, getAuthHeader());
           message.success('Đã thu hồi tài khoản hệ thống!');
           fetchData();
       } catch (e) {

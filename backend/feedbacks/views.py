@@ -1,7 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from .models import Feedback, Explanation
+from .models import Feedback, Explanation, ActionLog
 from documents.models import DocumentNode
 from django.contrib.contenttypes.models import ContentType
 from .serializers import FeedbackSerializer
@@ -9,6 +9,9 @@ import docx
 import re
 import os
 from openai import OpenAI
+from django.http import FileResponse
+from .utils.mau10_generator import generate_mau_10
+from documents.models import Document
 
 class FeedbackViewSet(viewsets.ModelViewSet):
     queryset = Feedback.objects.all()
@@ -122,6 +125,7 @@ class FeedbackViewSet(viewsets.ModelViewSet):
         
         file_obj = request.FILES.get('file')
         agency_default = request.data.get('contributing_agency', '')
+        agency_id = request.data.get('agency_id')
         
         if not file_obj:
             return Response({"error": "No file uploaded"}, status=400)
@@ -218,6 +222,7 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                         "node_label": current_node_label,
                         "node_id": current_node_obj.id if current_node_obj else None,
                         "contributing_agency": agency_default,
+                        "agency_id": agency_id,
                         "content": current_content.strip()
                     })
                 
@@ -240,6 +245,7 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                 "node_label": current_node_label,
                 "node_id": current_node_obj.id if current_node_obj else None,
                 "contributing_agency": agency_default,
+                "agency_id": agency_id,
                 "content": current_content.strip()
             })
             
@@ -295,11 +301,13 @@ class FeedbackViewSet(viewsets.ModelViewSet):
             target_node = node or fallback_node
             
             if target_node:
+                agency_id = item.get('agency_id')
                 Feedback.objects.create(
                     document_id=document_id,
                     node=target_node,
                     user=request.user,
                     contributing_agency=item.get('contributing_agency', ''),
+                    agency_id=agency_id,
                     content=item.get('content', '')
                 )
                 created_count += 1
@@ -373,12 +381,62 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             object_id=object_id,
             defaults={'content': content, 'user': request.user}
         )
+        
+        # Log action and update feedback status if target is Feedback
+        if target_type == 'Feedback':
+            fb = Feedback.objects.get(id=object_id)
+            if fb.status == 'pending':
+                fb.status = 'reviewed'
+                fb.save()
+            ActionLog.objects.create(
+                user=request.user,
+                feedback=fb,
+                action="Lưu giải trình",
+                details=f"Nội dung: {content[:100]}..."
+            )
+            
         return Response({"message": "Đã lưu giải trình"})
+
+    @action(detail=True, methods=['post'])
+    def submit_for_review(self, request, pk=None):
+        fb = self.get_object()
+        if not self._check_permission(request, fb.document_id, 'Chuyên viên Giải trình'):
+            return Response({"error": "No permission"}, status=403)
+        
+        fb.status = 'reviewed'
+        fb.save()
+        ActionLog.objects.create(
+            user=request.user,
+            feedback=fb,
+            action="Gửi duyệt",
+            details="Chuyên viên đã gửi duyệt nội dung giải trình."
+        )
+        return Response({"message": "Đã gửi duyệt thành công"})
+
+    @action(detail=True, methods=['post'])
+    def approve_feedback(self, request, pk=None):
+        fb = self.get_object()
+        # Admin or Lead only
+        user = request.user
+        is_lead = fb.document.lead == user or user.is_staff or user.is_superuser
+        if not is_lead:
+            return Response({"error": "Chỉ Lãnh đạo/Admin mới có quyền phê duyệt."}, status=403)
+        
+        fb.status = 'approved'
+        fb.save()
+        ActionLog.objects.create(
+            user=request.user,
+            feedback=fb,
+            action="Phê duyệt",
+            details="Lãnh đạo đã phê duyệt nội dung giải trình."
+        )
+        return Response({"message": "Đã phê duyệt thành công"})
 
     @action(detail=False, methods=['get'])
     def by_node(self, request):
         """Lấy danh sách góp ý phẳng cho một node (và các con của nó)"""
         node_id = request.query_params.get('node_id')
+        filter_type = request.query_params.get('filter_type', 'has_feedback')
         if not node_id: return Response([])
         
         from documents.models import DocumentNode
@@ -394,7 +452,10 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             
             target_ids = get_all_descendant_ids(root_node)
             
-            feedbacks = Feedback.objects.filter(node_id__in=target_ids).select_related('node').prefetch_related('explanations')
+            feedbacks = Feedback.objects.filter(node_id__in=target_ids)\
+                .select_related('node', 'agency')\
+                .prefetch_related('explanations', 'logs', 'logs__user')\
+                .order_by('created_at')
             
             results = []
             for fb in feedbacks:
@@ -407,15 +468,121 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                 
                 explanation_obj = fb.explanations.first() # Lấy giải trình đầu tiên
                 
+                if filter_type == 'resolved' and not explanation_obj:
+                    continue
+                if filter_type == 'unresolved' and explanation_obj:
+                    continue
+                
                 results.append({
                     "id": fb.id,
                     "node_id": fb.node_id,
                     "node_path": ", ".join(path),
                     "node_content": fb.node.content,
-                    "contributing_agency": fb.contributing_agency or "Ẩn danh",
+                    "contributing_agency": fb.contributing_agency or (fb.agency.name if fb.agency else "Ẩn danh"),
+                    "agency_category": fb.agency.category if fb.agency else "other",
                     "content": fb.content,
-                    "explanation": explanation_obj.content if explanation_obj else ""
+                    "explanation": explanation_obj.content if explanation_obj else "",
+                    "status": fb.status, # Use real status from model
+                    "created_at": fb.created_at.strftime("%d/%m/%Y %H:%M"),
+                    "logs": [
+                        {
+                            "username": log.user.username,
+                            "action": log.action,
+                            "time": log.created_at.strftime("%H:%M %d/%m/%Y"),
+                            "details": log.details
+                        } for log in fb.logs.all()
+                    ]
                 })
             return Response(results)
         except DocumentNode.DoesNotExist:
             return Response({"error": "Node not found"}, status=404)
+
+    @action(detail=False, methods=['get'])
+    def subject_stats(self, request):
+        """API thống kê số lượng góp ý theo chủ thể (cơ quan) và phân loại"""
+        from django.db.models import Count, Q
+        
+        doc_id = request.query_params.get('document_id')
+        queryset = Feedback.objects.all()
+        if doc_id:
+            queryset = queryset.filter(document_id=doc_id)
+            
+        # Group by agency (using agency__name and agency__category if linked, else contributing_agency)
+        stats_qs = queryset.filter(
+            Q(agency__isnull=False) | Q(contributing_agency__isnull=False)
+        ).values('agency__name', 'agency__category', 'contributing_agency').annotate(
+            total_feedbacks=Count('id', distinct=True),
+            resolved_count=Count('explanations', distinct=True)
+        ).order_by('-total_feedbacks')
+        
+        agency_results = []
+        category_counts = {}
+        
+        for item in stats_qs:
+            agency_name = item['agency__name'] or item['contributing_agency']
+            category = item['agency__category'] or 'other'
+            if not agency_name: continue
+            
+            # Aggregate by category
+            if category not in category_counts:
+                category_counts[category] = 0
+            category_counts[category] += item['total_feedbacks']
+            
+            agency_results.append({
+                "agency": agency_name,
+                "category": category,
+                "total": item['total_feedbacks'],
+                "resolved": item['resolved_count'],
+                "resolve_rate": round(item['resolved_count'] / item['total_feedbacks'] * 100, 1) if item['total_feedbacks'] > 0 else 0
+            })
+            
+        return Response({
+            "agency_stats": agency_results,
+            "category_stats": category_counts
+        })
+
+    @action(detail=False, methods=['get'])
+    def uncontributed(self, request):
+        """Trả về danh sách các cơ quan CHƯA có góp ý cho dự thảo cụ thể"""
+        doc_id = request.query_params.get('document_id')
+        if not doc_id:
+            return Response({"error": "Vui lòng cung cấp document_id"}, status=400)
+            
+        from core.models import Agency
+        # Lấy ID của các Agency đã góp ý cho dự thảo này
+        contributed_agency_ids = Feedback.objects.filter(
+            document_id=doc_id, agency__isnull=False
+        ).values_list('agency_id', flat=True).distinct()
+        
+        # Các Agency còn lại là chưa góp ý
+        uncontributed = Agency.objects.exclude(id__in=contributed_agency_ids).values('id', 'name', 'category')
+        
+        return Response(list(uncontributed))
+
+    @action(detail=False, methods=['get'])
+    def export_mau_10(self, request):
+        doc_id = request.query_params.get('document_id')
+        if not doc_id:
+            return Response({"error": "Vui lòng cung cấp document_id"}, status=400)
+            
+        try:
+            document = Document.objects.get(id=doc_id)
+            feedbacks = Feedback.objects.filter(document_id=doc_id).select_related('node').prefetch_related('explanations')
+            
+            if not feedbacks.exists():
+                return Response({"error": "Không có ý kiến góp ý nào để xuất báo cáo."}, status=404)
+                
+            file_stream = generate_mau_10(document, feedbacks)
+            
+            response = FileResponse(
+                file_stream, 
+                content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            )
+            filename = f"Bao_cao_Mau_10_{doc_id}.docx"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+            
+        except Document.DoesNotExist:
+            return Response({"error": "Văn bản không tồn tại"}, status=404)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)

@@ -12,3 +12,53 @@ class SystemSetting(models.Model):
     class Meta:
         verbose_name = "Cài đặt hệ thống"
         verbose_name_plural = "Cài đặt hệ thống"
+
+from accounts.models import User
+
+class Notification(models.Model):
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    link = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Notification for {self.recipient.username}: {self.message[:20]}"
+
+    class Meta:
+        ordering = ['-created_at']
+
+import uuid
+
+class APIKey(models.Model):
+    name = models.CharField(max_length=255, verbose_name="Tên ứng dụng / Đối tác")
+    key = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = "API Key"
+        verbose_name_plural = "API Keys"
+
+class Agency(models.Model):
+    CATEGORY_CHOICES = [
+        ('ministry', 'Bộ, cơ quan ngang Bộ'),
+        ('local', 'Địa phương (UBND tỉnh/thành phố)'),
+        ('organization', 'Sở, Ban, Ngành, Tổ chức, Đoàn thể'),
+        ('citizen', 'Công dân, Doanh nghiệp'),
+        ('other', 'Khác'),
+    ]
+    name = models.CharField(max_length=255, unique=True, verbose_name="Tên cơ quan/tổ chức")
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='other', verbose_name="Phân loại hệ thống")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        ordering = ['category', 'name']
+        verbose_name = "Cơ quan/Chủ thể"
+        verbose_name_plural = "Cơ quan/Chủ thể"
