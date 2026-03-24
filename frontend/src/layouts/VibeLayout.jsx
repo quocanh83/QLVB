@@ -14,14 +14,18 @@ import {
   LogOut,
   UploadCloud,
   PieChart,
-  ClipboardList
+  ClipboardList,
+  Moon,
+  Sun
 } from 'lucide-react';
 import { logout } from '../utils/authHelpers';
 import NotificationBell from '../components/NotificationBell';
+import { useAppTheme } from '../context/ThemeContext';
 
 const VibeLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
+  const { isDarkMode, toggleTheme } = useAppTheme();
 
   const navigation = [
     { name: 'Tổng quan', href: '/', icon: LayoutDashboard },
@@ -74,6 +78,13 @@ const VibeLayout = () => {
               <p className="text-sm font-semibold">Cán bộ QLVB</p>
               <p className="text-xs text-slate-500">Administrator</p>
             </div>
+            <button 
+              onClick={toggleTheme}
+              className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 hover:bg-indigo-100 hover:text-indigo-600 cursor-pointer transition-colors"
+              title={isDarkMode ? "Chuyển sang Giao diện Sáng" : "Chuyển sang Giao diện Tối"}
+            >
+              {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
             <button 
               onClick={logout}
               className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 hover:bg-red-100 hover:text-red-600 cursor-pointer transition-colors"

@@ -20,9 +20,151 @@
   
   /* Vibrant Accents */
   --header-bg: var(--ant-color-bg-container);
-  --sider-bg: #00323d; /* Giữ nguyên Dark Teal để rực rỡ */
+  --sider-bg: #00323d;
   --primary-gradient: linear-gradient(135deg, var(--ant-color-primary) 0%, var(--ant-color-success) 100%);
   --text-heading: var(--ant-color-primary);
   
   --shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* ===== DARK MODE OVERRIDES FOR TAILWIND-BASED UI ===== */
+
+/* Layout & Background */
+[data-theme='dark'] .min-h-screen.bg-slate-50 {
+  background-color: #0f172a !important;
+  color: #e2e8f0 !important;
+}
+
+/* Top Navigation Bar */
+[data-theme='dark'] header.bg-white {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+/* Sidebar */
+[data-theme='dark'] aside.bg-slate-900 {
+  background-color: #0c1222 !important;
+}
+
+/* Main Content Area */
+[data-theme='dark'] main.bg-slate-50 {
+  background-color: #0f172a !important;
+}
+
+/* Cards & Panels */
+[data-theme='dark'] .bg-white {
+  background-color: #1e293b !important;
+  color: #e2e8f0 !important;
+}
+
+[data-theme='dark'] .bg-slate-50 {
+  background-color: #0f172a !important;
+}
+
+[data-theme='dark'] .bg-slate-100 {
+  background-color: #1e293b !important;
+}
+
+/* Text Colors */
+[data-theme='dark'] .text-slate-900,
+[data-theme='dark'] .text-slate-800,
+[data-theme='dark'] .text-slate-700 {
+  color: #e2e8f0 !important;
+}
+
+[data-theme='dark'] .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+
+[data-theme='dark'] .text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+[data-theme='dark'] .text-slate-400 {
+  color: #64748b !important;
+}
+
+/* Borders */
+[data-theme='dark'] .border-slate-200,
+[data-theme='dark'] .border-slate-100 {
+  border-color: #334155 !important;
+}
+
+[data-theme='dark'] .border-slate-800 {
+  border-color: #1e293b !important;
+}
+
+/* Inputs & Selects */
+[data-theme='dark'] input,
+[data-theme='dark'] select,
+[data-theme='dark'] textarea {
+  background-color: #0f172a !important;
+  color: #e2e8f0 !important;
+  border-color: #334155 !important;
+}
+
+[data-theme='dark'] input::placeholder {
+  color: #64748b !important;
+}
+
+/* Tables */
+[data-theme='dark'] table {
+  color: #e2e8f0 !important;
+}
+
+[data-theme='dark'] thead tr {
+  background-color: #1e293b !important;
+}
+
+[data-theme='dark'] tbody tr:hover {
+  background-color: #1e293b !important;
+}
+
+[data-theme='dark'] .divide-slate-50 > * + *,
+[data-theme='dark'] .divide-slate-100 > * + * {
+  border-color: #334155 !important;
+}
+
+/* Buttons - keep blue buttons as-is, override slate ones */
+[data-theme='dark'] .bg-slate-200 {
+  background-color: #334155 !important;
+}
+
+[data-theme='dark'] .hover\:bg-slate-50\/50:hover {
+  background-color: rgba(30, 41, 59, 0.5) !important;
+}
+
+/* Modals */
+[data-theme='dark'] .bg-slate-900\/60 {
+  background-color: rgba(0, 0, 0, 0.75) !important;
+}
+
+/* Scrollbar styling */
+[data-theme='dark'] ::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Shadow overrides */
+[data-theme='dark'] .shadow-sm,
+[data-theme='dark'] .shadow-lg,
+[data-theme='dark'] .shadow-xl,
+[data-theme='dark'] .shadow-2xl {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Recharts override for dark background */
+[data-theme='dark'] .recharts-cartesian-grid line {
+  stroke: #334155 !important;
+}
+
+[data-theme='dark'] .recharts-text {
+  fill: #94a3b8 !important;
 }
