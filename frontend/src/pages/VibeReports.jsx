@@ -464,14 +464,14 @@ const VibeReports = () => {
                     </div>
                 </div>
 
-                <div className="overflow-hidden border border-slate-100 rounded-[2.5rem] bg-indigo-50/10">
+                <div className="overflow-hidden border border-slate-100 rounded-[2.5rem]">
                     <div className="overflow-x-auto"><table className="w-full text-left">
                         <thead><tr className="bg-slate-100/50 text-[10px] font-black text-slate-400 uppercase tracking-widest"><th className="px-6 py-5 text-center">TT</th><th className="px-6 py-5">Điều/Khoản</th><th className="px-6 py-5">Cơ quan</th><th className="px-6 py-5">Nội dung</th><th className="px-6 py-5">Giải trình</th></tr></thead>
                         <tbody className="divide-y divide-slate-100 text-sm">
                             {isCustomLoading ? <tr><td colSpan="5" className="py-20 text-center"><Loader2 className="animate-spin inline text-blue-500" /></td></tr> : 
                              (customStatsData?.length || 0) === 0 ? <tr><td colSpan="5" className="py-20 text-center text-slate-400 font-bold uppercase text-xs">Không có dữ liệu</td></tr> : 
                              customStatsData?.map((r, i) => (
-                                <tr key={i} className="hover:bg-indigo-50/40 border-b border-slate-100 transition-colors"><td className="px-6 py-4 font-black text-slate-300 text-center">{r?.stt}</td><td className="px-6 py-4 font-bold text-slate-800">{r?.dieu_khoan}</td><td className="px-6 py-4"><span className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold">{r?.co_quan}</span></td><td className="px-6 py-4 text-slate-600 line-clamp-2 hover:line-clamp-none transition-all">{r?.noi_dung_gop_y}</td><td className="px-6 py-4 text-slate-800 font-medium italic">{r?.noi_dung_giai_trinh || '---'}</td></tr>
+                                <tr key={i} className="hover:bg-indigo-50/40 border-b border-slate-100 transition-colors"><td className="px-6 py-4 font-black text-slate-300 text-center">{r?.stt}</td><td className="px-6 py-4 font-bold text-slate-800">{r?.dieu_khoan}</td><td className="px-6 py-4"><span className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold">{r?.co_quan}</span></td><td className="px-6 py-4 text-slate-600 text-xs leading-relaxed">{r?.noi_dung_gop_y}</td><td className="px-6 py-4 text-slate-800 font-medium italic">{r?.noi_dung_giai_trinh || '---'}</td></tr>
                              ))
                             }
                         </tbody>

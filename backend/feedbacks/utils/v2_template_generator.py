@@ -28,8 +28,27 @@ import os
 from datetime import datetime
 from docxtpl import DocxTemplate
 
-# Đường dẫn tuyệt đối đến file template
-TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), 'template_bao_cao_V2_fixed.docx')
+# Đường dẫn mặc định đến file template
+DEFAULT_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), 'template_bao_cao_V2_fixed.docx')
+
+
+def _get_template_path(template_type='mau_10'):
+    """
+    Trả về đường dẫn file template:
+    - Ưu tiên 1: File đã upload trong DB (ReportTemplate.file_path)
+    - Ưu tiên 2: File mặc định trong source code
+    """
+    try:
+        from reports.models import ReportTemplate as RT
+        tpl = RT.objects.filter(template_type=template_type, is_active=True).first()
+        if tpl and tpl.file_path:
+            import os as _os
+            path = tpl.file_path.path
+            if _os.path.exists(path):
+                return path
+    except Exception:
+        pass
+    return DEFAULT_TEMPLATE_PATH
 
 
 def _build_dieu_list(feedbacks):
@@ -168,7 +187,7 @@ def generate_from_v2_template(document, feedbacks, template_config=None):
     }
 
     # Render và trả về BytesIO
-    tpl = DocxTemplate(TEMPLATE_PATH)
+    tpl = DocxTemplate(_get_template_path('mau_10'))
     tpl.render(context)
 
     file_stream = io.BytesIO()

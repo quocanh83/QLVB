@@ -12,7 +12,11 @@ import {
   AlertCircle,
   ChevronRight,
   Database,
-  Globe
+  Globe,
+  Upload,
+  FileText,
+  Trash2,
+  FileCheck
 } from 'lucide-react';
 import { getAuthHeader } from '../utils/authHelpers';
 
@@ -23,6 +27,42 @@ const VibeSettings = () => {
     const [savingId, setSavingId] = useState(null);
     const [showKeys, setShowKeys] = useState({});
     const [updating, setUpdating] = useState(false);
+    const [reportTemplates, setReportTemplates] = useState([]);
+    const [uploadingTpl, setUploadingTpl] = useState(null);
+
+    const fetchReportTemplates = async () => {
+        try {
+            const auth = getAuthHeader();
+            const res = await axios.get('/api/reports/templates/', auth);
+            setReportTemplates(res.data);
+        } catch (e) { console.error('Lỗi tải template báo cáo', e); }
+    };
+
+    const uploadTemplate = async (templateId, file) => {
+        if (!file) return;
+        setUploadingTpl(templateId);
+        try {
+            const auth = getAuthHeader();
+            const formData = new FormData();
+            formData.append('file', file);
+            await axios.post(`/api/reports/templates/${templateId}/upload_template/`, formData, {
+                ...auth,
+                headers: { ...auth.headers, 'Content-Type': 'multipart/form-data' }
+            });
+            alert('Tải lên thành công! Mẫu báo cáo đã được cập nhật.');
+            fetchReportTemplates();
+        } catch (e) { alert('Lỗi khi tải lên: ' + (e.response?.data?.error || e.message)); }
+        finally { setUploadingTpl(null); }
+    };
+
+    const removeTemplate = async (templateId) => {
+        if (!window.confirm('Xóa file template này? Hệ thống sẽ dùng lại mẫu mặc định.')) return;
+        try {
+            const auth = getAuthHeader();
+            await axios.post(`/api/reports/templates/${templateId}/remove_template/`, {}, auth);
+            fetchReportTemplates();
+        } catch (e) { alert('Lỗi khi xóa template.'); }
+    };
 
     const handleSystemUpdate = async () => {
         if (!window.confirm('Hệ thống sẽ kéo mã nguồn mới nhất từ GitHub và khởi động lại. Máy chủ có thể gián đoạn trong ít phút.\n\nLưu ý: Bạn phải cấp quyền visudo trên máy chủ trước khi sử dụng tính năng này.')) return;
@@ -39,7 +79,7 @@ const VibeSettings = () => {
         }
     };
 
-    useEffect(() => { fetchSettings(); }, []);
+    useEffect(() => { fetchSettings(); fetchReportTemplates(); }, []);
 
     const fetchSettings = async () => {
         setLoading(true);
@@ -129,6 +169,51 @@ const VibeSettings = () => {
                                             <span>Lưu</span>
                                         </button>
                                     </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Template Báo cáo Upload */}
+                <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="p-8 border-b border-slate-50 flex items-center gap-3 bg-indigo-50/40">
+                        <FileText className="text-indigo-600" size={24} />
+                        <div>
+                            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Mẫu Tài liệu Báo cáo</h3>
+                            <p className="text-[10px] text-slate-400 mt-0.5">Tải lên file .docx để thay thế mẫu báo cáo mặc định. Hệ thống sẽ ưu tiên file tải lên.</p>
+                        </div>
+                    </div>
+                    <div className="divide-y divide-slate-50">
+                        {reportTemplates.length === 0 ? (
+                            <div className="p-8 text-center text-slate-400 text-xs">Chưa có dữ liệu mẫu. Chạy <code className="bg-slate-100 px-1 rounded">python manage.py seed_report_template</code> trên server.</div>
+                        ) : reportTemplates.map(tpl => (
+                            <div key={tpl.id} className="p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                                <div className="flex items-center gap-4">
+                                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${tpl.has_custom_file ? 'bg-green-100' : 'bg-slate-100'}`}>
+                                        {tpl.has_custom_file ? <FileCheck className="text-green-600" size={20} /> : <FileText className="text-slate-400" size={20} />}
+                                    </div>
+                                    <div>
+                                        <p className="font-black text-sm text-slate-800">{tpl.name}</p>
+                                        <p className="text-[10px] text-slate-400 mt-0.5">
+                                            {tpl.has_custom_file ? (
+                                                <span className="text-green-600 font-bold">✓ File tuỳ chỉnh: {tpl.file_name}</span>
+                                            ) : (
+                                                <span>Đang dùng mẫu mặc định trong hệ thống</span>
+                                            )}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    {tpl.has_custom_file && (
+                                        <button onClick={() => removeTemplate(tpl.id)} className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-500 rounded-xl text-xs font-bold hover:bg-red-100 transition-colors">
+                                            <Trash2 size={14} /> Xóa
+                                        </button>
+                                    )}
+                                    <label className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest cursor-pointer transition-all ${uploadingTpl === tpl.id ? 'bg-slate-100 text-slate-400' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/20'}`}>
+                                        {uploadingTpl === tpl.id ? <><RefreshCw size={14} className="animate-spin" /><span>Đang tải...</span></> : <><Upload size={14} /><span>Tải lên .docx</span></>}
+                                        <input type="file" accept=".docx" className="hidden" onChange={e => { if (e.target.files[0]) uploadTemplate(tpl.id, e.target.files[0]); }} disabled={uploadingTpl === tpl.id} />
+                                    </label>
                                 </div>
                             </div>
                         ))}

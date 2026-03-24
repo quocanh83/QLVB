@@ -18,6 +18,8 @@ class ReportFieldConfigSerializer(serializers.ModelSerializer):
 
 class ReportTemplateSerializer(serializers.ModelSerializer):
     field_configs = ReportFieldConfigSerializer(many=True, read_only=True)
+    has_custom_file = serializers.SerializerMethodField()
+    file_name = serializers.SerializerMethodField()
 
     class Meta:
         model = ReportTemplate
@@ -25,5 +27,14 @@ class ReportTemplateSerializer(serializers.ModelSerializer):
             'id', 'name', 'template_type', 'is_active',
             'header_org_name', 'header_org_location',
             'footer_signer_name', 'footer_signer_title',
-            'created_at', 'updated_at', 'field_configs'
+            'created_at', 'updated_at', 'field_configs',
+            'has_custom_file', 'file_name'
         ]
+
+    def get_has_custom_file(self, obj):
+        return bool(obj.file_path)
+
+    def get_file_name(self, obj):
+        if obj.file_path:
+            return obj.file_path.name.split('/')[-1]
+        return None

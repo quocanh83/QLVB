@@ -54,6 +54,47 @@ class ReportTemplateViewSet(viewsets.ModelViewSet):
         serializer = ReportFieldConfigSerializer(config)
         return Response(serializer.data, status=201)
 
+
+    @action(detail=True, methods=['post'], url_path='upload_template')
+    def upload_template(self, request, pk=None):
+        """Upload file .docx template thay thế cho mẫu báo cáo này"""
+        template = self.get_object()
+        uploaded_file = request.FILES.get('file')
+        if not uploaded_file:
+            return Response({"error": "Vui lòng chọn file .docx để tải lên."}, status=400)
+        if not uploaded_file.name.endswith('.docx'):
+            return Response({"error": "Chỉ chấp nhận file .docx."}, status=400)
+
+        # Xóa file cũ nếu có
+        if template.file_path:
+            try:
+                import os
+                if os.path.exists(template.file_path.path):
+                    os.remove(template.file_path.path)
+            except Exception:
+                pass
+
+        template.file_path = uploaded_file
+        template.save()
+        serializer = self.get_serializer(template)
+        return Response({"message": f"Đã tải lên mẫu: {uploaded_file.name}", "template": serializer.data})
+
+    @action(detail=True, methods=['post'], url_path='remove_template')
+    def remove_template(self, request, pk=None):
+        """Xóa file template đã upload, trả về mẫu mặc định"""
+        template = self.get_object()
+        if template.file_path:
+            try:
+                import os
+                if os.path.exists(template.file_path.path):
+                    os.remove(template.file_path.path)
+            except Exception:
+                pass
+            template.file_path = None
+            template.save()
+        return Response({"message": "Đã xóa file template, hệ thống sẽ dùng mẫu mặc định."})
+
+
     @action(detail=True, methods=['post'])
     def remove_field(self, request, pk=None):
         """Xoá một trường tuỳ biến (không cho xoá trường mặc định)"""
