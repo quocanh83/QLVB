@@ -14,27 +14,26 @@ echo "🚀 BẮT ĐẦU QUÁ TRÌNH CẬP NHẬT HỆ THỐNG..."
 # Chuyển đến thư mục dự án
 cd $PROJECT_DIR
 
-# 1. Pull code mới nhất
+# 1. Tải code mới nhất (Bỏ qua mọi lỗi từ file nháp)
 echo "=> 📥 Đang tải code mới nhất từ GitHub..."
-git pull origin master
+git fetch origin
+git reset --hard origin/master
 
 echo "=> 🔑 Cấp quyền sở hữu thư mục cho qlvb..."
 sudo chown -R qlvb:qlvb $PROJECT_DIR
 
-# 2. Cập nhật và Build Frontend
+# 2. Cập nhật và Build Frontend (Chạy dưới tư cách user qlvb)
 echo "=> 🚧 Đang xây dựng lại Frontend..."
 cd $PROJECT_DIR/frontend
-npm install
-npm run build
+sudo -u qlvb npm install
+sudo -u qlvb npm run build
 
-# 3. Cập nhật Backend
+# 3. Cập nhật Backend (Chạy dưới tư cách user qlvb)
 echo "=> 🐍 Đang cập nhật Backend và Migrate Database..."
 cd $PROJECT_DIR/backend
-source venv/bin/activate
-pip install -r requirements.txt
-python manage.py collectstatic --noinput
-python manage.py migrate
-deactivate
+sudo -u qlvb ./venv/bin/pip install -r requirements.txt
+sudo -u qlvb ./venv/bin/python manage.py collectstatic --noinput
+sudo -u qlvb ./venv/bin/python manage.py migrate
 
 # 4. Khởi động lại các dịch vụ
 echo "=> ♻️ Đang khởi động lại các dịch vụ (Gunicorn, Celery, Nginx)..."
