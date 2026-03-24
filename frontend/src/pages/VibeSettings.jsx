@@ -23,6 +23,22 @@ const VibeSettings = () => {
     const [editingValues, setEditingValues] = useState({});
     const [savingId, setSavingId] = useState(null);
     const [showKeys, setShowKeys] = useState({});
+    const [updating, setUpdating] = useState(false);
+
+    const handleSystemUpdate = async () => {
+        if (!window.confirm('Hệ thống sẽ kéo mã nguồn mới nhất từ GitHub và khởi động lại. Máy chủ có thể gián đoạn trong ít phút.\n\nLưu ý: Bạn phải cấp quyền visudo trên máy chủ trước khi sử dụng tính năng này.')) return;
+        setUpdating(true);
+        try {
+            const auth = getAuthHeader();
+            await axios.post('/api/settings/update-system/', {}, auth);
+            alert('Quá trình cập nhật đã bắt đầu trên máy chủ! Vui lòng chờ 1-2 phút rồi tải lại trang.');
+        } catch (e) {
+            console.error('Lỗi khi cập nhật:', e);
+            alert('Có lỗi khi gọi lệnh cập nhật. Vui lòng kiểm tra quyền SuperAdmin hoặc thử chạy thủ công trên máy chủ.');
+        } finally {
+            setUpdating(false);
+        }
+    };
 
     useEffect(() => {
         fetchSettings();
@@ -206,6 +222,46 @@ const VibeSettings = () => {
                                 </div>
                             </div>
                         ))}
+                    </div>
+                </div>
+
+                {/* System Update Box */}
+                <div className="bg-slate-900 rounded-[3rem] p-8 md:p-10 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+                    <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl"></div>
+                    <div className="relative z-10 space-y-2 flex-1">
+                        <div className="flex items-center space-x-3">
+                            <div className="p-2 bg-slate-800 rounded-xl">
+                                <RefreshCw size={24} className={updating ? 'animate-spin text-blue-400' : 'text-slate-300'} />
+                            </div>
+                            <h3 className="text-xl font-black">Cập nhật Phiên bản (Từ Git)</h3>
+                        </div>
+                        <p className="text-slate-400 text-sm max-w-xl pr-4">
+                            Phiên bản hiện tại: <span className="font-mono text-blue-400 font-bold bg-slate-800 px-2 py-0.5 rounded">V{__APP_VERSION__}</span>.<br/> Bấm cập nhật để máy chủ tự động tải mã nguồn mới nhất từ kho lưu trữ và khởi động lại.
+                        </p>
+                    </div>
+                    <div className="relative z-10 w-full md:w-auto">
+                        <button 
+                            onClick={handleSystemUpdate}
+                            disabled={updating}
+                            className={`
+                                w-full md:w-auto px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-sm flex items-center justify-center space-x-3 transition-all
+                                ${updating 
+                                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed' 
+                                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-lg hover:shadow-blue-500/20 active:scale-95'}
+                            `}
+                        >
+                            {updating ? (
+                                <>
+                                    <RefreshCw size={18} className="animate-spin" />
+                                    <span>Đang Update...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <span>Bắt đầu Cập nhật</span>
+                                    <ChevronRight size={18} />
+                                </>
+                            )}
+                        </button>
                     </div>
                 </div>
 

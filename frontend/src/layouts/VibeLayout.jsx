@@ -142,7 +142,7 @@ const VibeLayout = () => {
             <div className="bg-slate-800/50 rounded-xl p-4">
               <p className="text-xs text-slate-500 mb-2">Phiên bản hiện tại</p>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold">Vibe 2.0.1</span>
+                <span className="text-sm font-semibold">Vibe {__APP_VERSION__}</span>
                 <span className="px-2 py-0.5 bg-green-500/10 text-green-500 text-[10px] font-bold rounded uppercase tracking-wider border border-green-500/20 text-blue-400">Stable</span>
               </div>
             </div>

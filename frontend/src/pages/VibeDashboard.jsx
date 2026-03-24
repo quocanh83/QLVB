@@ -561,7 +561,7 @@ const VibeDashboard = () => {
               <span>Phiên bản hiện tại</span>
               <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded">Stable</span>
             </div>
-            <p className="text-xs font-bold text-slate-600 mt-1">Vibe 2.0.1</p>
+            <p className="text-xs font-bold text-slate-600 mt-1">Vibe V{__APP_VERSION__}</p>
           </div>
         </aside>
 

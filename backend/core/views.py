@@ -43,3 +43,24 @@ class AgencyViewSet(viewsets.ModelViewSet):
     queryset = Agency.objects.all()
     serializer_class = AgencySerializer
     permission_classes = [permissions.IsAuthenticated]
+
+import os
+import subprocess
+import threading
+from rest_framework.views import APIView
+
+def run_update_script():
+    script_path = "/home/qlvb/qlvb/auto_update.sh"
+    if os.path.exists(script_path):
+        # Chạy script cập nhật
+        subprocess.run(["bash", script_path])
+    else:
+        print(f"[AutoUpdate] Không tìm thấy script tại {script_path}. Bỏ qua (có thể đang chạy ở Local).")
+
+class SystemUpdateAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrCustomAdmin]
+
+    def post(self, request):
+        # Chạy ngầm để không bị timeout request
+        threading.Thread(target=run_update_script).start()
+        return Response({"status": "Cập nhật mã nguồn đang được tiến hành ngầm."})
