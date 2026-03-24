@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import ReportTemplate, ReportFieldConfig, ReportFieldLog
@@ -8,6 +8,7 @@ from .serializers import ReportTemplateSerializer, ReportFieldConfigSerializer, 
 class ReportTemplateViewSet(viewsets.ModelViewSet):
     queryset = ReportTemplate.objects.all()
     serializer_class = ReportTemplateSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
     @action(detail=True, methods=['get'])
     def field_logs(self, request, pk=None):
@@ -82,6 +83,7 @@ class ReportTemplateViewSet(viewsets.ModelViewSet):
 class ReportFieldConfigViewSet(viewsets.ModelViewSet):
     queryset = ReportFieldConfig.objects.all()
     serializer_class = ReportFieldConfigSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
     def partial_update(self, request, *args, **kwargs):
         """Override PATCH để tự động ghi log khi thay đổi cấu hình"""

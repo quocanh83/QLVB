@@ -10,7 +10,7 @@ Placeholder trong template:
   Table[0]:
     {{ drafting_agency }}  — Cơ quan chủ trì soạn thảo
     {{ agency_location }}  — Địa điểm (Hà Nội)
-    {{ export_date }}      — Ngày xuất báo cáo
+    {{ export_date }}      — Ngày xuất báo cáo (dạng "ngày dd tháng mm năm yyyy")
   Table[1] (bảng nội dung - lặp):
     {% for d in dieu_list %}
       d.node_label, d.content
@@ -102,13 +102,18 @@ def generate_from_v2_template(document, feedbacks, template_config=None):
     """
     Sinh file Word từ template V2 sử dụng docxtpl.
 
+    Thứ tự ưu tiên cho drafting_agency:
+      1. document.drafting_agency (cài đặt lúc nạp dự thảo)
+      2. template_config['header_org_name'] (cài đặt admin trong Mẫu chuẩn)
+      3. Giá trị mặc định
+
     Args:
         document: Document model instance
         feedbacks: QuerySet feedback đã filter
         template_config: dict cấu hình admin (tuỳ chọn):
             {
-                'header_org_name': str,  -> drafting_agency
-                'header_org_location': str,  -> agency_location
+                'header_org_name': str,
+                'header_org_location': str,
                 'footer_signer_name': str,
                 'footer_signer_title': str
             }
@@ -116,13 +121,25 @@ def generate_from_v2_template(document, feedbacks, template_config=None):
     Returns:
         io.BytesIO: file Word đã render
     """
-    # Lấy cấu hình từ template_config hoặc dùng giá trị mặc định
     cfg = template_config or {}
-    drafting_agency = cfg.get('header_org_name') or 'CƠ QUAN CHỦ TRÌ SOẠN THẢO'
-    agency_location = cfg.get('header_org_location') or 'Hà Nội'
+
+    # Ưu tiên 1: Thông tin cơ quan từ Document model (nhập lúc tạo dự thảo)
+    # Ưu tiên 2: Cài đặt admin trong tab Mẫu chuẩn  
+    # Ưu tiên 3: Giá trị mặc định
+    drafting_agency = (
+        getattr(document, 'drafting_agency', None)
+        or cfg.get('header_org_name')
+        or 'CƠ QUAN CHỦ TRÌ SOẠN THẢO'
+    )
+    agency_location = (
+        getattr(document, 'agency_location', None)
+        or cfg.get('header_org_location')
+        or 'Hà Nội'
+    )
 
     # Số liệu tổng hợp
     total_feedbacks = len(feedbacks) if hasattr(feedbacks, '__len__') else feedbacks.count()
+
     # Số cơ quan (unique theo contributing_agency)
     agencies = set()
     for fb in feedbacks:
@@ -132,8 +149,9 @@ def generate_from_v2_template(document, feedbacks, template_config=None):
             agencies.add(fb.agency.name)
     total_consulted = len(agencies) or total_feedbacks
 
-    # Ngày xuất
-    export_date = datetime.now().strftime('%d/%m/%Y')
+    # Ngày xuất — Dạng đầy đủ tiếng Việt: "ngày 24 tháng 03 năm 2026"
+    now = datetime.now()
+    export_date = f"ngày {now.day:02d} tháng {now.month:02d} năm {now.year}"
 
     # Xây dựng dieu_list từ feedbacks
     dieu_list = _build_dieu_list(feedbacks)
