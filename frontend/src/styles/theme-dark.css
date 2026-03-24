@@ -1,286 +1,382 @@
+/* =====================================================
+   QLVB DARK THEME — Refined & Premium
+   Tone: Navy-slate ấm, contrast vừa phải, mắt dễ chịu
+   ===================================================== */
+
 [data-theme='dark'] {
   --primary-color: var(--ant-color-primary);
   --success-color: var(--ant-color-success);
   --warning-color: var(--ant-color-warning);
   --error-color: var(--ant-color-error);
   --info-color: var(--ant-color-info);
-  
-  --bg-layout: var(--ant-color-bg-layout);
-  --bg-container: var(--ant-color-bg-container);
-  --bg-elevated: var(--ant-color-bg-elevated);
-  --bg-spotlight: var(--ant-color-bg-spotlight);
-  
-  --text-color: var(--ant-color-text);
-  --text-secondary: var(--ant-color-text-description);
-  --text-tertiary: var(--ant-color-text-placeholder);
-  --text-quaternary: var(--ant-color-text-quaternary);
-  
-  --border-color: var(--ant-color-border);
-  --border-secondary: var(--ant-color-border-secondary);
-  
-  --header-bg: var(--ant-color-bg-container);
-  --sider-bg: #00323d;
-  --primary-gradient: linear-gradient(135deg, var(--ant-color-primary) 0%, var(--ant-color-success) 100%);
-  --text-heading: var(--ant-color-primary);
-  
-  --shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+
+  --bg-layout: #111827;
+  --bg-container: #1f2937;
+  --bg-elevated: #2a3444;
+  --bg-spotlight: #374151;
+
+  --text-color: #d1d5db;
+  --text-secondary: #9ca3af;
+  --text-tertiary: #6b7280;
+  --text-quaternary: #4b5563;
+
+  --border-color: #374151;
+  --border-secondary: #2d3748;
+
+  --header-bg: #1f2937;
+  --sider-bg: #111827;
+  --primary-gradient: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+  --text-heading: #60a5fa;
+
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
-/* =====================================================
-   DARK MODE OVERRIDES FOR TAILWIND-BASED UI
-   Covers: VibeLayout, VibeDashboard, VibeReports, 
-           VibeHome, VibeDocuments, VibeUsers, VibeSettings
-   ===================================================== */
+/* ===================== GLOBAL ===================== */
 
-/* --- GLOBAL LAYOUT --- */
 [data-theme='dark'] .min-h-screen.bg-slate-50,
 [data-theme='dark'] .min-h-screen {
-  background-color: #0f172a !important;
-  color: #cbd5e1 !important;
+  background-color: #111827 !important;
+  color: #d1d5db !important;
 }
 
-/* --- TOP NAVBAR --- */
+/* ===================== TOP NAVBAR ===================== */
+
 [data-theme='dark'] header.bg-white,
 [data-theme='dark'] header {
-  background-color: #1e293b !important;
-  border-color: #334155 !important;
-  color: #e2e8f0 !important;
+  background-color: #1f2937 !important;
+  border-color: #2d3748 !important;
+  color: #e5e7eb !important;
 }
 
-/* --- SIDEBAR --- */
+[data-theme='dark'] header .text-xl.font-bold {
+  color: transparent !important;
+}
+
+/* ===================== SIDEBAR ===================== */
+
 [data-theme='dark'] aside.bg-slate-900 {
-  background-color: #0c1222 !important;
+  background-color: #0f1729 !important;
 }
 
-/* --- MAIN CONTENT --- */
+[data-theme='dark'] aside .bg-slate-800\/50 {
+  background-color: rgba(31, 41, 55, 0.6) !important;
+}
+
+/* ===================== MAIN CONTENT ===================== */
+
 [data-theme='dark'] main.bg-slate-50,
 [data-theme='dark'] main {
-  background-color: #0f172a !important;
+  background-color: #111827 !important;
 }
 
-/* --- BACKGROUND COLORS --- */
+/* ===================== BACKGROUNDS ===================== */
+
+/* White panels → deep navy */
 [data-theme='dark'] .bg-white {
-  background-color: #1e293b !important;
+  background-color: #1f2937 !important;
+  color: #d1d5db !important;
 }
 
+/* Light gray → slightly lighter navy */
 [data-theme='dark'] .bg-slate-50,
 [data-theme='dark'] .bg-slate-50\/50 {
-  background-color: #162032 !important;
+  background-color: #1a2332 !important;
 }
 
 [data-theme='dark'] .bg-slate-100,
 [data-theme='dark'] .bg-slate-100\/50 {
-  background-color: #1e293b !important;
+  background-color: #243044 !important;
 }
 
 [data-theme='dark'] .bg-slate-200 {
-  background-color: #334155 !important;
+  background-color: #374151 !important;
 }
 
-/* --- TEXT COLORS --- */
+/* ===================== TEXT ===================== */
+
 [data-theme='dark'] .text-slate-900 {
-  color: #f1f5f9 !important;
+  color: #f3f4f6 !important;
 }
 
 [data-theme='dark'] .text-slate-800 {
-  color: #e2e8f0 !important;
+  color: #e5e7eb !important;
 }
 
 [data-theme='dark'] .text-slate-700 {
-  color: #cbd5e1 !important;
+  color: #d1d5db !important;
 }
 
 [data-theme='dark'] .text-slate-600 {
-  color: #94a3b8 !important;
+  color: #9ca3af !important;
 }
 
 [data-theme='dark'] .text-slate-500 {
-  color: #64748b !important;
+  color: #6b7280 !important;
 }
 
 [data-theme='dark'] .text-slate-400 {
-  color: #475569 !important;
+  color: #6b7280 !important;
 }
 
-/* --- BORDER COLORS --- */
+[data-theme='dark'] .text-slate-300 {
+  color: #4b5563 !important;
+}
+
+/* ===================== BORDERS ===================== */
+
 [data-theme='dark'] .border-slate-200,
 [data-theme='dark'] .border-slate-100,
 [data-theme='dark'] .border-slate-50 {
-  border-color: #334155 !important;
+  border-color: #2d3748 !important;
 }
 
 [data-theme='dark'] .border-slate-300 {
-  border-color: #475569 !important;
+  border-color: #374151 !important;
 }
 
 [data-theme='dark'] .border-slate-800 {
-  border-color: #1e293b !important;
+  border-color: #1f2937 !important;
 }
 
-/* --- DIVIDE LINES --- */
+/* Dashed borders */
+[data-theme='dark'] .border-dashed {
+  border-color: #374151 !important;
+}
+
+/* ===================== DIVIDERS ===================== */
+
 [data-theme='dark'] .divide-slate-50 > * + *,
 [data-theme='dark'] .divide-slate-100 > * + *,
 [data-theme='dark'] .divide-slate-200 > * + * {
-  border-color: #334155 !important;
+  border-color: #2d3748 !important;
 }
 
-/* --- INPUTS, SELECTS, TEXTAREAS --- */
+/* ===================== FORM ELEMENTS ===================== */
+
 [data-theme='dark'] input:not([type="file"]):not([type="checkbox"]):not([type="radio"]),
 [data-theme='dark'] select,
 [data-theme='dark'] textarea {
-  background-color: #0f172a !important;
-  color: #e2e8f0 !important;
-  border-color: #334155 !important;
+  background-color: #1a2332 !important;
+  color: #e5e7eb !important;
+  border-color: #374151 !important;
 }
 
 [data-theme='dark'] input::placeholder,
 [data-theme='dark'] textarea::placeholder {
-  color: #475569 !important;
+  color: #4b5563 !important;
 }
 
 [data-theme='dark'] select option {
-  background-color: #1e293b !important;
-  color: #e2e8f0 !important;
+  background-color: #1f2937 !important;
+  color: #e5e7eb !important;
 }
 
-/* --- COLORED BADGES (keep colors but darken backgrounds) --- */
+[data-theme='dark'] textarea:disabled {
+  background-color: #111827 !important;
+  color: #4b5563 !important;
+}
+
+/* ===================== COLORED BADGES ===================== */
+/* Sử dụng màu trong suốt mềm mại, giữ nguyên text color */
+
 [data-theme='dark'] .bg-green-100 {
-  background-color: rgba(34, 197, 94, 0.15) !important;
+  background-color: rgba(34, 197, 94, 0.12) !important;
 }
-
 [data-theme='dark'] .bg-green-50,
 [data-theme='dark'] .bg-green-50\/50 {
-  background-color: rgba(34, 197, 94, 0.1) !important;
+  background-color: rgba(34, 197, 94, 0.08) !important;
 }
 
 [data-theme='dark'] .bg-orange-100 {
-  background-color: rgba(249, 115, 22, 0.15) !important;
+  background-color: rgba(249, 115, 22, 0.12) !important;
 }
 
 [data-theme='dark'] .bg-blue-100 {
-  background-color: rgba(59, 130, 246, 0.15) !important;
+  background-color: rgba(59, 130, 246, 0.12) !important;
 }
-
 [data-theme='dark'] .bg-blue-50,
 [data-theme='dark'] .bg-blue-50\/50 {
-  background-color: rgba(59, 130, 246, 0.1) !important;
+  background-color: rgba(59, 130, 246, 0.08) !important;
 }
 
 [data-theme='dark'] .bg-purple-100 {
-  background-color: rgba(168, 85, 247, 0.15) !important;
+  background-color: rgba(168, 85, 247, 0.12) !important;
 }
 
 [data-theme='dark'] .bg-indigo-50 {
-  background-color: rgba(99, 102, 241, 0.1) !important;
+  background-color: rgba(99, 102, 241, 0.08) !important;
 }
 
 [data-theme='dark'] .bg-red-100 {
-  background-color: rgba(239, 68, 68, 0.15) !important;
+  background-color: rgba(239, 68, 68, 0.12) !important;
 }
 
-/* Border overrides for colored borders */
+/* Badge borders */
 [data-theme='dark'] .border-green-100 {
-  border-color: rgba(34, 197, 94, 0.25) !important;
+  border-color: rgba(34, 197, 94, 0.2) !important;
 }
-
 [data-theme='dark'] .border-blue-100,
 [data-theme='dark'] .border-blue-200 {
-  border-color: rgba(59, 130, 246, 0.25) !important;
+  border-color: rgba(59, 130, 246, 0.2) !important;
 }
 
-/* --- TABLES --- */
+/* ===================== TABLES ===================== */
+
 [data-theme='dark'] table {
-  color: #e2e8f0 !important;
+  color: #d1d5db !important;
 }
 
 [data-theme='dark'] thead tr {
-  background-color: #162032 !important;
+  background-color: #1a2332 !important;
 }
 
 [data-theme='dark'] tbody tr:hover {
-  background-color: #1e293b !important;
+  background-color: rgba(55, 65, 81, 0.3) !important;
 }
 
-/* --- TREE NODE ITEMS (VibeDashboard sidebar) --- */
+/* ===================== INTERACTIVE STATES ===================== */
+
+/* Tree node hover (VibeDashboard sidebar) */
 [data-theme='dark'] .hover\:bg-slate-200\/50:hover {
-  background-color: rgba(51, 65, 85, 0.5) !important;
+  background-color: rgba(55, 65, 81, 0.4) !important;
 }
 
-/* --- FEEDBACK CARDS --- */
+/* Feedback card hover */
 [data-theme='dark'] .hover\:border-blue-400:hover {
-  border-color: rgba(96, 165, 250, 0.5) !important;
+  border-color: rgba(96, 165, 250, 0.4) !important;
 }
 
-/* --- ACTION PANEL BUTTONS --- */
+/* Hover bg-slate-50/50 */
+[data-theme='dark'] .hover\:bg-slate-50\/50:hover {
+  background-color: rgba(26, 35, 50, 0.5) !important;
+}
+
+/* ===================== ACTION BUTTONS ===================== */
+
+/* "Lưu Giải trình" button */
 [data-theme='dark'] .bg-slate-900.text-white {
   background-color: #3b82f6 !important;
 }
 
-/* --- MODAL & OVERLAYS --- */
+[data-theme='dark'] .hover\:bg-slate-800:hover {
+  background-color: #2563eb !important;
+}
+
+/* ===================== MODALS & OVERLAYS ===================== */
+
 [data-theme='dark'] .bg-slate-900\/60 {
-  background-color: rgba(0, 0, 0, 0.75) !important;
+  background-color: rgba(0, 0, 0, 0.65) !important;
 }
 
 [data-theme='dark'] .bg-white\/80 {
-  background-color: rgba(15, 23, 42, 0.85) !important;
+  background-color: rgba(17, 24, 39, 0.85) !important;
 }
 
-/* --- SHADOWS --- */
-[data-theme='dark'] .shadow-sm,
-[data-theme='dark'] .shadow-md,
-[data-theme='dark'] .shadow-lg,
+/* ===================== SHADOWS ===================== */
+
+[data-theme='dark'] .shadow-sm {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+}
+
+[data-theme='dark'] .shadow-md {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
+}
+
+[data-theme='dark'] .shadow-lg {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
 [data-theme='dark'] .shadow-xl,
 [data-theme='dark'] .shadow-2xl {
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35) !important;
 }
 
 [data-theme='dark'] .shadow-inner {
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2) !important;
 }
 
-/* --- SCROLLBAR --- */
+/* ===================== SCROLLBAR ===================== */
+
+[data-theme='dark'] ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
 [data-theme='dark'] ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: #111827;
 }
 
 [data-theme='dark'] ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #374151;
+  border-radius: 3px;
 }
 
 [data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #4b5563;
 }
 
-/* --- RECHARTS (Biểu đồ) --- */
+/* ===================== RECHARTS ===================== */
+
 [data-theme='dark'] .recharts-cartesian-grid line {
-  stroke: #334155 !important;
+  stroke: #2d3748 !important;
 }
 
 [data-theme='dark'] .recharts-text {
-  fill: #94a3b8 !important;
+  fill: #9ca3af !important;
 }
 
 [data-theme='dark'] .recharts-tooltip-wrapper .recharts-default-tooltip {
-  background-color: #1e293b !important;
-  border-color: #334155 !important;
-  color: #e2e8f0 !important;
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+  color: #e5e7eb !important;
 }
 
-/* --- PROSE CONTENT (VibeDashboard article view) --- */
-[data-theme='dark'] .prose {
-  color: #cbd5e1 !important;
+/* ===================== PROSE (Article view) ===================== */
+
+[data-theme='dark'] .prose,
+[data-theme='dark'] .prose-slate {
+  color: #d1d5db !important;
 }
 
-[data-theme='dark'] .prose .text-slate-700 {
-  color: #94a3b8 !important;
+[data-theme='dark'] .prose .text-slate-700,
+[data-theme='dark'] .prose .italic {
+  color: #9ca3af !important;
 }
 
-/* --- LOADING SPINNER TEXT --- */
-[data-theme='dark'] .animate-pulse {
-  color: #e2e8f0 !important;
-}
+/* ===================== LOGO ===================== */
 
-/* --- GRADIENT TEXT (Logo) stays visible --- */
 [data-theme='dark'] .bg-clip-text.text-transparent {
   color: transparent !important;
+}
+
+/* ===================== ROUNDED CARDS / REPORTS ===================== */
+
+[data-theme='dark'] .rounded-\[3rem\],
+[data-theme='dark'] .rounded-\[2\.5rem\],
+[data-theme='dark'] .rounded-\[2rem\] {
+  border-color: #2d3748 !important;
+}
+
+/* ===================== ANT DESIGN OVERRIDES ===================== */
+
+[data-theme='dark'] .ant-select-selector {
+  background-color: #1a2332 !important;
+  border-color: #374151 !important;
+  color: #e5e7eb !important;
+}
+
+[data-theme='dark'] .ant-input {
+  background-color: #1a2332 !important;
+  border-color: #374151 !important;
+  color: #e5e7eb !important;
+}
+
+[data-theme='dark'] .ant-table {
+  background-color: #1f2937 !important;
+  color: #d1d5db !important;
+}
+
+[data-theme='dark'] .ant-modal-content {
+  background-color: #1f2937 !important;
+  color: #d1d5db !important;
 }
