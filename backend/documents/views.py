@@ -488,7 +488,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
             
             # Quyết định xem branch này có được giữ lại không dựa trên filter_type
             if filter_type == 'all':
-                keep_node = True
+                keep_node = (total > 0) if agency else True
             elif filter_type == 'resolved':
                 keep_node = (resolved > 0)
             elif filter_type == 'unresolved':
