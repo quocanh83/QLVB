@@ -651,13 +651,40 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             except Exception:
                 pass  # Nếu chưa có template DB, dùng giá trị mặc định
 
-            file_stream = generate_from_v2_template(document, feedbacks, template_config=template_config)
+            # Phan nhanh theo loai bao cao (report_type param)
+            report_type = request.query_params.get('report_type', 'mau10')
+
+            if report_type == 'custom':
+                # Bao cao Tuy chinh: dung mau10_generator + field configs tu DB
+                custom_config = dict(template_config) if template_config else {}
+                try:
+                    from reports.models import ReportTemplate as RT2
+                    tpl2 = RT2.objects.filter(template_type='mau_10', is_active=True).first()
+                    if tpl2:
+                        enabled_fields = tpl2.field_configs.filter(is_enabled=True).order_by('column_order')
+                        if enabled_fields.exists():
+                            custom_config['fields'] = [
+                                {
+                                    'field_key': f.field_key,
+                                    'field_label': f.field_label,
+                                    'column_width_cm': f.column_width_cm,
+                                }
+                                for f in enabled_fields
+                            ]
+                except Exception:
+                    pass
+                file_stream = generate_mau_10(document, feedbacks, template_config=custom_config or None)
+                filename = f"Bao_cao_Tuy_chinh_{document.id}.docx"
+            else:
+                # Mau 10 chuan: dung template file V2
+                file_stream = generate_from_v2_template(document, feedbacks, template_config=template_config)
+                filename = f"Bao_cao_Mau_10_{document.id}.docx"
             
             response = FileResponse(
                 file_stream, 
                 content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             )
-            filename = f"Bao_cao_Mau_10_Tuy_bien.docx"
+            
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
             return response
             

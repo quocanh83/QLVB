@@ -113,6 +113,7 @@ const VibeReports = () => {
   const [customStatus, setCustomStatus] = useState('all');
   const [customAgenciesList, setCustomAgenciesList] = useState([]);
   const [isCustomLoading, setIsCustomLoading] = useState(false);
+  const [reportMode, setReportMode] = useState('mau10'); // 'mau10' | 'custom'
 
   // ===== Report Template Configuration State =====
   const [templates, setTemplates] = useState([]);
@@ -312,6 +313,7 @@ const VibeReports = () => {
     const token = localStorage.getItem('access_token');
     let url = `/api/feedbacks/export_mau_10/?document_id=${selectedDocId}&token=${token}&status=${customStatus}`;
     if (customAgency && customAgency !== 'all') url += `&agency=${encodeURIComponent(customAgency)}`;
+    url += `&report_type=${reportMode}`;
     window.location.href = url;
   };
 
@@ -401,10 +403,40 @@ const VibeReports = () => {
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div>
                         <h2 className="text-2xl font-black text-slate-900 leading-tight">Báo cáo Tổng hợp Ý kiến</h2>
-                        <p className="text-slate-500 text-sm mt-3 max-w-2xl">Mọi báo cáo được xuất theo định dạng chuẩn Mẫu 10 của Bộ Tư pháp với các trường dữ liệu tùy biến theo cấu hình bên dưới.</p>
+                        <p className="text-slate-500 text-sm mt-3 max-w-2xl">Chọn loại báo cáo phù hợp và lọc dữ liệu trước khi xuất.</p>
                     </div>
-                    <button onClick={handleExportCustomWord} disabled={!selectedDocId || customStatsData.length === 0} className="bg-indigo-600 hover:bg-slate-900 disabled:bg-slate-200 text-white font-black py-4 px-8 rounded-[1.5rem] text-sm uppercase tracking-widest shadow-xl shadow-indigo-600/20 active:scale-95 transition-all flex items-center gap-3 shrink-0">
+                    <button onClick={handleExportCustomWord} disabled={!selectedDocId || (customStatsData?.length || 0) === 0} className="bg-indigo-600 hover:bg-slate-900 disabled:bg-slate-200 disabled:cursor-not-allowed text-white font-black py-4 px-8 rounded-[1.5rem] text-sm uppercase tracking-widest shadow-xl shadow-indigo-600/20 active:scale-95 transition-all flex items-center gap-3 shrink-0">
                         <Download size={20} /><span>Tải Word</span>
+                    </button>
+                </div>
+
+                {/* Mode Selector */}
+                <div className="grid grid-cols-2 gap-4">
+                    <button
+                        onClick={() => setReportMode('mau10')}
+                        className={`p-5 rounded-2xl border-2 text-left transition-all ${reportMode === 'mau10' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100 bg-slate-50 hover:border-slate-200'}`}
+                    >
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${reportMode === 'mau10' ? 'border-indigo-500' : 'border-slate-300'}`}>
+                                {reportMode === 'mau10' && <div className="w-2 h-2 rounded-full bg-indigo-500" />}
+                            </div>
+                            <span className="font-black text-sm text-slate-800">Mẫu số 10</span>
+                            <span className="ml-auto text-[9px] font-black uppercase tracking-widest px-2 py-0.5 bg-indigo-100 text-indigo-600 rounded-full">Chuẩn NĐ 30</span>
+                        </div>
+                        <p className="text-xs text-slate-500 pl-7">Xuất theo mẫu văn bản hành chính Word chuẩn với tiêu đề, quốc hiệu, chữ ký.</p>
+                    </button>
+                    <button
+                        onClick={() => setReportMode('custom')}
+                        className={`p-5 rounded-2xl border-2 text-left transition-all ${reportMode === 'custom' ? 'border-violet-500 bg-violet-50' : 'border-slate-100 bg-slate-50 hover:border-slate-200'}`}
+                    >
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${reportMode === 'custom' ? 'border-violet-500' : 'border-slate-300'}`}>
+                                {reportMode === 'custom' && <div className="w-2 h-2 rounded-full bg-violet-500" />}
+                            </div>
+                            <span className="font-black text-sm text-slate-800">Báo cáo Tuỳ chỉnh</span>
+                            <span className="ml-auto text-[9px] font-black uppercase tracking-widest px-2 py-0.5 bg-violet-100 text-violet-600 rounded-full">Cài đặt DB</span>
+                        </div>
+                        <p className="text-xs text-slate-500 pl-7">Xuất theo cấu hình cột tùy biến đã thiết lập trong tab <b>Mẫu chuẩn</b>.</p>
                     </button>
                 </div>
 
@@ -439,7 +471,7 @@ const VibeReports = () => {
                             {isCustomLoading ? <tr><td colSpan="5" className="py-20 text-center"><Loader2 className="animate-spin inline text-blue-500" /></td></tr> : 
                              (customStatsData?.length || 0) === 0 ? <tr><td colSpan="5" className="py-20 text-center text-slate-400 font-bold uppercase text-xs">Không có dữ liệu</td></tr> : 
                              customStatsData?.map((r, i) => (
-                                <tr key={i} className="hover:bg-white bg-white/50"><td className="px-6 py-4 font-black text-slate-300 text-center">{r?.stt}</td><td className="px-6 py-4 font-bold text-slate-800">{r?.dieu_khoan}</td><td className="px-6 py-4"><span className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold">{r?.co_quan}</span></td><td className="px-6 py-4 text-slate-600 line-clamp-2 hover:line-clamp-none transition-all">{r?.noi_dung_gop_y}</td><td className="px-6 py-4 text-slate-800 font-medium italic">{r?.noi_dung_giai_trinh || '---'}</td></tr>
+                                <tr key={i} className="hover:bg-indigo-50/40 border-b border-slate-100 transition-colors"><td className="px-6 py-4 font-black text-slate-300 text-center">{r?.stt}</td><td className="px-6 py-4 font-bold text-slate-800">{r?.dieu_khoan}</td><td className="px-6 py-4"><span className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold">{r?.co_quan}</span></td><td className="px-6 py-4 text-slate-600 line-clamp-2 hover:line-clamp-none transition-all">{r?.noi_dung_gop_y}</td><td className="px-6 py-4 text-slate-800 font-medium italic">{r?.noi_dung_giai_trinh || '---'}</td></tr>
                              ))
                             }
                         </tbody>
