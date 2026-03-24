@@ -420,10 +420,10 @@ const VibeReports = () => {
                             <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${reportMode === 'mau10' ? 'border-indigo-500' : 'border-slate-300'}`}>
                                 {reportMode === 'mau10' && <div className="w-2 h-2 rounded-full bg-indigo-500" />}
                             </div>
-                            <span className="font-black text-sm text-slate-800">Mẫu số 10</span>
+                            <span className="font-black text-sm text-slate-800">Mẫu số 10 (Ngang)</span>
                             <span className="ml-auto text-[9px] font-black uppercase tracking-widest px-2 py-0.5 bg-indigo-100 text-indigo-600 rounded-full">Chuẩn NĐ 30</span>
                         </div>
-                        <p className="text-xs text-slate-500 pl-7">Xuất theo mẫu văn bản hành chính Word chuẩn với tiêu đề, quốc hiệu, chữ ký.</p>
+                        <p className="text-xs text-slate-500 pl-7">Xuất theo mẫu văn bản hành chính <b>Xoay Ngang</b> chuẩn với tiêu đề, quốc hiệu, chữ ký.</p>
                     </button>
                     <button
                         onClick={() => setReportMode('custom')}
@@ -433,10 +433,10 @@ const VibeReports = () => {
                             <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${reportMode === 'custom' ? 'border-violet-500' : 'border-slate-300'}`}>
                                 {reportMode === 'custom' && <div className="w-2 h-2 rounded-full bg-violet-500" />}
                             </div>
-                            <span className="font-black text-sm text-slate-800">Báo cáo Tuỳ chỉnh</span>
-                            <span className="ml-auto text-[9px] font-black uppercase tracking-widest px-2 py-0.5 bg-violet-100 text-violet-600 rounded-full">Cài đặt DB</span>
+                            <span className="font-black text-sm text-slate-800">Báo cáo Tuỳ chỉnh (Dọc)</span>
+                            <span className="ml-auto text-[9px] font-black uppercase tracking-widest px-2 py-0.5 bg-violet-100 text-violet-600 rounded-full">Cột tuỳ biến</span>
                         </div>
-                        <p className="text-xs text-slate-500 pl-7">Xuất theo cấu hình cột tùy biến đã thiết lập trong tab <b>Mẫu chuẩn</b>.</p>
+                        <p className="text-xs text-slate-500 pl-7">Xuất theo bảng <b>Xoay Dọc</b> với các cột tuỳ biến đã thiết lập trong tab <b>Mẫu chuẩn</b>.</p>
                     </button>
                 </div>
 
