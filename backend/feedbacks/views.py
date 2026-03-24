@@ -596,11 +596,25 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             
         return Response(results)
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], permission_classes=[])
     def export_mau_10(self, request):
         doc_id = request.query_params.get('document_id')
         agency = request.query_params.get('agency')
         status_filter = request.query_params.get('status')
+        
+        # Xác thực qua token ở URL (Cho phép tải file trực tiếp từ trình duyệt)
+        user = request.user
+        if not user.is_authenticated:
+            token = request.query_params.get('token')
+            if not token:
+                return Response({"error": "Vui lòng cung cấp token"}, status=401)
+            from rest_framework_simplejwt.tokens import AccessToken
+            from django.contrib.auth import get_user_model
+            try:
+                access_token = AccessToken(token)
+                user = get_user_model().objects.get(id=access_token['user_id'])
+            except Exception:
+                return Response({"error": "Token không hợp lệ"}, status=401)
         
         if not doc_id:
             return Response({"error": "Vui lòng cung cấp document_id"}, status=400)
