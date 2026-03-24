@@ -12,8 +12,8 @@ BACKEND_DIR="$PROJECT_DIR/backend"
 FRONTEND_DIR="$PROJECT_DIR/frontend/dist"
 USER_NAME="qlvb"
 
-# Cập nhật IP DB của bạn
-DB_HOST="192.168.0.218"
+# Cập nhật thông tin DB
+DB_HOST="sql.giadinhvit.com"
 DB_PORT="5432"
 DB_NAME="qlvb_db"
 DB_USER="qlvb_db_user"
