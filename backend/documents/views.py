@@ -588,9 +588,13 @@ class DocumentViewSet(viewsets.ModelViewSet):
             drafting_agency = doc_obj.drafting_agency or "(Chưa cập nhật)"
             agency_location = doc_obj.agency_location or "Hà Nội"
             export_date = datetime.now().strftime('%d/%m/%Y')
-            total_consulted = doc_obj.total_consulted_doc or 0
-            total_feedbacks_doc = doc_obj.total_feedbacks_doc or 0
+            
+            # Tính toán số cơ quan và ý kiến THỰC TẾ
             actual_fb_count = Feedback.objects.filter(node__document=doc_obj).count()
+            actual_agencies_count = Feedback.objects.filter(node__document=doc_obj).exclude(contributing_agency__isnull=True).exclude(contributing_agency='').values('contributing_agency').distinct().count()
+            
+            total_consulted = doc_obj.total_consulted_doc if doc_obj.total_consulted_doc else actual_agencies_count
+            total_feedbacks_doc = actual_fb_count
 
             # ===== TẠO FILE WORD =====
             doc = docx.Document()
