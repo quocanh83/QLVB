@@ -33,10 +33,16 @@ const VibeReports = () => {
   const [statsData, setStatsData] = useState({ agency_stats: [], category_stats: {} });
   const [exportStats, setExportStats] = useState([]);
   
-  // Uncontributed Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [uncontributedData, setUncontributedData] = useState([]);
   const [currentDoc, setCurrentDoc] = useState(null);
+
+  // Custom Report State
+  const [customStatsData, setCustomStatsData] = useState([]);
+  const [customAgency, setCustomAgency] = useState('all');
+  const [customStatus, setCustomStatus] = useState('all');
+  const [customAgenciesList, setCustomAgenciesList] = useState([]);
+  const [isCustomLoading, setIsCustomLoading] = useState(false);
 
   useEffect(() => {
     fetchDocuments();
@@ -46,8 +52,11 @@ const VibeReports = () => {
   useEffect(() => {
     if (activeTab === 'stats') {
       fetchSubjectStats(selectedDocId);
+    } else if (activeTab === 'custom') {
+      fetchCustomAgencies(selectedDocId);
+      fetchCustomPreview(selectedDocId, customAgency, customStatus);
     }
-  }, [selectedDocId, activeTab]);
+  }, [selectedDocId, activeTab, customAgency, customStatus]);
 
   const fetchDocuments = async () => {
     try {
@@ -80,6 +89,41 @@ const VibeReports = () => {
     } catch (error) {
       console.error("Lỗi tải thống kê xuất báo cáo", error);
     }
+  };
+
+  const fetchCustomAgencies = async (docId) => {
+    if (!docId) return;
+    try {
+      const auth = getAuthHeader();
+      const res = await axios.get(`/api/feedbacks/subject_stats/?document_id=${docId}`, auth);
+      setCustomAgenciesList((res.data.agency_stats || []).map(a => a.agency));
+    } catch (e) {
+      console.error("Lỗi lấy danh sách cơ quan custom", e);
+    }
+  };
+
+  const fetchCustomPreview = async (docId, agency, statusFilter) => {
+    if (!docId) return;
+    setIsCustomLoading(true);
+    try {
+      const auth = getAuthHeader();
+      let url = `/api/feedbacks/custom_report_preview/?document_id=${docId}&status=${statusFilter}`;
+      if (agency && agency !== 'all') url += `&agency=${encodeURIComponent(agency)}`;
+      const res = await axios.get(url, auth);
+      setCustomStatsData(res.data);
+    } catch (error) {
+      console.error("Lỗi xem trước báo cáo tuỳ biến", error);
+    } finally {
+      setIsCustomLoading(false);
+    }
+  };
+
+  const handleExportCustomWord = () => {
+    if (!selectedDocId) return;
+    const token = localStorage.getItem('access_token');
+    let url = `/api/feedbacks/export_mau_10/?document_id=${selectedDocId}&token=${token}&status=${customStatus}`;
+    if (customAgency && customAgency !== 'all') url += `&agency=${encodeURIComponent(customAgency)}`;
+    window.location.href = url;
   };
 
   const handleExportWord = (docId) => {
@@ -289,7 +333,7 @@ const VibeReports = () => {
                 </div>
             </div>
         </div>
-      ) : (
+      ) : activeTab === 'export' ? (
         /* EXPORT TAB */
         <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm p-8 space-y-8">
             <div className="max-w-2xl">
@@ -338,7 +382,133 @@ const VibeReports = () => {
                 ))}
             </div>
         </div>
-      )}
+      ) : activeTab === 'custom' ? (
+        /* CUSTOM REPORT TAB */
+        <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm p-8 space-y-8">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <div className="max-w-2xl">
+                    <h2 className="text-xl font-black text-slate-800">Báo cáo Tổng hợp Ý kiến (Tuỳ biến)</h2>
+                    <p className="text-slate-500 text-sm mt-2">Tính năng này cho phép lọc xem trước các ý kiến góp ý theo cơ quan và trạng thái, sau đó trích xuất ra báo cáo định dạng Mẫu 10 chuẩn của Bộ Tư pháp.</p>
+                </div>
+                <button 
+                    onClick={handleExportCustomWord}
+                    disabled={!selectedDocId || customStatsData.length === 0}
+                    className="flex-shrink-0 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-bold py-3 px-6 rounded-2xl text-[12px] uppercase tracking-widest shadow-lg shadow-blue-600/20 flex items-center justify-center space-x-2 transition-all active:scale-95"
+                >
+                    <Download size={16} />
+                    <span>Tải Báo Cáo (Word)</span>
+                </button>
+            </div>
+
+            {/* Filters */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+                <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">Chọn Dự thảo</label>
+                    <div className="relative">
+                        <select 
+                            className="w-full appearance-none bg-white border border-slate-200 text-slate-700 py-3 pl-4 pr-10 rounded-xl font-bold text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer shadow-sm"
+                            value={selectedDocId || ''}
+                            onChange={(e) => setSelectedDocId(e.target.value)}
+                        >
+                            {documents.map(doc => (
+                                <option key={doc.id} value={doc.id}>{doc.project_name}</option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">Cơ quan góp ý</label>
+                    <div className="relative">
+                        <select 
+                            className="w-full appearance-none bg-white border border-slate-200 text-slate-700 py-3 pl-4 pr-10 rounded-xl font-bold text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer shadow-sm"
+                            value={customAgency}
+                            onChange={(e) => setCustomAgency(e.target.value)}
+                        >
+                            <option value="all">Tất cả Cơ quan</option>
+                            {customAgenciesList.map((agency, idx) => (
+                                <option key={idx} value={agency}>{agency}</option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">Trạng thái giải trình</label>
+                    <div className="relative">
+                        <select 
+                            className="w-full appearance-none bg-white border border-slate-200 text-slate-700 py-3 pl-4 pr-10 rounded-xl font-bold text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer shadow-sm"
+                            value={customStatus}
+                            onChange={(e) => setCustomStatus(e.target.value)}
+                        >
+                            <option value="all">Tất cả Ý kiến</option>
+                            <option value="unresolved">Chưa giải trình</option>
+                            <option value="resolved">Đã giải trình</option>
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                    </div>
+                </div>
+            </div>
+
+            {/* Data Table */}
+            <div className="overflow-hidden border border-slate-100 rounded-[2rem] bg-white">
+                <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-left min-w-[800px]">
+                        <thead>
+                            <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                <th className="px-6 py-4 w-12 text-center">TT</th>
+                                <th className="px-6 py-4 w-48">Điều / Khoản</th>
+                                <th className="px-6 py-4 w-48">Cơ quan góp ý</th>
+                                <th className="px-6 py-4 min-w-[250px]">Nội dung góp ý</th>
+                                <th className="px-6 py-4 min-w-[250px]">Nội dung giải trình</th>
+                                <th className="px-6 py-4 w-32">Chuyên viên</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50 text-sm">
+                            {isCustomLoading ? (
+                                <tr>
+                                    <td colSpan="6" className="px-6 py-20 text-center text-slate-400">
+                                        <div className="flex flex-col items-center justify-center space-y-3">
+                                            <RefreshCw className="animate-spin text-blue-500" size={24} />
+                                            <span className="font-bold text-xs uppercase tracking-widest">Đang tải dữ liệu...</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : customStatsData.length === 0 ? (
+                                <tr>
+                                    <td colSpan="6" className="px-6 py-20 text-center">
+                                        <div className="flex flex-col items-center justify-center space-y-3">
+                                            <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300">
+                                                <Filter size={24} />
+                                            </div>
+                                            <span className="font-bold text-slate-400">Không có dữ liệu phù hợp với bộ lọc</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : (
+                                customStatsData.map((row, idx) => (
+                                    <tr key={idx} className="hover:bg-slate-50/50">
+                                        <td className="px-6 py-4 text-center font-black text-slate-400">{row.stt}</td>
+                                        <td className="px-6 py-4 font-bold text-slate-700">{row.dieu_khoan}</td>
+                                        <td className="px-6 py-4">
+                                            <span className="px-2 py-1 bg-slate-100 rounded-lg text-xs font-bold text-slate-600">
+                                                {row.co_quan}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600 whitespace-pre-wrap">{row.noi_dung_gop_y}</td>
+                                        <td className="px-6 py-4 text-slate-600 whitespace-pre-wrap">{row.noi_dung_giai_trinh || '-'}</td>
+                                        <td className="px-6 py-4 font-medium text-slate-700">{row.chuyen_vien || '-'}</td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+      ) : null}
 
       {/* Uncontributed Agencies Modal */}
       {isModalOpen && (

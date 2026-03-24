@@ -560,17 +560,65 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         return Response(list(uncontributed))
 
     @action(detail=False, methods=['get'])
+    def custom_report_preview(self, request):
+        doc_id = request.query_params.get('document_id')
+        agency = request.query_params.get('agency')
+        status_filter = request.query_params.get('status')
+        
+        if not doc_id: return Response([])
+        
+        feedbacks = Feedback.objects.filter(document_id=doc_id).select_related('node').prefetch_related('explanations', 'user').order_by('node__order_index')
+        
+        if agency and agency != 'all':
+            feedbacks = feedbacks.filter(contributing_agency=agency)
+            
+        if status_filter == 'resolved':
+            feedbacks = feedbacks.filter(explanations__isnull=False).distinct()
+        elif status_filter == 'unresolved':
+            feedbacks = feedbacks.filter(explanations__isnull=True).distinct()
+            
+        results = []
+        for i, fb in enumerate(feedbacks, 1):
+            explanation = fb.explanations.first()
+            
+            dieu_khoan = f"{fb.node.node_label}" if fb.node else ""
+            if fb.node and fb.node.parent:
+                dieu_khoan = f"{fb.node.parent.node_label}, {fb.node.node_label}"
+                
+            results.append({
+                "stt": i,
+                "dieu_khoan": dieu_khoan,
+                "co_quan": fb.contributing_agency or "Khác",
+                "noi_dung_gop_y": fb.content,
+                "noi_dung_giai_trinh": explanation.content if explanation else "",
+                "chuyen_vien": explanation.user.username if explanation and explanation.user else (fb.user.username if fb.user else "")
+            })
+            
+        return Response(results)
+
+    @action(detail=False, methods=['get'])
     def export_mau_10(self, request):
         doc_id = request.query_params.get('document_id')
+        agency = request.query_params.get('agency')
+        status_filter = request.query_params.get('status')
+        
         if not doc_id:
             return Response({"error": "Vui lòng cung cấp document_id"}, status=400)
             
         try:
             document = Document.objects.get(id=doc_id)
-            feedbacks = Feedback.objects.filter(document_id=doc_id).select_related('node').prefetch_related('explanations')
+            feedbacks = Feedback.objects.filter(document_id=doc_id).select_related('node').prefetch_related('explanations').order_by('node__order_index')
+            
+            if agency and agency != 'all':
+                feedbacks = feedbacks.filter(contributing_agency=agency)
+                
+            if status_filter == 'resolved':
+                feedbacks = feedbacks.filter(explanations__isnull=False).distinct()
+            elif status_filter == 'unresolved':
+                feedbacks = feedbacks.filter(explanations__isnull=True).distinct()
             
             if not feedbacks.exists():
-                return Response({"error": "Không có ý kiến góp ý nào để xuất báo cáo."}, status=404)
+                return Response({"error": "Không có ý kiến góp ý nào thỏa mãn bộ lọc để xuất báo cáo."}, status=404)
                 
             file_stream = generate_mau_10(document, feedbacks)
             
@@ -578,7 +626,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                 file_stream, 
                 content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             )
-            filename = f"Bao_cao_Mau_10_{doc_id}.docx"
+            filename = f"Bao_cao_Mau_10_Tuy_bien.docx"
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
             return response
             
@@ -586,3 +634,4 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             return Response({"error": "Văn bản không tồn tại"}, status=404)
         except Exception as e:
             return Response({"error": str(e)}, status=500)
+
