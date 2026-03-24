@@ -50,8 +50,8 @@ const VibeDashboard = () => {
       }).filter(Boolean);
     }
 
-    // Then apply status filter if not 'all'
-    if (type === 'all') return result;
+    // Then apply status filter if not 'all' or 'by_agency' (which is handled by backend)
+    if (type === 'all' || type === 'by_agency') return result;
     return result.map(node => {
       const filteredChildren = getFilteredStructure(node.children || [], type, '');
       const matches = (
