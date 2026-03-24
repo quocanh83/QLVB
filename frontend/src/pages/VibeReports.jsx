@@ -21,6 +21,7 @@ import {
   Legend, ResponsiveContainer, PieChart, Pie, Cell 
 } from 'recharts';
 import { getAuthHeader } from '../utils/authHelpers';
+import * as XLSX from 'xlsx';
 
 const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
@@ -102,6 +103,37 @@ const VibeReports = () => {
   };
 
   const categoryMap = { ministry: 'Bộ/Ngành', local: 'Địa phương', organization: 'Tổ chức', enterprise: 'Doanh nghiệp', other: 'Khác' };
+
+  const handleExportExcel = () => {
+    if (!statsData.agency_stats || statsData.agency_stats.length === 0) return;
+    
+    // Chuẩn bị dữ liệu Excel
+    const excelData = statsData.agency_stats.map(s => ({
+        "Cơ quan / Đơn vị": s.agency,
+        "Phân loại": categoryMap[s.category] || s.category,
+        "Tổng Góp ý": s.total,
+        "Đã giải trình": s.resolved,
+        "Tỉ lệ hoàn thành (%)": s.resolve_rate
+    }));
+
+    // Tạo Worksheet và Workbook
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    
+    // Căn chỉnh độ rộng cột cơ bản
+    worksheet['!cols'] = [
+        { wch: 40 }, // Cơ quan
+        { wch: 20 }, // Phân loại
+        { wch: 15 }, // Tổng
+        { wch: 15 }, // Đã giải trình
+        { wch: 25 }, // Tỉ lệ
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Thong Ke Chu The");
+
+    // Khởi tạo tải file
+    XLSX.writeFile(workbook, `Thong_Ke_Gop_Y_${selectedDocId || 'Tat_ca'}.xlsx`);
+  };
   const pieData = Object.keys(statsData.category_stats || {}).map(key => ({
     name: categoryMap[key] || key,
     value: statsData.category_stats[key]
@@ -215,7 +247,10 @@ const VibeReports = () => {
             <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
                 <div className="p-6 border-b border-slate-50 flex items-center justify-between">
                     <h3 className="font-black text-slate-800 uppercase tracking-widest text-xs">Chi tiết Số liệu theo Đơn vị</h3>
-                    <button className="text-blue-600 font-bold text-xs uppercase tracking-widest">Xuất CSV</button>
+                    <button onClick={handleExportExcel} className="text-emerald-600 hover:bg-emerald-50 px-3 py-2 rounded-xl transition-all font-bold text-xs uppercase tracking-widest flex items-center gap-2">
+                        <Download size={14} />
+                        Xuất Excel
+                    </button>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
