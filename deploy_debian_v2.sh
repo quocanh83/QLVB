@@ -40,10 +40,26 @@ apt install -y python3 python3-pip python3-venv postgresql-client nginx curl git
 echo "[2/7] Tạo user system: $USER_NAME..."
 id -u $USER_NAME &>/dev/null || useradd -m -s /bin/bash $USER_NAME
 
-# 3. Phân quyền thư mục dự án
-echo "[3/7] Chuyển đổi quyền sở hữu thư mục chứa code ($PROJECT_DIR)..."
-# Đảm bảo source đã có ở /home/qlvb, nếu chưa hãy clone:
-# git clone https://github.com/quocanh83/QLVB.git /home/qlvb
+# 3. Phân quyền và Tải mã nguồn mới nhất
+echo "[3/7] Tải mã nguồn nguyên gốc từ GitHub về $PROJECT_DIR..."
+mkdir -p $PROJECT_DIR
+cd $PROJECT_DIR
+
+if [ ! -d ".git" ]; then
+    echo "=> Chưa có mã nguồn Git, đang tiến hành lấy code..."
+    git init
+    git remote add origin https://github.com/quocanh83/QLVB.git
+    git fetch
+    git reset --hard origin/master
+    # Liên kết nhanh vào branch master
+    git branch --set-upstream-to=origin/master master
+else
+    echo "=> Mã nguồn đã có sẵn, đang force cập nhật code mới nhất..."
+    git fetch --all
+    git reset --hard origin/master
+fi
+
+echo "=> Chuyển đổi quyền sở hữu thư mục chứa code cho $USER_NAME..."
 chown -R $USER_NAME:$USER_NAME $PROJECT_DIR
 
 # -------------------------------------------------------------
