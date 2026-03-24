@@ -114,6 +114,9 @@ const VibeDashboard = () => {
 
   useEffect(() => {
     if (activeDoc) {
+      if (filterType === 'by_agency') {
+          fetchAgencies(activeDoc.id);
+      }
       // Re-fetch when filter or agency changes
       if (filterType === 'by_agency') {
          if (selectedAgency.length >= 2) {
@@ -485,20 +488,24 @@ const VibeDashboard = () => {
                       onFocus={() => setShowAgencySuggestions(true)}
                       className="w-full pl-3 pr-8 py-2 bg-blue-50/50 border border-blue-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium"
                     />
-                    {selectedAgency && (
+                    {selectedAgency ? (
                       <button 
                         onClick={() => {
                           setSelectedAgency('');
-                          setShowAgencySuggestions(false);
+                          setShowAgencySuggestions(true); // Tiếp tục mở dropdown sau khi xoá
                         }}
                         className="absolute right-2 top-2 text-slate-400 hover:text-red-500 transition-colors"
                       >
                         <X size={14} />
                       </button>
+                    ) : (
+                      <div className="absolute right-3 top-2.5 pointer-events-none text-slate-400">
+                        <ChevronDown size={14} />
+                      </div>
                     )}
                   </div>
 
-                  {showAgencySuggestions && selectedAgency && (
+                  {showAgencySuggestions && (
                     <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-40 overflow-y-auto custom-scrollbar">
                       {agencies
                         .filter(a => a.toLowerCase().includes(selectedAgency.toLowerCase()))
