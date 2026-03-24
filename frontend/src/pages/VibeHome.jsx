@@ -74,7 +74,7 @@ const VibeHome = () => {
         {[
           { label: 'Tổng số Dự thảo', value: cards.totalDocs, icon: FileText, color: 'blue' },
           { label: 'Tổng số Góp ý', value: cards.totalFeedbacks, icon: MessageSquare, color: 'pink' },
-          { label: 'Đã thẩm định', value: cards.resolvedFeedbacks, icon: CheckCircle2, color: 'green', suffix: `/ ${cards.totalFeedbacks}` },
+          { label: 'Đã Giải trình', value: cards.resolvedFeedbacks, icon: CheckCircle2, color: 'green', suffix: `/ ${cards.totalFeedbacks}` },
           { label: 'Cơ quan Đóng góp', value: cards.agenciesCount, icon: Users, color: 'amber' },
         ].map((card, idx) => (
           <div key={idx} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow group">
@@ -111,7 +111,7 @@ const VibeHome = () => {
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="divide-y divide-slate-50">
               {topDocs.map((doc, idx) => (
-                <div key={idx} className="p-4 hover:bg-slate-50/80 transition-colors flex items-center justify-between cursor-pointer group" onClick={() => navigate(`/vibe-dashboard?docId=${doc.id || 4}`)}>
+                <div key={idx} className="p-4 hover:bg-slate-50/80 transition-colors flex items-center justify-between cursor-pointer group" onClick={() => navigate(`/vibe-dashboard?docId=${doc.id}`)}>
                   <div className="flex items-center space-x-4">
                     <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-black text-sm group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
                       {idx + 1}

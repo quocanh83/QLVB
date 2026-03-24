@@ -357,7 +357,9 @@ class DocumentViewSet(viewsets.ModelViewSet):
         # KPI Cards
         total_docs = Document.objects.count()
         total_feedbacks = Feedback.objects.count()
-        resolved_feedbacks = Feedback.objects.filter(explanations__isnull=False).distinct().count()
+        
+        # resolved_feedbacks: feedbacks that have status 'reviewed' or 'approved'
+        resolved_feedbacks = Feedback.objects.filter(status__in=['reviewed', 'approved']).distinct().count()
         
         # Lấy count danh sách agencies distinct không bị none/rỗng
         agencies_qs = Feedback.objects.exclude(contributing_agency__isnull=True).exclude(contributing_agency='').values('contributing_agency').distinct()
@@ -368,7 +370,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
             feedback_count=Count('feedbacks', distinct=True)
         ).order_by('-feedback_count', '-id')[:5]
         
-        top_docs = [{"name": d.project_name, "feedbacks": d.feedback_count} for d in top_docs_qs]
+        top_docs = [{"id": d.id, "name": d.project_name, "feedbacks": d.feedback_count} for d in top_docs_qs]
         
         # Trend Data (Góp ý theo ngày - 7 ngày gần nhất)
         today = timezone.now()
@@ -388,11 +390,13 @@ class DocumentViewSet(viewsets.ModelViewSet):
                 "count": trend_dict.get(day_str, 0)
             })
         
-        # Recent Activity (5 hoạt động mới nhất)
+        # Merged Recent Activity (5 hoạt động mới nhất: Documents + Feedbacks)
         recent_feedbacks = Feedback.objects.select_related('user', 'document').order_by('-created_at')[:5]
-        recent_activity = []
+        recent_documents = Document.objects.select_related('uploaded_by').order_by('-created_at')[:5]
+        
+        combined_activity = []
         for fb in recent_feedbacks:
-            recent_activity.append({
+            combined_activity.append({
                 "id": f"fb-{fb.id}",
                 "type": "feedback",
                 "user": fb.user.username if fb.user else "Hệ thống",
@@ -400,6 +404,19 @@ class DocumentViewSet(viewsets.ModelViewSet):
                 "time": fb.created_at,
                 "content": "đã gửi góp ý mới"
             })
+        for doc in recent_documents:
+            combined_activity.append({
+                "id": f"doc-{doc.id}",
+                "type": "document",
+                "user": doc.uploaded_by.username if doc.uploaded_by else "Hệ thống",
+                "document": doc.project_name,
+                "time": doc.created_at,
+                "content": "đã tải lên dự thảo mới"
+            })
+        
+        # Sort combined and take top 5
+        combined_activity.sort(key=lambda x: x['time'], reverse=True)
+        recent_activity = combined_activity[:5]
             
         return Response({
             "cards": {
