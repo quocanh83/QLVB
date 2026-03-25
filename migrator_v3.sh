@@ -35,7 +35,7 @@ cd $FRONTEND_V3_DIR
 # Xoá node_modules cũ nếu có để tránh xung đột
 # rm -rf node_modules 
 npm install --legacy-peer-deps
-NODE_OPTIONS="--max-old-space-size=4096" npm run build
+GENERATE_SOURCEMAP=false NODE_OPTIONS="--max-old-space-size=1536" npm run build
 echo "✅ Build Frontend V3 hoàn tất tại $FRONTEND_V3_DIR/build"
 
 # 4. Cập nhật cấu hình Nginx (Đổi root sang frontend-v3)

@@ -28,7 +28,7 @@ echo "[3/4] Cập nhật Frontend (Node JS)..." >> $LOG_FILE
 cd $FRONTEND_DIR
 # Yêu cầu Node >= 18 trên máy chủ để build Velzon
 npm install --legacy-peer-deps >> $LOG_FILE 2>&1
-NODE_OPTIONS="--max-old-space-size=4096" npm run build >> $LOG_FILE 2>&1
+GENERATE_SOURCEMAP=false NODE_OPTIONS="--max-old-space-size=1536" npm run build >> $LOG_FILE 2>&1
 
 echo "[4/4] Khởi động lại dịch vụ..." >> $LOG_FILE
 sudo systemctl restart gunicorn_qlvb >> $LOG_FILE 2>&1
