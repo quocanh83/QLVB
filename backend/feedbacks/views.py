@@ -661,24 +661,11 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             except Exception:
                 pass
 
-            if report_type == 'custom' and (not tpl_db or not tpl_db.file_path):
-                # Truong hop Bao cao Tuy chinh ma chua upload file .docx -> dung generator dong (Portrait)
-                custom_config = dict(template_config) if template_config else {}
-                try:
-                    enabled_fields = tpl_db.field_configs.filter(is_enabled=True).order_by('column_order') if tpl_db else None
-                    if enabled_fields and enabled_fields.exists():
-                        custom_config['fields'] = [
-                            {'field_key': f.field_key, 'field_label': f.field_label, 'column_width_cm': f.column_width_cm}
-                            for f in enabled_fields
-                        ]
-                except Exception:
-                    pass
-                file_stream = generate_mau_10(document, feedbacks, template_config=custom_config or None)
-                filename = f"Bao_cao_Tuy_chinh_{document.id}.docx"
-            else:
-                # Dung generator V2 (Landscape cho mau_10, hoac Portrait cho custom neu co file)
-                file_stream = generate_from_v2_template(document, feedbacks, template_config=template_config, template_type=report_type)
-                filename = f"Bao_cao_{'Mau_10' if report_type=='mau10' else 'Tuy_chinh'}_{document.id}.docx"
+            # Luon su dung generator V2 (Dung file .docx template)
+            # Generator tu dong chon file Mau 10 (Ngang) hoac Custom V3 (Ngang) dua tren report_type
+            file_stream = generate_from_v2_template(document, feedbacks, template_config=template_config, template_type=report_type)
+            filename = f"Bao_cao_{'Mau_10' if report_type=='mau10' else 'Tuy_chinh'}_{document.id}.docx"
+
             
             response = FileResponse(
                 file_stream, 
