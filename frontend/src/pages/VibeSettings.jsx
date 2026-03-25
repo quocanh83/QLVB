@@ -65,6 +65,26 @@ const VibeSettings = () => {
         } catch (e) { alert('Lỗi khi xóa template.'); }
     };
 
+    const handleDownloadSchema = async (tplId, tplName) => {
+        try {
+            const auth = getAuthHeader();
+            const res = await axios.get(`/api/reports/templates/${tplId}/download_schema/`, {
+                ...auth,
+                responseType: 'blob'
+            });
+            const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.setAttribute('download', tplName.toLowerCase().replace(/\s+/g, '_') + '_original.docx');
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(blobUrl);
+        } catch (e) {
+            alert('Lỗi khi tải mẫu gốc.');
+        }
+    };
+
     const handleSystemUpdate = async () => {
         if (!window.confirm('Hệ thống sẽ kéo mã nguồn mới nhất từ GitHub và khởi động lại. Máy chủ có thể gián đoạn trong ít phút.\n\nLưu ý: Bạn phải cấp quyền visudo trên máy chủ trước khi sử dụng tính năng này.')) return;
         setUpdating(true);
@@ -211,14 +231,13 @@ const VibeSettings = () => {
                                             <Trash2 size={14} /> Xóa
                                         </button>
                                     )}
-                                    <a
-                                        href={`/api/reports/templates/${tpl.id}/download_schema/?token=${localStorage.getItem('access_token') || ''}`}
+                                                                        <button
+                                        onClick={() => handleDownloadSchema(tpl.id, tpl.name)}
                                         title="Tải file template gốc có JSON tags để chỉnh trong Word"
                                         className="flex items-center gap-2 px-5 py-3 bg-slate-100 text-slate-600 rounded-2xl text-xs font-bold hover:bg-slate-200 transition-colors"
-                                        download
                                     >
                                         <Download size={14} /> Tải mẫu gốc
-                                    </a>
+                                    </button>
                                     <label className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest cursor-pointer transition-all ${uploadingTpl === tpl.id ? 'bg-slate-100 text-slate-400' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/20'}`}>
                                         {uploadingTpl === tpl.id ? <><RefreshCw size={14} className="animate-spin" /><span>Đang tải...</span></> : <><Upload size={14} /><span>Tải lên .docx</span></>}
                                         <input type="file" accept=".docx" className="hidden" onChange={e => { if (e.target.files[0]) uploadTemplate(tpl.id, e.target.files[0]); }} disabled={uploadingTpl === tpl.id} />
