@@ -114,7 +114,7 @@ class ReportTemplateViewSet(viewsets.ModelViewSet):
         # Fallback: template mặc định trong source code
         default_path = os.path.join(
             os.path.dirname(__file__),
-            '..', '..', 'feedbacks', 'utils', 'template_bao_cao_V2_fixed.docx'
+            '..', 'feedbacks', 'utils', 'template_bao_cao_V2_fixed.docx'
         )
         default_path = os.path.normpath(default_path)
         if os.path.exists(default_path):
