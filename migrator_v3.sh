@@ -42,18 +42,20 @@ else
 fi
 echo "✅ Frontend V3 đã sẵn sàng tại $FRONTEND_V3_DIR/build"
 
-# 4. Cập nhật cấu hình Nginx (Đổi root sang frontend-v3)
+# 4. Cấu hình Nginx (Ép root sang frontend-v3/build)
 echo "=> [4/5] Đang cập nhật cấu hình Nginx..."
 if [ -f "$NGINX_CONF" ]; then
-    # Chắc chắn đường dẫn Root chính xác là thư mục PROJECT_DIR/frontend-v3/build
-    sudo sed -i "s|root .*qlvb/frontend/dist;|root $FRONTEND_V3_DIR/build;|g" $NGINX_CONF
-    sudo sed -i "s|root .*qlvb/frontend-v3/build;|root $FRONTEND_V3_DIR/build;|g" $NGINX_CONF
+    # 1. Chắc chắn đường dẫn Root chính xác
+    sudo sed -i "s|root .*|root /home/qlvb/frontend-v3/build;|g" $NGINX_CONF
+    # 2. Xóa các block cũ gây xung đột static nếu có
+    sudo sed -i '/location \/static\/ {/,/}/d' $NGINX_CONF
+    # 3. Đảm bảo index là index.html
     sudo sed -i 's/index index.html index.htm;/index index.html;/g' $NGINX_CONF
     
     sudo nginx -t && sudo systemctl restart nginx
     echo "✅ Nginx đã được cập nhật và khởi động lại."
 else
-    echo "❌ Không tìm thấy file cấu hình Nginx tại $NGINX_CONF. Vui lòng kiểm tra thủ công."
+    echo "❌ Không tìm thấy file cấu hình Nginx tại $NGINX_CONF."
 fi
 
 # 5. Khởi động lại các Service
