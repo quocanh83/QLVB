@@ -111,19 +111,20 @@ class ReportTemplateViewSet(viewsets.ModelViewSet):
             except Exception:
                 pass
 
-        # Fallback: template mặc định trong source code
-        default_path = os.path.join(
-            os.path.dirname(__file__),
-            '..', 'feedbacks', 'utils', 'template_bao_cao_V2_fixed.docx'
-        )
-        default_path = os.path.normpath(default_path)
-        if os.path.exists(default_path):
-            return FileResponse(
-                open(default_path, 'rb'),
-                as_attachment=True,
-                filename='template_bao_cao_V2_fixed.docx',
-                content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-            )
+        # Fallback: template mặc định trong source code (V3 cho custom, V2 cho mau10)
+        try:
+            from feedbacks.utils.v2_template_generator import _get_template_path
+            default_path = _get_template_path(template.template_type)
+            if default_path and os.path.exists(default_path):
+                fname = os.path.basename(default_path)
+                return FileResponse(
+                    open(default_path, 'rb'),
+                    as_attachment=True,
+                    filename=fname,
+                    content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                )
+        except Exception:
+            pass
 
         return Response({"error": "Không tìm thấy file template."}, status=404)
 
