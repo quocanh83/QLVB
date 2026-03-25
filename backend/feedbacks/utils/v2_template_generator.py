@@ -132,16 +132,8 @@ def _build_dieu_list(feedbacks):
             'explanations': explanations_list
         })
 
-        # Lấy tên cơ quan góp ý
-        user_name = fb.contributing_agency or ''
-        if not user_name and hasattr(fb, 'agency') and fb.agency:
-            user_name = fb.agency.name
+        # Da bo doan code lap tai day
 
-        nodes_map[node_key]['feedbacks'].append({
-            'user_name': user_name,
-            'content': fb.content or '',
-            'explanations': explanations_list
-        })
 
     return [nodes_map[k] for k in node_order]
 
