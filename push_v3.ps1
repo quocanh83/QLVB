@@ -5,9 +5,12 @@ Write-Host "   QLVB V3.0 - DEPLOY TO GITHUB (Velzon Edition)"
 Write-Host "==================================================" -ForegroundColor Cyan
 Write-Host ""
 
-Write-Host "[1/4] Tang so hieu phien ban frontend-v3..." -ForegroundColor Yellow
+Write-Host "[1/4] Tang so hieu phien ban frontend-v3 & Build..." -ForegroundColor Yellow
 Set-Location -Path "frontend-v3"
 npm version patch --no-git-tag-version
+Write-Host "=> Dang build ban Production tai máy Local (Toc do cao)..." -ForegroundColor Gray
+$env:GENERATE_SOURCEMAP="false"
+npm run build
 Set-Location -Path ".."
 
 Write-Host "`n[2/4] Doc phien ban moi nhat..." -ForegroundColor Yellow

@@ -29,14 +29,18 @@ python manage.py migrate
 python manage.py collectstatic --noinput
 deactivate
 
-# 3. Build Frontend V3 mới
-echo "=> [3/5] Đang tiến hành Build Frontend V3 (Velzon)..."
+# 3. Xử lý Frontend V3
+echo "=> [3/5] Đang kiểm tra Frontend V3..."
 cd $FRONTEND_V3_DIR
-# Xoá node_modules cũ nếu có để tránh xung đột
-# rm -rf node_modules 
-npm install --legacy-peer-deps
-GENERATE_SOURCEMAP=false NODE_OPTIONS="--max-old-space-size=1536" npm run build
-echo "✅ Build Frontend V3 hoàn tất tại $FRONTEND_V3_DIR/build"
+
+if [ -d "build" ] && [ "$(ls -A build)" ]; then
+    echo "✅ Đã tìm thấy bản build sẵn từ Git. Bỏ qua bước build trên server để tiết kiệm thời gian."
+else
+    echo "⚠️ Không tìm thấy bản build sẵn. Tiến hành Build trên server (Sẽ chậm)..."
+    npm install --legacy-peer-deps
+    GENERATE_SOURCEMAP=false NODE_OPTIONS="--max-old-space-size=1536" npm run build
+fi
+echo "✅ Frontend V3 đã sẵn sàng tại $FRONTEND_V3_DIR/build"
 
 # 4. Cập nhật cấu hình Nginx (Đổi root sang frontend-v3)
 echo "=> [4/5] Đang cập nhật cấu hình Nginx..."
