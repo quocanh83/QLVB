@@ -10,7 +10,7 @@ class Command(BaseCommand):
         template, created = ReportTemplate.objects.get_or_create(
             template_type='mau_10',
             defaults={
-                'name': 'Mẫu số 10 (Xoay Ngang - Chuẩn NĐ 30)',
+                'name': 'Mẫu số 10 (Ngang - Chuẩn NĐ 30)',
                 'is_active': True,
                 'header_org_name': 'BỘ/CƠ QUAN CHỦ TRÌ',
                 'header_org_location': 'Hà Nội',
@@ -50,7 +50,7 @@ class Command(BaseCommand):
         custom_tpl, c_created = ReportTemplate.objects.get_or_create(
             template_type='custom',
             defaults={
-                'name': 'Báo cáo Tuỳ chỉnh (Xoay Dọc - Cột tuỳ biến)',
+                'name': 'Báo cáo Tuỳ chỉnh (V3 - Đầy đủ 7 cột)',
                 'is_active': True,
                 'header_org_name': 'BỘ/CƠ QUAN CHỦ TRÌ',
                 'header_org_location': 'Hà Nội',
@@ -62,8 +62,33 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f'✓ Đã tạo mẫu tuỳ chỉnh: {custom_tpl.name}'))
         else:
             # Cập nhật tên nếu đã tồn tại mẫu cũ
-            custom_tpl.name = 'Báo cáo Tuỳ chỉnh (Xoay Dọc - Cột tuỳ biến)'
+            custom_tpl.name = 'Báo cáo Tuỳ chỉnh (V3 - Đầy đủ 7 cột)'
             custom_tpl.save()
             self.stdout.write(self.style.WARNING(f'⚠ Đã cập nhật tên mẫu tuỳ chỉnh: {custom_tpl.name}'))
+
+        
+        # Tạo 7 trường mặc định cho mẫu Tuỳ chỉnh V3
+        custom_fields = [
+            ('stt', 'STT', 1.0, 0),
+            ('dieu_khoan', 'Điều/Khoản', 3.0, 1),
+            ('user_name', 'Cơ quan góp ý', 3.0, 2),
+            ('content', 'Nội dung góp ý', 5.0, 3),
+            ('explanations', 'Nội dung giải trình', 5.0, 4),
+            ('chuyen_vien', 'Chuyên viên', 2.5, 5),
+            ('status', 'Trạng thái', 2.5, 6),
+        ]
+
+        for field_key, field_label, width, order in custom_fields:
+            ReportFieldConfig.objects.get_or_create(
+                template=custom_tpl,
+                field_key=field_key,
+                defaults={
+                    'field_label': field_label,
+                    'is_enabled': True,
+                    'is_default': True,
+                    'column_order': order,
+                    'column_width_cm': width,
+                }
+            )
 
         self.stdout.write(self.style.SUCCESS('\n✓ Hoàn tất seed dữ liệu mẫu báo cáo!'))
