@@ -121,6 +121,8 @@ def _build_dieu_list(feedbacks):
         status_map = {'pending': 'Chưa xử lý', 'reviewed': 'Đã giải trình', 'approved': 'Đã duyệt'}
         status_tv = status_map.get(fb.status, fb.status)
 
+        explanation_str = "\n".join([f"- {ex.content}" for ex in explanations_list])
+        
         nodes_map[node_key]['feedbacks'].append({
             'stt': len(nodes_map[node_key]['feedbacks']) + 1, # STT trong tung Điều
             'stt_global': i, # STT tong the
@@ -129,8 +131,10 @@ def _build_dieu_list(feedbacks):
             'status': status_tv,
             'chuyen_vien': chuyen_vien or (fb.user.username if fb.user else ''),
             'time': fb.created_at.strftime("%d/%m/%Y") if fb.created_at else '',
+            'explanation_str': explanation_str,
             'explanations': explanations_list
         })
+
 
         # Da bo doan code lap tai day
 
