@@ -338,16 +338,14 @@ const VibeReports = () => {
         reader.onload = () => {
           try {
             const errorText = reader.result;
-            let errorMessage = 'Vui lòng kiểm tra lại dữ liệu.';
+            let errorMessage = 'Vui lòng kiểm tra lại dữ liệu hoặc quyền truy cập.';
             try {
               const errorData = JSON.parse(errorText);
               errorMessage = errorData.error || errorMessage;
-            } catch (je) {
-              errorMessage = errorText || errorMessage;
-            }
-            alert(`Lỗi xuất báo cáo:\n${errorMessage}`);
+            } catch (je) {}
+            alert(errorMessage);
           } catch (parseError) {
-            alert('Không thể tải báo cáo. Vui lòng kiểm tra lại dữ liệu hoặc quyền truy cập.');
+            alert('Không thể tải báo cáo. Vui lòng kiểm tra lại dữ liệu.');
           }
         };
         reader.readAsText(e.response.data);
@@ -355,6 +353,7 @@ const VibeReports = () => {
         alert('Không thể tải báo cáo. Vui lòng kiểm tra lại dữ liệu hoặc quyền truy cập.');
       }
     }
+
 
 
   };

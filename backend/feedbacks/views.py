@@ -677,9 +677,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         except Document.DoesNotExist:
             return Response({"error": "Văn bản không tồn tại"}, status=404)
         except Exception as e:
-            import traceback
-            error_details = traceback.format_exc()
-            return Response({"error": f"Lỗi hệ hệ thống (V3-Debug): {str(e)}\n\n{error_details}"}, status=500)
+            return Response({"error": f"Lỗi xuất báo cáo (V3): {str(e)}"}, status=500)
 
 
 
