@@ -70,7 +70,7 @@ def _build_dieu_list(feedbacks):
     nodes_map = {}
     node_order = []
 
-    for fb in feedbacks:
+    for i, fb in enumerate(feedbacks, 1):
         node_key = None
         node_label = ''
         node_content = ''
@@ -95,13 +95,36 @@ def _build_dieu_list(feedbacks):
             }
             node_order.append(node_key)
 
-        # Lấy danh sách giải trình
+        # Lấy danh sách giải trình và Chuyên viên
         explanations_list = []
+        chuyen_vien = ''
         if hasattr(fb, 'explanations'):
             for ex in fb.explanations.all():
                 explanations_list.append({
                     'content': ex.content or ''
                 })
+                if not chuyen_vien and ex.user:
+                    chuyen_vien = ex.user.username or ex.user.first_name
+
+        # Lấy tên cơ quan góp ý
+        user_name = fb.contributing_agency or ''
+        if not user_name and hasattr(fb, 'agency') and fb.agency:
+            user_name = fb.agency.name
+
+        # Map status sang TV
+        status_map = {'pending': 'Chưa xử lý', 'reviewed': 'Đã giải trình', 'approved': 'Đã duyệt'}
+        status_tv = status_map.get(fb.status, fb.status)
+
+        nodes_map[node_key]['feedbacks'].append({
+            'stt': len(nodes_map[node_key]['feedbacks']) + 1, # STT trong tung Điều
+            'stt_global': i, # STT tong the
+            'user_name': user_name,
+            'content': fb.content or '',
+            'status': status_tv,
+            'chuyen_vien': chuyen_vien or (fb.user.username if fb.user else ''),
+            'time': fb.created_at.strftime("%d/%m/%Y") if fb.created_at else '',
+            'explanations': explanations_list
+        })
 
         # Lấy tên cơ quan góp ý
         user_name = fb.contributing_agency or ''
