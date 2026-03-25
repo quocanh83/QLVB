@@ -54,7 +54,7 @@ fi
 
 # 5. Khởi động lại các Service
 echo "=> [5/5] Đang khởi động lại Gunicorn & Celery..."
-sudo systemctl restart qlvb_gunicorn qlvb_celery
+sudo systemctl restart gunicorn_qlvb celery_qlvb
 
 echo "=========================================================="
 echo "🎉 CHÚC MỪNG! HỆ THỐNG ĐÃ ĐƯỢC NÂNG CẤP LÊN V3.0 THÀNH CÔNG."
