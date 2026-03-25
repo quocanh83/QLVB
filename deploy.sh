@@ -34,13 +34,13 @@ echo "⚠️ LƯU Ý: Vui lòng đảm bảo Source Code đã được Copy/Clon
 echo "Đang đợi 5 giây tiếp theo..."
 sleep 5
 
-# 3. BUILD FRONTEND (React / Vite)
-echo "=> 🚧 Tiến hành quét NPM và Build Frontend..."
-cd $PROJECT_DIR/frontend
-npm install
+# 3. BUILD FRONTEND V3 (Velzon React)
+echo "=> 🚧 Tiến hành quét NPM và Build Frontend V3 (Velzon)..."
+cd $PROJECT_DIR/frontend-v3
+npm install --legacy-peer-deps
 npm run build
 
-echo "✅ Frontend đã build xong. Khối tĩnh nằm tại $PROJECT_DIR/frontend/dist"
+echo "✅ Frontend V3 đã build xong. Khối tĩnh nằm tại $PROJECT_DIR/frontend-v3/build"
 
 # 4. CHUẨN BỊ MÔI TRƯỜNG BACKEND (Django)
 echo "=> 🐍 Thiết lập Virtual Environment và cài Gói Python..."
@@ -130,7 +130,7 @@ server {
 
     client_max_body_size 50M;
 
-    root $PROJECT_DIR/frontend/dist;
+    root $PROJECT_DIR/frontend-v3/build;
     index index.html index.htm;
 
     location / {

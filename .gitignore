@@ -60,3 +60,12 @@ Thumbs.db
 !template_*.docx
 
 !mau_du_thao.docx
+
+# V3 Frontend
+frontend-v3/node_modules/
+frontend-v3/dist/
+frontend-v3/build/
+
+# Ignore bulk templates & archives
+templates/
+QLVB.rar
