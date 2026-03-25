@@ -333,8 +333,30 @@ const VibeReports = () => {
       window.URL.revokeObjectURL(blobUrl);
     } catch (e) {
       console.error('Lỗi khi tải báo cáo:', e);
-      alert('Không thể tải báo cáo. Vui lòng kiểm tra lại dữ liệu hoặc quyền truy cập.');
+      if (e.response && e.response.data instanceof Blob) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const errorText = reader.result;
+            let errorMessage = 'Vui lòng kiểm tra lại dữ liệu.';
+            try {
+              const errorData = JSON.parse(errorText);
+              errorMessage = errorData.error || errorMessage;
+            } catch (je) {
+              errorMessage = errorText || errorMessage;
+            }
+            alert(`Lỗi xuất báo cáo:\n${errorMessage}`);
+          } catch (parseError) {
+            alert('Không thể tải báo cáo. Vui lòng kiểm tra lại dữ liệu hoặc quyền truy cập.');
+          }
+        };
+        reader.readAsText(e.response.data);
+      } else {
+        alert('Không thể tải báo cáo. Vui lòng kiểm tra lại dữ liệu hoặc quyền truy cập.');
+      }
     }
+
+
   };
 
   const categoryMap = { ministry: 'Bộ/Ngành', local: 'Địa phương', organization: 'Tổ chức', enterprise: 'Doanh nghiệp', other: 'Khác' };
