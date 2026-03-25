@@ -121,7 +121,8 @@ def _build_dieu_list(feedbacks):
         status_map = {'pending': 'Chưa xử lý', 'reviewed': 'Đã giải trình', 'approved': 'Đã duyệt'}
         status_tv = status_map.get(fb.status, fb.status)
 
-        explanation_str = "\n".join([f"- {ex.content}" for ex in explanations_list])
+        explanation_str = "\n".join([f"- {ex['content']}" for ex in explanations_list])
+
         
         nodes_map[node_key]['feedbacks'].append({
             'stt': len(nodes_map[node_key]['feedbacks']) + 1, # STT trong tung Điều

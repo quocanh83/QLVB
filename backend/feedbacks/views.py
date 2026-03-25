@@ -677,7 +677,8 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         except Document.DoesNotExist:
             return Response({"error": "Văn bản không tồn tại"}, status=404)
         except Exception as e:
-            return Response({"error": f"Lỗi xuất báo cáo (V3-TR): {str(e)}"}, status=500)
+            return Response({"error": f"Lỗi xuất báo cáo (V3-FINAL): {str(e)}"}, status=500)
+
 
 
 
