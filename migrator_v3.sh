@@ -49,6 +49,10 @@ if [ -f "$NGINX_CONF" ]; then
     sudo sed -i "s|root .*|root /home/qlvb/frontend-v3/build;|g" $NGINX_CONF
     # 2. Xóa các block cũ gây xung đột static nếu có
     sudo sed -i '/location \/static\/ {/,/}/d' $NGINX_CONF
+    # Cấm cache index.html để sửa dứt điểm lỗi 404
+    if ! grep -q "location = /index.html" "$NGINX_CONF"; then
+        sudo sed -i '/location \/ {/i \    location = /index.html {\n        add_header Cache-Control "no-cache, no-store, must-revalidate";\n        add_header Pragma "no-cache";\n        add_header Expires 0;\n        try_files $uri /index.html;\n    }\n' $NGINX_CONF
+    fi
     # 3. Đảm bảo index là index.html
     sudo sed -i 's/index index.html index.htm;/index index.html;/g' $NGINX_CONF
     
