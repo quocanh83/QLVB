@@ -308,13 +308,33 @@ const VibeReports = () => {
     finally { setSavingField(null); }
   };
 
-  const handleExportCustomWord = () => {
+  const handleExportCustomWord = async () => {
     if (!selectedDocId) return;
-    const token = localStorage.getItem('access_token');
-    let url = `/api/feedbacks/export_mau_10/?document_id=${selectedDocId}&token=${token}&status=${customStatus}`;
-    if (customAgency && customAgency !== 'all') url += `&agency=${encodeURIComponent(customAgency)}`;
-    url += `&report_type=${reportMode}`;
-    window.location.href = url;
+    try {
+      const auth = getAuthHeader();
+      let url = `/api/feedbacks/export_mau_10/?document_id=${selectedDocId}&status=${customStatus}`;
+      if (customAgency && customAgency !== 'all') url += `&agency=${encodeURIComponent(customAgency)}`;
+      url += `&report_type=${reportMode}`;
+      
+      const response = await axios.get(url, {
+        ...auth,
+        responseType: 'blob', // Quan trọng: Nhận dữ liệu dưới dạng tệp tin
+      });
+
+      // Tạo link ảo để tải file
+      const blobUrl = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      const filename = `Bao_cao_${reportMode === 'mau10' ? 'Mau_10' : 'Tuy_chinh'}_${selectedDocId}.docx`;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+      console.error('Lỗi khi tải báo cáo:', e);
+      alert('Không thể tải báo cáo. Vui lòng kiểm tra lại dữ liệu hoặc quyền truy cập.');
+    }
   };
 
   const categoryMap = { ministry: 'Bộ/Ngành', local: 'Địa phương', organization: 'Tổ chức', enterprise: 'Doanh nghiệp', other: 'Khác' };
