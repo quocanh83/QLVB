@@ -26,7 +26,7 @@ sudo chown -R qlvb:qlvb $PROJECT_DIR
 echo "=> 🚧 Đang xây dựng lại Frontend V3..."
 cd $PROJECT_DIR/frontend-v3
 sudo -u qlvb npm install --legacy-peer-deps
-sudo -u qlvb npm run build
+sudo -u qlvb NODE_OPTIONS="--max-old-space-size=4096" npm run build
 
 # 3. Cập nhật Backend (Chạy dưới tư cách user qlvb)
 echo "=> 🐍 Đang cập nhật Backend và Migrate Database..."
