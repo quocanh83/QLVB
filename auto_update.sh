@@ -6,7 +6,7 @@
 
 PROJECT_DIR="/home/qlvb"
 BACKEND_DIR="$PROJECT_DIR/backend"
-FRONTEND_DIR="$PROJECT_DIR/frontend"
+FRONTEND_DIR="$PROJECT_DIR/frontend-v3"
 LOG_FILE="$PROJECT_DIR/update_system.log"
 
 echo "===================================================" > $LOG_FILE
