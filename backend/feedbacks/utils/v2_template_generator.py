@@ -29,14 +29,17 @@ from datetime import datetime
 from docxtpl import DocxTemplate
 
 # Đường dẫn mặc định đến file template
-DEFAULT_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), 'template_bao_cao_V2_fixed.docx')
+# Đường dẫn mặc định đến các file template
+DEFAULT_MAU10_PATH = os.path.join(os.path.dirname(__file__), 'template_bao_cao_V2_fixed.docx')
+DEFAULT_CUSTOM_PATH = os.path.join(os.path.dirname(__file__), 'template_truong_tu_chinh_v3.docx')
+
 
 
 def _get_template_path(template_type='mau_10'):
     """
     Trả về đường dẫn file template:
     - Ưu tiên 1: File đã upload trong DB (ReportTemplate.file_path)
-    - Ưu tiên 2: File mặc định trong source code
+    - Ưu tiên 2: File mặc định trong source code (V3 cho custom, V2 cho mau10)
     """
     try:
         from reports.models import ReportTemplate as RT
@@ -48,7 +51,10 @@ def _get_template_path(template_type='mau_10'):
                 return path
     except Exception:
         pass
-    return DEFAULT_TEMPLATE_PATH
+    
+    if template_type == 'custom':
+        return DEFAULT_CUSTOM_PATH
+    return DEFAULT_MAU10_PATH
 
 
 def _build_dieu_list(feedbacks):
