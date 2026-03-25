@@ -36,7 +36,7 @@ import DocumentDetails from "../pages/Documents/DocumentDetails";
 import Reports from "../pages/Reports";
 
 // QLVB - Settings
-import Settings from "../pages/Settings";
+import SystemSettings from "../pages/Settings";
 
 //Task
 import TaskDetails from "../pages/Tasks/TaskDetails";
@@ -306,7 +306,7 @@ const authProtectedRoutes = [
   { path: "/reports", component: <Reports /> },
 
   // QLVB - Settings
-  { path: "/settings", component: <Settings /> },
+  { path: "/settings", component: <SystemSettings /> },
 
   //Task
   { path: "/apps-tasks-list-view", component: <TaskList /> },
