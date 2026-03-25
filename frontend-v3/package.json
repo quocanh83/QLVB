@@ -1,6 +1,7 @@
 {
   "name": "modern-velzon-thunk",
   "version": "4.3.1",
+  "homepage": ".",
   "private": true,
   "dependencies": {
     "@ckeditor/ckeditor5-build-classic": "^43.2.0",
