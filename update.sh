@@ -22,10 +22,10 @@ git reset --hard origin/master
 echo "=> 🔑 Cấp quyền sở hữu thư mục cho qlvb..."
 sudo chown -R qlvb:qlvb $PROJECT_DIR
 
-# 2. Cập nhật và Build Frontend (Chạy dưới tư cách user qlvb)
-echo "=> 🚧 Đang xây dựng lại Frontend..."
-cd $PROJECT_DIR/frontend
-sudo -u qlvb npm install
+# 2. Cập nhật và Build Frontend V3 (Velzon)
+echo "=> 🚧 Đang xây dựng lại Frontend V3..."
+cd $PROJECT_DIR/frontend-v3
+sudo -u qlvb npm install --legacy-peer-deps
 sudo -u qlvb npm run build
 
 # 3. Cập nhật Backend (Chạy dưới tư cách user qlvb)

@@ -26,8 +26,8 @@ cd $BACKEND_DIR
 
 echo "[3/4] Cập nhật Frontend (Node JS)..." >> $LOG_FILE
 cd $FRONTEND_DIR
-# Yêu cầu Node >= 18 trên máy chủ để build Vite 5
-npm install >> $LOG_FILE 2>&1
+# Yêu cầu Node >= 18 trên máy chủ để build Velzon
+npm install --legacy-peer-deps >> $LOG_FILE 2>&1
 npm run build >> $LOG_FILE 2>&1
 
 echo "[4/4] Khởi động lại dịch vụ..." >> $LOG_FILE
