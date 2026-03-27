@@ -53,33 +53,7 @@ const ProfileDropdown = () => {
                             <span className="align-middle"> Profile</span>
                         </Link>
                     </DropdownItem>
-                    <DropdownItem className='p-0'>
-                        <Link to= "/apps-chat" className="dropdown-item">
-                            <i className="mdi mdi-message-text-outline text-muted fs-16 align-middle me-1"></i> <span
-                                className="align-middle">Messages</span>
-                        </Link>
-                    </DropdownItem>
-                    <DropdownItem className='p-0'>
-                        <Link to="#" className="dropdown-item">
-                            <i className="mdi mdi-calendar-check-outline text-muted fs-16 align-middle me-1"></i> <span
-                                className="align-middle">Taskboard</span>
-                        </Link>
-                    </DropdownItem>
-                    <DropdownItem className='p-0'>
-                        <Link to= "/pages-faqs" className="dropdown-item">
-                            <i
-                                className="mdi mdi-lifebuoy text-muted fs-16 align-middle me-1"></i> <span
-                                    className="align-middle">Help</span>
-                        </Link>
-                    </DropdownItem>
                     <div className="dropdown-divider"></div>
-                    <DropdownItem className='p-0'>
-                        <Link to= "/pages-profile" className="dropdown-item">
-                            <i
-                                className="mdi mdi-wallet text-muted fs-16 align-middle me-1"></i> <span
-                                    className="align-middle">Balance : <b>$5971.67</b></span>
-                        </Link>
-                    </DropdownItem>
                     <DropdownItem className='p-0'>
                         <Link to= "/pages-profile-settings" className="dropdown-item">
                             <span

@@ -1,12 +1,209 @@
-import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, CardBody, CardHeader, Input, Button, Table, Spinner } from 'reactstrap';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Container, Row, Col, Card, CardBody, CardHeader, Input, Button, Table, Spinner, Badge, Modal, ModalHeader, ModalBody, ModalFooter, Label, UncontrolledCollapse } from 'reactstrap';
 import BreadCrumb from '../../Components/Common/BreadCrumb';
 import axios from 'axios';
 import { getAuthHeader } from '../../helpers/api_helper';
 import { toast } from 'react-toastify';
 import FeatherIcon from 'feather-icons-react';
 
+// dnd-kit imports
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+    useSortable,
+} from '@dnd-kit/sortable';
+import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
+import { CSS } from '@dnd-kit/utilities';
+
+const SortableSidebarItem = ({ id, children }) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 10 : 1,
+        opacity: isDragging ? 0.7 : 1,
+    };
+
+    return (
+        <div ref={setNodeRef} style={style} {...attributes}>
+            {React.cloneElement(children, { dragHandleProps: listeners })}
+        </div>
+    );
+};
+
+const SortableSubItem = ({ id, children }) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 10 : 1,
+        opacity: isDragging ? 0.7 : 1,
+    };
+
+    return (
+        <div ref={setNodeRef} style={style} {...attributes}>
+            {React.cloneElement(children, { dragHandleProps: listeners })}
+        </div>
+    );
+};
+
+const SidebarItemBody = ({ 
+    item, detail, currentLabel, toggleSidebarVisible, deleteSidebarItem, openEditModal, 
+    toggleSubItemVisible, promoteToParent, sensors, dragHandleProps 
+}) => {
+    return (
+        <SidebarItemBodyBase 
+            item={item}
+            detail={detail}
+            currentLabel={currentLabel}
+            toggleSidebarVisible={toggleSidebarVisible}
+            deleteSidebarItem={deleteSidebarItem}
+            openEditModal={openEditModal}
+            toggleSubItemVisible={toggleSubItemVisible}
+            promoteToParent={promoteToParent}
+            sensors={sensors}
+            dragHandleProps={dragHandleProps}
+        />
+    );
+};
+
+const SidebarItemBodyBase = ({ 
+    item, detail, currentLabel, toggleSidebarVisible, deleteSidebarItem, openEditModal, 
+    toggleSubItemVisible, promoteToParent, dragHandleProps 
+}) => {
+    return (
+        <div className="sidebar-item-row mb-3">
+            <div className={`d-flex align-items-center p-3 border rounded bg-light ${!item.visible ? 'opacity-50' : ''} ${item.isHeader ? 'border-primary border-2' : ''}`}>
+                <div className="drag-handle me-3 cursor-move" {...dragHandleProps}>
+                    <i className="ri-drag-move-2-fill fs-20 text-muted"></i>
+                </div>
+                <div className="flex-grow-1">
+                    <div className="d-flex align-items-center mb-1">
+                        <div className="me-2 cursor-pointer" onClick={() => openEditModal(item.id)}>
+                            <i className={`${item.icon || detail.icon} fs-18 text-primary shadow-sm p-1 bg-white rounded`}></i>
+                        </div>
+                        <h5 className="fs-14 mb-0 font-weight-bold d-flex align-items-center">
+                            {currentLabel}
+                            {item.isHeader && <Badge color="primary" className="ms-2 fs-10">HEADER</Badge>}
+                            <Button type="button" color="link" size="sm" className="ms-2 p-0 text-muted" onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEditModal(item.id); }}>
+                                <i className="ri-pencil-line"></i>
+                            </Button>
+                        </h5>
+                    </div>
+                    <div className="d-flex align-items-center">
+                        <Badge color="soft-light" className="text-dark me-2">{item.id}</Badge>
+                        {item.link && <small className="text-muted text-truncate" style={{maxWidth: '200px'}}>{item.link}</small>}
+                    </div>
+                </div>
+                <div className="flex-shrink-0 d-flex align-items-center">
+                    <div className="form-check form-switch me-3">
+                        <Input 
+                            className="form-check-input" 
+                            type="checkbox" 
+                            checked={item.visible}
+                            onChange={(e) => { e.preventDefault(); e.stopPropagation(); toggleSidebarVisible(item.id); }}
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    </div>
+                    <Button type="button" color="soft-danger" size="sm" title="Xóa" onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteSidebarItem(item.id); }}>
+                        <i className="ri-delete-bin-line"></i>
+                    </Button>
+                </div>
+            </div>
+
+            {item.visible && item.subItems && item.subItems.length > 0 && (
+                <div className="ms-5 mt-2 border-start border-primary border-opacity-50 ps-3">
+                    <SortableContext 
+                        items={(item.subItems || []).map(s => s.id)}
+                        strategy={verticalListSortingStrategy}
+                    >
+                        <div className="sub-item-list">
+                            {(item.subItems || []).map(subItem => {
+                                const subDetail = (detail.subItems || []).find(d => d.id === subItem.id) || { label: subItem.label, icon: subItem.icon };
+                                const subLabel = subItem.label || subDetail.label;
+                                const subIcon = subItem.icon || "ri-arrow-right-s-line";
+                                return (
+                                    <SortableSubItem key={subItem.id} id={subItem.id}>
+                                        <SubItemBody 
+                                            parentId={item.id}
+                                            subItem={subItem}
+                                            subLabel={subLabel}
+                                            subIcon={subIcon}
+                                            openEditModal={openEditModal}
+                                            promoteToParent={promoteToParent}
+                                        />
+                                    </SortableSubItem>
+                                );
+                            })}
+                        </div>
+                    </SortableContext>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const SubItemBody = ({ parentId, subItem, subLabel, subIcon, openEditModal, promoteToParent, dragHandleProps }) => {
+    return (
+        <div className={`d-flex align-items-center p-2 mb-2 border rounded bg-white ${!subItem.visible ? 'opacity-50' : ''}`}>
+            <div className="drag-handle me-2 cursor-move" {...dragHandleProps}>
+                <i className="ri-drag-move-fill fs-14 text-muted"></i>
+            </div>
+            <div className="me-2">
+                <i className={`${subIcon} text-info fs-16`}></i>
+            </div>
+            <div className="flex-grow-1">
+                <span className="fs-13 fw-medium">{subLabel}</span>
+                <Button type="button" color="link" size="sm" className="ms-1 p-0 text-muted" onClick={() => openEditModal(subItem.id, parentId)}>
+                    <i className="ri-pencil-line"></i>
+                </Button>
+            </div>
+            <div className="flex-shrink-0 d-flex align-items-center">
+                <Button type="button" color="link" size="sm" className="text-primary p-0 me-2" title="Chuyển ra ngoài" onClick={() => promoteToParent(subItem.id, parentId)}>
+                    <i className="ri-arrow-left-line"></i>
+                </Button>
+            </div>
+        </div>
+    );
+};
+
+const REMIX_ICONS = [
+    "ri-dashboard-2-line", "ri-file-text-line", "ri-calendar-line", "ri-chat-3-line", 
+    "ri-mail-line", "ri-team-line", "ri-briefcase-line", "ri-hand-coin-line",
+    "ri-pie-chart-line", "ri-settings-3-line", "ri-apps-2-line", "ri-links-line",
+    "ri-global-line", "ri-shield-user-line", "ri-database-2-line", "ri-image-line",
+    "ri-map-pin-line", "ri-book-open-line", "ri-separator"
+];
+
+const defaultLocalSidebarConfig = [];
 const Settings = () => {
+    // State API Keys & Settings
     // State API Keys & Settings
     const [settings, setSettings] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -19,31 +216,163 @@ const Settings = () => {
     const [uploadingTpl, setUploadingTpl] = useState(null);
     const [updating, setUpdating] = useState(false);
 
+    // Sidebar Management State
+    const [sidebarConfig, setSidebarConfig] = useState([]);
+    const [localSidebarConfig, setLocalSidebarConfig] = useState(defaultLocalSidebarConfig);
+    const [isSidebarChanged, setIsSidebarChanged] = useState(false);
+
+    const [isEditModal, setIsEditModal] = useState(false);
+    const [editItem, setEditItem] = useState(null); // {id, parentId, newParentId}
+    const [tempEditLabel, setTempEditLabel] = useState('');
+    const [tempEditIcon, setTempEditIcon] = useState('');
+    const [tempEditIsHeader, setTempEditIsHeader] = useState(false);
+
+    const [isIconPickerModal, setIsIconPickerModal] = useState(false);
+    const [iconSearch, setIconSearch] = useState("");
+    
+    const [isCustomLinkModal, setIsCustomLinkModal] = useState(false);
+    const [newCustomLink, setNewCustomLink] = useState({ label: '', link: '', icon: 'ri-links-line' });
+
+    const [isResetConfirmModal, setIsResetConfirmModal] = useState(false);
+
+    const defaultSidebarItems = [
+        { id: 'dashboard', label: 'Bảng điều khiển' },
+        { id: 'staff_performance', label: 'Hiệu suất nhân viên' },
+        { id: 'qlvb_dasboard', label: 'Tổng quan' },
+        { id: 'documents', label: 'Văn bản' },
+        { id: 'categories', label: 'Danh mục' },
+        { id: 'user-management', label: 'Quản lý Cán bộ' },
+        { id: 'reports', label: 'Báo cáo' },
+        { id: 'settings', label: 'Cấu hình' },
+        { id: 'analytics', label: 'Analytics' },
+        { id: 'crm', label: 'CRM' },
+        { id: 'ecommerce', label: 'Ecommerce' },
+        { id: 'projects', label: 'Projects' },
+        { id: 'tasks', label: 'Tasks' },
+        { id: 'apps', label: 'Ứng dụng' },
+        { id: 'widgets', label: 'Widgets' }
+    ];
+
+    const SYSTEM_ROUTES = [
+        { label: "Tổng quan (QLVB)", link: "/qlvb_dasboard" },
+        { label: "Danh sách Văn bản", link: "/documents" },
+        { label: "Trung tâm Báo cáo", link: "/reports" },
+        { label: "Cấu hình Hệ thống", link: "/settings" },
+        { label: "Dashboard Analytics", link: "/dashboard-analytics" },
+        { label: "Dashboard CRM", link: "/dashboard-crm" },
+        { label: "Dashboard Ecommerce", link: "/dashboard-ecommerce" },
+        { label: "Quản lý Cán bộ", link: "/user-management" },
+        { label: "Calendar", link: "/apps-calendar" },
+        { label: "Chat", link: "/apps-chat" },
+        { label: "Mailbox", link: "/apps-mailbox" }
+    ];
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
+
     useEffect(() => {
         fetchSettings();
         fetchReportTemplates();
     }, []);
 
+    const forceInitializeSidebar = () => {
+        const initial = defaultSidebarItems.map(defItem => ({
+            id: defItem.id,
+            label: defItem.label,
+            visible: true,
+            subItems: (defItem.subItems || []).map(s => ({
+                id: s.id,
+                label: s.label,
+                visible: true
+            }))
+        }));
+        setSidebarConfig(initial);
+        setLocalSidebarConfig(initial);
+        localStorage.setItem('sidebarJSONConfig', JSON.stringify(initial));
+        setIsSidebarChanged(true); // Ensure user is prompted to save to DB
+        toast.info("Đã nạp danh sách mặc định. Hãy nhấn 'Lưu thay đổi' để xác nhận.");
+    };
+
     const fetchSettings = async () => {
         setLoading(true);
         try {
             const res = await axios.get('/api/settings/', getAuthHeader());
-            setSettings(res.data);
+            const data = res.data || res;
+            setSettings(data);
             const initValues = {};
-            res.data.forEach(s => { initValues[s.id] = s.value; });
+            const localConfig = {};
+            let sidebarLoaded = false;
+            let finalSidebarJSON = [];
+
+            data.forEach(s => {
+                initValues[s.id] = s.value;
+                if (s.key.startsWith('SIDEBAR_HIDE_')) {
+                    localConfig[s.key] = s.value === 'true';
+                }
+                if (s.key === 'SIDEBAR_JSON_CONFIG') {
+                    if (s.value && s.value.trim() !== "") {
+                        try {
+                            let parsed = JSON.parse(s.value);
+                            if (Array.isArray(parsed) && parsed.length > 0) {
+                                // Deduplicate
+                                const seen = new Set();
+                                finalSidebarJSON = parsed.filter(item => {
+                                    if (!item.id || seen.has(item.id)) return false;
+                                    seen.add(item.id);
+                                    return true;
+                                });
+                                sidebarLoaded = true;
+                            }
+                        } catch (e) { 
+                            console.error("Invalid sidebar JSON from DB", e); 
+                        }
+                    }
+                }
+            });
+
+            // SOFT MERGE / FALLBACK
+            if (!sidebarLoaded || finalSidebarJSON.length === 0) {
+                finalSidebarJSON = defaultSidebarItems.map(defItem => ({
+                    id: defItem.id,
+                    label: defItem.label,
+                    visible: true,
+                    subItems: (defItem.subItems || []).map(s => ({
+                        id: s.id,
+                        label: s.label,
+                        visible: true
+                    }))
+                }));
+            } else {
+                // Ensure all default items are at least present (Soft Merge)
+                defaultSidebarItems.forEach(defItem => {
+                    if (!finalSidebarJSON.find(p => p.id === defItem.id)) {
+                        finalSidebarJSON.push({
+                            id: defItem.id,
+                            label: defItem.label,
+                            visible: true,
+                            subItems: (defItem.subItems || []).map(s => ({
+                                id: s.id,
+                                label: s.label,
+                                visible: true
+                            }))
+                        });
+                    }
+                });
+            }
+
+            setSidebarConfig(finalSidebarJSON);
+            setLocalSidebarConfig(finalSidebarJSON);
+            localStorage.setItem('sidebarJSONConfig', JSON.stringify(finalSidebarJSON));
+
             setEditingValues(initValues);
+            localStorage.setItem('sidebarConfig', JSON.stringify(localConfig));
         } catch (e) {
             toast.error('Lỗi tải cấu hình');
         } finally {
             setLoading(false);
         }
-    };
-
-    const fetchReportTemplates = async () => {
-        try {
-            const res = await axios.get('/api/reports/templates/', getAuthHeader());
-            setReportTemplates(res.data);
-        } catch (e) { console.error(e); }
     };
 
     const saveSetting = async (id) => {
@@ -54,6 +383,206 @@ const Settings = () => {
             fetchSettings();
         } catch (e) { toast.error('Lỗi khi lưu.'); }
         finally { setSavingId(null); }
+    };
+
+    const saveAllSidebarChanges = async () => {
+        setLoading(true);
+        try {
+            const configStr = JSON.stringify(localSidebarConfig);
+            // Search case-insensitive or trimmed in case of DB variations
+            const setting = settings.find(s => s.key && s.key.trim() === 'SIDEBAR_JSON_CONFIG');
+            
+            if (setting) {
+                console.log("Updating existing sidebar config ID:", setting.id);
+                await axios.patch(`/api/settings/${setting.id}/`, { value: configStr }, getAuthHeader());
+            } else {
+                console.log("Creating NEW sidebar config");
+                await axios.post('/api/settings/', { 
+                    key: 'SIDEBAR_JSON_CONFIG', 
+                    value: configStr, 
+                    description: 'Sidebar Menu JSON Configuration' 
+                }, getAuthHeader());
+            }
+
+            setSidebarConfig(JSON.parse(configStr));
+            setIsSidebarChanged(false);
+            localStorage.setItem('sidebarJSONConfig', configStr);
+            toast.success("Đã lưu thay đổi thứ tự và hiển thị menu.");
+        } catch (e) {
+            console.error("Failed to sync sidebar config:", e);
+            const msg = (e.response && e.response.status === 401) 
+                ? "Lỗi: Bạn không có quyền Admin (401) hoặc phiên đăng nhập hết hạn." 
+                : "Lỗi khi lưu cấu hình menu.";
+            toast.error(msg);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const resetSidebar = () => {
+        setLocalSidebarConfig(JSON.parse(JSON.stringify(sidebarConfig)));
+        setIsSidebarChanged(false);
+        localStorage.setItem('sidebarJSONConfig', JSON.stringify(sidebarConfig));
+        toast.info("Đã khôi phục về bản lưu gần nhất.");
+    };
+
+    const onDragEnd = (event) => {
+        const { active, over } = event;
+        if (!over) return;
+
+        if (active.id !== over.id) {
+            setLocalSidebarConfig((prev) => {
+                const activeIndex = prev.findIndex((item) => item.id === active.id);
+                const overIndex = prev.findIndex((item) => item.id === over.id);
+
+                if (activeIndex !== -1 && overIndex !== -1) {
+                    setIsSidebarChanged(true);
+                    return arrayMove(prev, activeIndex, overIndex);
+                }
+
+                return prev.map(item => {
+                    if (item.subItems) {
+                        const sActiveIdx = item.subItems.findIndex(s => s.id === active.id);
+                        const sOverIdx = item.subItems.findIndex(s => s.id === over.id);
+                        if (sActiveIdx !== -1 && sOverIdx !== -1) {
+                            setIsSidebarChanged(true);
+                            return { ...item, subItems: arrayMove(item.subItems, sActiveIdx, sOverIdx) };
+                        }
+                    }
+                    return item;
+                });
+            });
+        }
+    };
+
+    const toggleSidebarVisible = (id) => {
+        setLocalSidebarConfig(prev => prev.map(item => {
+            if (item.id === id) return { ...item, visible: !item.visible };
+            if (item.subItems) {
+                const updatedSubs = (item.subItems || []).map(s => s.id === id ? { ...s, visible: !s.visible } : s);
+                return { ...item, subItems: updatedSubs };
+            }
+            return item;
+        }));
+        setIsSidebarChanged(true);
+    };
+
+    const deleteSidebarItem = (id) => {
+        if (!window.confirm("Bạn có chắc muốn xóa mục này khỏi sidebar?")) return;
+        setLocalSidebarConfig(prev => {
+            const topLevel = prev.filter(it => it.id !== id);
+            return topLevel.map(item => ({
+                ...item,
+                subItems: (item.subItems || []).filter(s => s.id !== id)
+            }));
+        });
+        setIsSidebarChanged(true);
+    };
+
+    const promoteToParent = (subId, parentId) => {
+        setLocalSidebarConfig(prev => {
+            let itemToMove = null;
+            const updatedItems = prev.map(item => {
+                if (item.id === parentId && item.subItems) {
+                    itemToMove = item.subItems.find(s => s.id === subId);
+                    return { ...item, subItems: item.subItems.filter(s => s.id !== subId) };
+                }
+                return item;
+            });
+            if (itemToMove) {
+                const newItem = { ...itemToMove, visible: true };
+                updatedItems.push(newItem);
+            }
+            return updatedItems;
+        });
+        setIsSidebarChanged(true);
+        toast.info(`Đã chuyển mục ra menu chính. Nhấn Lưu để xác nhận.`);
+    };
+
+    const openEditModal = (id, parentId = null) => {
+        const item = localSidebarConfig.find(it => it.id === id) || (parentId ? (localSidebarConfig.find(p => p.id === parentId)?.subItems || []).find(s => s.id === id) : null);
+        const detail = defaultSidebarItems.find(d => d.id === (parentId || id)) || {};
+        const subDetail = parentId ? (detail.subItems || []).find(s => s.id === id) : null;
+        
+        setEditItem({ id, parentId, newParentId: parentId || "" });
+        setTempEditLabel(item?.label || (parentId ? subDetail?.label : detail.label) || id);
+        setTempEditIcon(item?.icon || (parentId ? "ri-arrow-right-s-line" : detail.icon) || 'ri-record-circle-line');
+        setTempEditIsHeader(item?.isHeader || false);
+        setIsEditModal(true);
+    };
+
+    const saveEditModal = () => {
+        const { id, parentId, newParentId } = editItem;
+        
+        setLocalSidebarConfig(prev => {
+            let workingConfig = [...prev];
+            let itemToMove = null;
+
+            // 1. Find and Extract item
+            if (parentId) {
+                const parent = workingConfig.find(p => p.id === parentId);
+                if (parent && parent.subItems) {
+                    const idx = parent.subItems.findIndex(s => s.id === id);
+                    if (idx !== -1) {
+                        itemToMove = { ...parent.subItems[idx], label: tempEditLabel, icon: tempEditIcon, isHeader: tempEditIsHeader };
+                        parent.subItems = parent.subItems.filter(s => s.id !== id);
+                    }
+                }
+            } else {
+                const idx = workingConfig.findIndex(it => it.id === id);
+                if (idx !== -1) {
+                    itemToMove = { ...workingConfig[idx], label: tempEditLabel, icon: tempEditIcon, isHeader: tempEditIsHeader };
+                    workingConfig = workingConfig.filter(it => it.id !== id);
+                }
+            }
+
+            if (!itemToMove) return prev; // Should not happen
+
+            // 2. Insert into NEW parent
+            if (newParentId && newParentId !== "") {
+                const targetParent = workingConfig.find(p => p.id === newParentId);
+                if (targetParent) {
+                    if (!targetParent.subItems) targetParent.subItems = [];
+                    targetParent.subItems.push(itemToMove);
+                } else {
+                    workingConfig.push(itemToMove); // Fallback to top level
+                }
+            } else {
+                workingConfig.push(itemToMove);
+            }
+
+            return workingConfig;
+        });
+
+        setIsSidebarChanged(true);
+        setIsEditModal(false);
+    };
+
+    const addCustomLink = () => {
+        if (!newCustomLink.label || !newCustomLink.link) {
+            toast.warning("Vui lòng điền tên và đường dẫn.");
+            return;
+        }
+        const id = 'custom-' + Date.now();
+        const newItem = {
+            id,
+            label: newCustomLink.label,
+            link: newCustomLink.link,
+            icon: newCustomLink.icon,
+            visible: true
+        };
+        setLocalSidebarConfig([...localSidebarConfig, newItem]);
+        setIsSidebarChanged(true);
+        setIsCustomLinkModal(false);
+        setNewCustomLink({ label: '', link: '', icon: 'ri-links-line' });
+        toast.success("Đã thêm liên kết tùy chỉnh.");
+    };
+
+    const fetchReportTemplates = async () => {
+        try {
+            const res = await axios.get('/api/reports/templates/', getAuthHeader());
+            setReportTemplates(res.data);
+        } catch (e) { console.error(e); }
     };
 
     const uploadTemplate = async (templateId, file) => {
@@ -153,7 +682,7 @@ const Settings = () => {
                                 <CardBody>
                                     <Table className="table-borderless align-middle mb-0">
                                         <tbody>
-                                            {settings.map(s => (
+                                            {settings?.map(s => (
                                                 <tr key={s.id} className="border-bottom border-dashed border-bottom-1">
                                                     <td style={{ width: "30%" }}>
                                                         <h6 className="mb-1">{s.key}</h6>
@@ -173,7 +702,7 @@ const Settings = () => {
                                                     <td className="text-end" style={{ width: "20%" }}>
                                                         {s.key.includes('KEY') && (
                                                             <Button color="light" className="me-2 text-muted btn-icon" onClick={() => setShowKeys(prev => ({...prev, [s.id]: !prev[s.id]}))}>
-                                                                <i className={showKeys[s.id] ? "ri-eye-off-line" : "ri-eye-line"}></i>
+                                                                 <i className={showKeys[s.id] ? "ri-eye-off-line" : "ri-eye-line"}></i>
                                                             </Button>
                                                         )}
                                                         <Button color="primary" disabled={savingId === s.id} onClick={() => saveSetting(s.id)}>
@@ -189,6 +718,95 @@ const Settings = () => {
                         </Col>
 
                         <Col lg={12}>
+                            <Card className="shadow-lg border-0">
+                                <CardHeader className="bg-soft-primary d-flex align-items-center justify-content-between py-3">
+                                    <h4 className="card-title mb-0 d-flex align-items-center text-primary">
+                                        <i className="ri-menu-2-line me-2 fs-22"></i> Quản lý Menu Sidebar (Nâng cao)
+                                    </h4>
+                                    <div className="d-flex gap-2">
+                                        <Button color="success" size="sm" className="btn-label waves-effect waves-light" onClick={() => setIsCustomLinkModal(true)}>
+                                            <i className="ri-add-line label-icon align-middle fs-16 me-2"></i> Thêm Liên kết
+                                        </Button>
+                                        <Button color="soft-danger" size="sm" onClick={() => setIsResetConfirmModal(true)}>
+                                            <i className="ri-refresh-line align-middle me-1"></i> Khôi phục
+                                        </Button>
+                                    </div>
+                                </CardHeader>
+                                <CardBody>
+                                    <div className="alert alert-info border-0 rounded-pill bg-soft-info text-info mb-4 d-flex align-items-center">
+                                        <i className="ri-information-line fs-20 me-2"></i>
+                                        <span>Kéo thả để sắp xếp thứ tự. Sử dụng công tắc để ẩn/hiện các mục trên thanh điều hướng chính.</span>
+                                    </div>
+
+                                    {localSidebarConfig.length === 0 ? (
+                                        <div className="text-center py-5 bg-light rounded border border-dashed">
+                                            <div className="avatar-md mx-auto mb-3">
+                                                <div className="avatar-title bg-soft-primary text-primary rounded-circle fs-24">
+                                                    <i className="ri-menu-search-line"></i>
+                                                </div>
+                                            </div>
+                                            <h5>Chưa có cấu hình Sidebar</h5>
+                                            <p className="text-muted">Nhấn nút bên dưới để khởi tạo danh sách mặc định từ hệ thống.</p>
+                                            <Button color="primary" onClick={forceInitializeSidebar}>
+                                                Khởi tạo cấu hình mặc định
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <DndContext 
+                                            sensors={sensors}
+                                            collisionDetection={closestCenter}
+                                            onDragEnd={onDragEnd}
+                                            modifiers={[restrictToVerticalAxis]}
+                                        >
+                                            <SortableContext 
+                                                items={localSidebarConfig?.map(it => it.id) || []}
+                                                strategy={verticalListSortingStrategy}
+                                            >
+                                                <div className="sidebar-management-list">
+                                                    {localSidebarConfig?.map((item) => {
+                                                        const detail = defaultSidebarItems.find(d => d.id === item.id) || { label: item.label, icon: item.icon || 'ri-links-line' };
+                                                        const currentLabel = item.label || detail.label;
+                                                        
+                                                        return (
+                                                            <SortableSidebarItem key={item.id} id={item.id}>
+                                                                <SidebarItemBody 
+                                                                    item={item}
+                                                                    detail={detail}
+                                                                    currentLabel={currentLabel}
+                                                                    toggleSidebarVisible={toggleSidebarVisible}
+                                                                    deleteSidebarItem={deleteSidebarItem}
+                                                                    openEditModal={openEditModal}
+                                                                    toggleSubItemVisible={() => {}} 
+                                                                    promoteToParent={promoteToParent}
+                                                                    sensors={sensors}
+                                                                />
+                                                            </SortableSidebarItem>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </SortableContext>
+                                        </DndContext>
+                                    )}
+
+                                    {isSidebarChanged && (
+                                        <div className="mt-4 p-3 bg-soft-warning rounded border border-warning border-opacity-25 d-flex align-items-center justify-content-between animate__animated animate__fadeIn">
+                                            <div className="d-flex align-items-center">
+                                                <i className="ri-error-warning-line fs-20 text-warning me-2"></i>
+                                                <span className="fw-medium text-warning">Bạn có thay đổi chưa lưu!</span>
+                                            </div>
+                                            <div className="d-flex gap-2">
+                                                <Button color="link" className="text-muted fw-medium p-0" onClick={resetSidebar}>Hủy bỏ</Button>
+                                                <Button color="warning" size="sm" onClick={saveAllSidebarChanges} disabled={loading}>
+                                                    {loading ? <Spinner size="sm" /> : "Lưu thay đổi"}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </CardBody>
+                            </Card>
+                        </Col>
+
+                        <Col lg={12}>
                             <Card>
                                 <CardHeader className="bg-light bg-opacity-50">
                                     <h4 className="card-title mb-0 d-flex align-items-center">
@@ -198,7 +816,7 @@ const Settings = () => {
                                 <CardBody>
                                     <Table className="align-middle table-nowrap mb-0">
                                         <tbody>
-                                            {reportTemplates.map(tpl => (
+                                            {reportTemplates?.map(tpl => (
                                                 <tr key={tpl.id}>
                                                     <td>
                                                         <div className="d-flex align-items-center">
@@ -263,6 +881,176 @@ const Settings = () => {
                     </Row>
                 </Container>
             </div>
+
+            {/* Modal: Add Custom Link */}
+            <Modal isOpen={isCustomLinkModal} toggle={() => setIsCustomLinkModal(false)} centered className="border-0">
+                <ModalHeader toggle={() => setIsCustomLinkModal(false)} className="bg-soft-success text-success p-3">
+                    <i className="ri-add-circle-line me-2 fs-20"></i> Thêm Liên kết Sidebar
+                </ModalHeader>
+                <ModalBody className="p-4">
+                    <div className="mb-3">
+                        <Label className="form-label fw-bold">Chọn trang hệ thống</Label>
+                        <Input type="select" className="mb-2 bg-light border-success border-opacity-25" onChange={(e) => {
+                            const route = SYSTEM_ROUTES.find(r => r.link === e.target.value);
+                            if (route) setNewCustomLink({ ...newCustomLink, label: route.label, link: route.link });
+                        }}>
+                            <option value="">-- Chọn nhanh từ hệ thống --</option>
+                            {SYSTEM_ROUTES?.map(r => <option key={r.link} value={r.link}>{r.label}</option>)}
+                        </Input>
+                    </div>
+                    <div className="mb-3">
+                        <Label className="form-label fw-bold">Tên hiển thị</Label>
+                        <Input 
+                            type="text" 
+                            className="form-control-lg border-2"
+                            placeholder="Nhập tên mục menu..."
+                            value={newCustomLink.label} 
+                            onChange={(e) => setNewCustomLink({...newCustomLink, label: e.target.value})} 
+                        />
+                    </div>
+                    <div className="mb-3">
+                        <Label className="form-label fw-bold">Đường dẫn (URL)</Label>
+                        <Input 
+                            type="text" 
+                            className="bg-light"
+                            placeholder="/example-path"
+                            value={newCustomLink.link} 
+                            onChange={(e) => setNewCustomLink({...newCustomLink, link: e.target.value})} 
+                        />
+                    </div>
+                    <div className="mb-0">
+                        <Label className="form-label fw-bold">Icon hiển thị</Label>
+                        <div className="d-flex align-items-center gap-3 p-2 bg-light rounded border border-dashed text-center justify-content-center">
+                            <i className={`${newCustomLink.icon} fs-24 text-primary`}></i>
+                            <Button color="light" size="sm" onClick={() => setIsIconPickerModal(true)}>
+                                <i className="ri-image-search-line me-1"></i> Thay đổi Icon
+                            </Button>
+                        </div>
+                    </div>
+                </ModalBody>
+                <ModalFooter className="bg-light bg-opacity-50 p-3">
+                    <Button color="link" className="text-muted fw-medium" onClick={() => setIsCustomLinkModal(false)}>Đóng</Button>
+                    <Button color="success" className="px-4" onClick={addCustomLink}>Thêm mục mới</Button>
+                </ModalFooter>
+            </Modal>
+
+            {/* Modal: Edit Sidebar Item */}
+            <Modal isOpen={isEditModal} toggle={() => setIsEditModal(false)} centered>
+                <ModalHeader toggle={() => setIsEditModal(false)} className="bg-soft-primary p-3">
+                    <i className="ri-edit-2-line me-2"></i> Chỉnh sửa: {tempEditLabel}
+                </ModalHeader>
+                <ModalBody className="p-4">
+                    <div className="mb-4">
+                        <Label className="form-label fw-bold text-muted">Tên hiển thị trên menu</Label>
+                        <Input 
+                            type="text" 
+                            className="form-control-lg border-primary border-opacity-25"
+                            value={tempEditLabel} 
+                            onChange={(e) => setTempEditLabel(e.target.value)} 
+                        />
+                    </div>
+                    <div className="mb-4">
+                        <Label className="form-label fw-bold text-muted">Mục cha (Nesting)</Label>
+                        <Input 
+                            type="select" 
+                            className="form-select border-primary border-opacity-25"
+                            value={editItem?.newParentId || ""}
+                            onChange={(e) => setEditItem({ ...editItem, newParentId: e.target.value })}
+                        >
+                            <option value="">-- Không có (Mục chính) --</option>
+                            {(localSidebarConfig || []).filter(it => it.id !== editItem?.id).map(it => (
+                                <option key={it.id} value={it.id}>{it.label || it.id}</option>
+                            ))}
+                        </Input>
+                        <p className="text-muted fs-11 mt-1 mb-0">Chọn mục này nếu bạn muốn biến mục hiện tại thành mục con.</p>
+                    </div>
+                    <div className="mb-4">
+                        <Label className="form-label fw-bold text-muted">Biểu tượng (Icon)</Label>
+                        <div className="d-flex align-items-center gap-3 p-3 bg-light rounded border">
+                            <div className="avatar-sm flex-shrink-0">
+                                <div className="avatar-title bg-white text-primary rounded fs-20 shadow-sm">
+                                    <i className={`${tempEditIcon} form-icon-item fs-16`}></i>
+                                </div>
+                            </div>
+                            <Button color="light" className="flex-grow-1" onClick={() => setIsIconPickerModal(true)}>
+                                <i className="ri-image-search-line me-1"></i> Chọn icon từ thư viện
+                            </Button>
+                        </div>
+                    </div>
+                    
+                    <div className="mb-0">
+                        <div className="form-check form-switch form-switch-lg shadow-sm p-3 bg-light rounded border">
+                            <Input 
+                                className="form-check-input ms-0" 
+                                type="checkbox" 
+                                checked={tempEditIsHeader}
+                                onChange={(e) => setTempEditIsHeader(e.target.checked)}
+                                id="isHeaderSwitch"
+                            />
+                            <Label className="form-check-label ms-2 fw-semibold" htmlFor="isHeaderSwitch">
+                                Dùng làm tiêu đề ngăn cách (Sidebar Header)
+                            </Label>
+                            <p className="text-muted fs-11 mb-0 mt-1 ms-2">Khi bật, mục này sẽ hiển thị như một tiêu đề nhóm và không có liên kết nhấn.</p>
+                        </div>
+                    </div>
+                </ModalBody>
+                <ModalFooter className="bg-light p-3">
+                    <Button color="link" className="text-muted" onClick={() => setIsEditModal(false)}>Hủy</Button>
+                    <Button color="primary" className="px-4" onClick={saveEditModal}>Cập nhật thông tin</Button>
+                </ModalFooter>
+            </Modal>
+
+            {/* Modal: Icon Picker */}
+            <Modal isOpen={isIconPickerModal} toggle={() => setIsIconPickerModal(false)} size="lg" scrollable centered>
+                <ModalHeader toggle={() => setIsIconPickerModal(false)} className="bg-light">
+                    Chọn Icon Hiển thị
+                </ModalHeader>
+                <ModalBody>
+                    <div className="mb-3">
+                        <Input 
+                            type="text" 
+                            placeholder="Tìm kiếm icon (ví dụ: user, file, home...)" 
+                            value={iconSearch} 
+                            onChange={(e) => setIconSearch(e.target.value)}
+                        />
+                    </div>
+                    <Row className="text-center">
+                        {REMIX_ICONS.filter(icon => icon.includes(iconSearch)).map(icon => (
+                            <Col key={icon} xs={3} sm={2} className="mb-3">
+                                <Button 
+                                    color="light" 
+                                    className={`w-100 p-3 fs-24 ${tempEditIcon === icon || newCustomLink.icon === icon ? 'border-primary border-2 text-primary bg-soft-primary' : ''}`}
+                                    onClick={() => {
+                                        if (isEditModal) setTempEditIcon(icon);
+                                        else setNewCustomLink({ ...newCustomLink, icon });
+                                        setIsIconPickerModal(false);
+                                    }}
+                                >
+                                    <i className={icon}></i>
+                                </Button>
+                                <div className="text-truncate fs-10 text-muted mt-1">{icon.replace('ri-', '')}</div>
+                            </Col>
+                        ))}
+                    </Row>
+                </ModalBody>
+            </Modal>
+
+            {/* Modal: Confirm Reset */}
+            <Modal isOpen={isResetConfirmModal} toggle={() => setIsResetConfirmModal(false)} centered className="border-0">
+                <ModalBody className="text-center p-5">
+                    <div className="avatar-lg mx-auto mb-4">
+                        <div className="avatar-title bg-soft-danger text-danger rounded-circle fs-36">
+                            <i className="ri-error-warning-line"></i>
+                        </div>
+                    </div>
+                    <h4 className="mb-3">Xác nhận Khôi phục?</h4>
+                    <p className="text-muted mb-4 fs-15">Hành động này sẽ tải lại danh sách menu mặc định từ hệ thống. Các liên kết tùy chỉnh của bạn sẽ tạm thời bị ẩn. Bạn cần nhấn <b>Lưu thay đổi</b> để áp dụng chính thức.</p>
+                    <div className="hstack gap-2 justify-content-center">
+                        <Button color="link" className="text-muted fw-medium" onClick={() => setIsResetConfirmModal(false)}>Hủy bỏ</Button>
+                        <Button color="danger" className="px-4" onClick={() => { forceInitializeSidebar(); setIsResetConfirmModal(false); }}>Đồng ý Khôi phục</Button>
+                    </div>
+                </ModalBody>
+            </Modal>
         </React.Fragment>
     );  
 };

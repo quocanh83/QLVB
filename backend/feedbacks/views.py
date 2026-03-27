@@ -570,6 +570,8 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         doc_id = request.query_params.get('document_id')
         agency = request.query_params.get('agency')
         status_filter = request.query_params.get('status')
+        specialist = request.query_params.get('specialist')
+        report_type = request.query_params.get('report_type', 'mau10')
         
         if not doc_id: return Response([])
         
@@ -582,23 +584,41 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             feedbacks = feedbacks.filter(explanations__isnull=False).distinct()
         elif status_filter == 'unresolved':
             feedbacks = feedbacks.filter(explanations__isnull=True).distinct()
+
+        if specialist and specialist != 'all':
+            if specialist == 'none':
+                # Chua giao (khong co giai trinh hoac giai trinh khong co user)
+                feedbacks = feedbacks.filter(explanations__user__isnull=True)
+            else:
+                feedbacks = feedbacks.filter(explanations__user_id=specialist)
             
+        # Lay cau hinh truong tu template
+        from reports.models import ReportTemplate
+        template = ReportTemplate.objects.filter(template_type=report_type, is_active=True).first()
+        fields = []
+        if template:
+            fields = template.field_configs.filter(is_enabled=True).order_by('column_order')
+
+        from .utils.mau10_generator import _get_field_value
+        
         results = []
         for i, fb in enumerate(feedbacks, 1):
             explanation = fb.explanations.first()
-            
-            dieu_khoan = f"{fb.node.node_label}" if fb.node else ""
-            if fb.node and fb.node.parent:
-                dieu_khoan = f"{fb.node.parent.node_label}, {fb.node.node_label}"
-                
-            results.append({
-                "stt": i,
-                "dieu_khoan": dieu_khoan,
-                "co_quan": fb.contributing_agency or "Khác",
-                "noi_dung_gop_y": fb.content,
-                "noi_dung_giai_trinh": explanation.content if explanation else "",
-                "chuyen_vien": explanation.user.username if explanation and explanation.user else (fb.user.username if fb.user else "")
-            })
+            if fields:
+                row = { f.field_key: _get_field_value(f.field_key, i, fb, explanation) for f in fields }
+            else:
+                # Fallback mac dinh
+                dieu_khoan = f"{fb.node.node_label}" if fb.node else ""
+                if fb.node and fb.node.parent:
+                    dieu_khoan = f"{fb.node.parent.node_label}, {fb.node.node_label}"
+                row = {
+                    "stt": i,
+                    "dieu_khoan": dieu_khoan,
+                    "co_quan": fb.contributing_agency or "Khác",
+                    "noi_dung_gop_y": fb.content,
+                    "noi_dung_giai_trinh": explanation.content if explanation else "",
+                }
+            results.append(row)
             
         return Response(results)
 
@@ -646,24 +666,37 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             report_type = request.query_params.get('report_type', 'mau10')
             
             # Doc cau hinh tu DB cho loai tuong ung
-            template_config = None
+            template_config = {}
             tpl_db = None
             try:
-                from reports.models import ReportTemplate
+                from reports.models import ReportTemplate, ReportFieldConfig
                 tpl_db = ReportTemplate.objects.filter(template_type=report_type, is_active=True).first()
                 if tpl_db:
+                    fields_qs = tpl_db.field_configs.filter(is_enabled=True).order_by('column_order')
+                    fields = [
+                        {
+                            'field_key': f.field_key,
+                            'field_label': f.field_label,
+                            'column_width_cm': f.column_width_cm
+                        } for f in fields_qs
+                    ]
                     template_config = {
                         'header_org_name': tpl_db.header_org_name,
                         'header_org_location': tpl_db.header_org_location,
                         'footer_signer_name': tpl_db.footer_signer_name,
                         'footer_signer_title': tpl_db.footer_signer_title,
+                        'fields': fields
                     }
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"Error loading template config: {e}")
 
-            # Luon su dung generator V2 (Dung file .docx template)
-            # Generator tu dong chon file Mau 10 (Ngang) hoac Custom V3 (Ngang) dua tren report_type
-            file_stream = generate_from_v2_template(document, feedbacks, template_config=template_config, template_type=report_type)
+            # Neu la mau custom -> Dung mau10_generator (vi no ho tro cot dong tot hon)
+            # Neu la mau10 -> Dung v2_template_generator (vi no dung file word design san dep hon)
+            if report_type == 'custom':
+                file_stream = generate_mau_10(document, feedbacks, template_config=template_config)
+            else:
+                file_stream = generate_from_v2_template(document, feedbacks, template_config=template_config, template_type=report_type)
+            
             filename = f"Bao_cao_{'Mau_10' if report_type=='mau10' else 'Tuy_chinh'}_{document.id}.docx"
 
             

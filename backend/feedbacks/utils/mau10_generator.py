@@ -20,14 +20,21 @@ FONT_NAME = 'Times New Roman'
 # Map field_key -> hàm trích xuất dữ liệu từ feedback object
 def _get_field_value(field_key, index, fb, explanation):
     """Trả về giá trị tương ứng với field_key từ 1 feedback"""
+    # Ho tro ca key tieng Anh va tieng Viet (biến cũ/mới)
     mapping = {
         'stt': str(index),
-        'noi_dung_du_thao': _get_node_text(fb),
-        'noi_dung_gop_y': fb.content or '',
-        'don_vi_gop_y': fb.contributing_agency or (fb.agency.name if hasattr(fb, 'agency') and fb.agency else 'Ẩn danh'),
-        'giai_trinh': explanation.content if explanation else 'Chưa có nội dung giải trình.',
-        'chuyen_vien': _get_assignee(fb, explanation),
         'dieu_khoan': _get_dieu_khoan(fb),
+        'noi_dung_du_thao': _get_node_text(fb),
+        'don_vi_gop_y': fb.contributing_agency or (fb.agency.name if hasattr(fb, 'agency') and fb.agency else 'Khác'),
+        'co_quan': fb.contributing_agency or (fb.agency.name if hasattr(fb, 'agency') and fb.agency else 'Khác'),
+        'user_name': fb.contributing_agency or (fb.agency.name if hasattr(fb, 'agency') and fb.agency else 'Khác'),
+        'noi_dung_gop_y': fb.content or '',
+        'content': fb.content or '',
+        'giai_trinh': explanation.content if explanation else 'Chưa có ý kiến giải trình',
+        'noi_dung_giai_trinh': explanation.content if explanation else 'Chưa có ý kiến giải trình',
+        'explanations': explanation.content if explanation else 'Chưa có ý kiến giải trình',
+        'chuyen_vien': _get_assignee(fb, explanation),
+        'trang_thai': 'Đã giải trình' if explanation else 'Chưa xử lý',
         'ghi_chu': '',
     }
     return mapping.get(field_key, '')

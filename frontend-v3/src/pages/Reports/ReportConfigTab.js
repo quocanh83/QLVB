@@ -27,9 +27,9 @@ const ReportConfigTab = () => {
         setTemplateLoading(true);
         try {
             const res = await axios.get('/api/reports/templates/', getAuthHeader());
-            setTemplates(res.data);
-            if (res.data.length > 0) {
-                const tpl = res.data[0];
+            setTemplates(res);
+            if (res.length > 0) {
+                const tpl = res[0];
                 setActiveTemplate(tpl);
                 setFieldConfigs(tpl.field_configs || []);
                 setHeaderOrgName(tpl.header_org_name || '');

@@ -52,8 +52,8 @@ const DocumentDetails = () => {
 
     const fetchDocumentDetails = async () => {
         try {
-            const res = await axios.get(`/api/documents/${id}/`, getAuthHeader());
-            setDocument(res.data);
+            const data = await axios.get(`/api/documents/${id}/`, getAuthHeader());
+            setDocument(data.results || data);
         } catch (error) {
             toast.error("Không thể tải thông tin văn bản.");
         } finally {
@@ -65,9 +65,10 @@ const DocumentDetails = () => {
         setLoadingStructure(true);
         try {
             const endpoint = `/api/documents/${id}/nodes/`;
-            const res = await axios.get(endpoint, getAuthHeader());
-            setStructure(res.data || []);
-            setFilteredStructure(res.data || []);
+            const data = await axios.get(endpoint, getAuthHeader());
+            const results = data.results || data || [];
+            setStructure(results);
+            setFilteredStructure(results);
         } catch (error) {
             toast.error("Không thể tải cấu trúc văn bản.");
         } finally {
@@ -78,11 +79,12 @@ const DocumentDetails = () => {
     const fetchFeedbacks = async (nodeId) => {
         setLoadingFeedbacks(true);
         try {
-            const res = await axios.get(`/api/feedbacks/by_node/?node_id=${nodeId}`, getAuthHeader());
-            setNodeFeedbacks(res.data);
-            if (res.data.length > 0) {
-                setSelectedFeedback(res.data[0]);
-                setExplanationContent(res.data[0].explanation || '');
+            const data = await axios.get(`/api/feedbacks/by_node/?node_id=${nodeId}`, getAuthHeader());
+            const results = data.results || data || [];
+            setNodeFeedbacks(results);
+            if (results.length > 0) {
+                setSelectedFeedback(results[0]);
+                setExplanationContent(results[0].explanation || '');
             } else {
                 setSelectedFeedback(null);
                 setExplanationContent('');
@@ -130,12 +132,12 @@ const DocumentDetails = () => {
         
         setIsSuggestingAI(true);
         try {
-            const res = await axios.post('/api/feedbacks/ai_suggest/', {
+            const data = await axios.post('/api/feedbacks/ai_suggest/', {
                 document_id: document.id,
                 node_content: selectedNode.content,
                 feedback_content: selectedFeedback.content
             }, getAuthHeader());
-            setExplanationContent(res.data.suggestion);
+            setExplanationContent(data.suggestion);
             toast.success("AI đã tạo gợi ý giải trình!");
         } catch (err) {
             toast.error("Lỗi khi kết nối với AI.");
@@ -202,13 +204,14 @@ const DocumentDetails = () => {
             const res = await axios.post('/api/feedbacks/parse_file/', formData, {
                 headers: { ...getAuthHeader().headers, 'Content-Type': 'multipart/form-data' }
             });
+            const parseData = res.results || res;
             await axios.post('/api/feedbacks/bulk_create/', {
                 document_id: document.id,
-                feedbacks: res.data.feedbacks,
-                metadata: res.data.metadata
+                feedbacks: parseData.feedbacks,
+                metadata: parseData.metadata
             }, getAuthHeader());
             
-            toast.success(`Đã nhập thành công ${res.data.feedbacks.length} góp ý.`);
+            toast.success(`Đã nhập thành công ${parseData.feedbacks.length} góp ý.`);
             if (selectedNode) fetchFeedbacks(selectedNode.id);
             // reset file input
             if (fileInputRef.current) fileInputRef.current.value = "";
@@ -261,11 +264,11 @@ const DocumentDetails = () => {
 
     return (
         <React.Fragment>
-            <div className="page-content" style={{ paddingBottom: 0, height: 'calc(100vh - 60px)', display: 'flex', flexDirection: 'column' }}>
-                <Container fluid className="h-100 d-flex flex-column px-0">
+            <div className="page-content" style={{ padding: 0, height: 'calc(100vh - 70px)', display: 'flex', flexDirection: 'column' }}>
+                <Container fluid className="h-100 d-flex flex-column px-0 pb-1">
                     
                     {/* Header Bar */}
-                    <div className="bg-white border-bottom p-3 mb-3 shrink-0 rounded shadow-sm">
+                    <div className="bg-card border-bottom p-2 mb-1 shrink-0 rounded shadow-sm">
                         <div className="d-flex align-items-center justify-content-between">
                             <div className="d-flex align-items-center gap-3">
                                 <Link to="/documents" className="btn btn-sm btn-soft-secondary">
@@ -285,12 +288,12 @@ const DocumentDetails = () => {
                     </div>
 
                     {/* 3 Columns Workspace */}
-                    <Row className="flex-grow-1 g-3 overflow-hidden m-0 pb-3" style={{ minHeight: 0 }}>
+                    <Row className="flex-grow-1 g-3 overflow-hidden m-0" style={{ minHeight: 0 }}>
                         
                         {/* LEFT COLUMN: STRUCTURE (3/12) */}
                         <Col lg={3} className="h-100 d-flex flex-column">
                             <Card className="h-100 border-0 shadow-sm mb-0">
-                                <CardHeader className="bg-light border-bottom border-light p-3">
+                                <CardHeader className="border-bottom p-3 bg-light-subtle">
                                     <h6 className="card-title mb-3 fw-bold"><i className="ri-node-tree align-bottom me-1 text-primary"></i> Cấu trúc Dự thảo</h6>
                                     <div className="search-box mb-2">
                                         <Input 
@@ -331,30 +334,33 @@ const DocumentDetails = () => {
                         {/* MIDDLE COLUMN: CONTENT (5/12) */}
                         <Col lg={5} className="h-100 d-flex flex-column">
                             <Card className="h-100 border-0 shadow-sm mb-0">
-                                <CardHeader className="bg-white border-bottom p-3">
+                                <CardHeader className="border-bottom p-3">
                                     <h6 className="card-title mb-0 fw-bold"><i className="ri-file-list-3-line align-bottom me-1 text-primary"></i> Nội dung Chi tiết</h6>
                                 </CardHeader>
-                                <CardBody className="p-0 overflow-hidden bg-primary-subtle bg-opacity-10">
+                                <CardBody className="p-0 overflow-hidden bg-body-tertiary bg-opacity-50">
                                     <SimpleBar style={{ height: '100%' }} className="p-4">
                                         {selectedNode ? (
-                                            <div className="bg-white p-4 rounded shadow-sm border border-light">
+                                            <div className="bg-card p-4 rounded shadow-sm border border-light-subtle">
                                                 <h5 className="fw-bold mb-3 pb-2 border-bottom border-light d-flex justify-content-between align-items-center">
                                                     <span>
-                                                        {selectedNode.node_type === 'Khoản' ? `${selectedNode.parent_label}. ${selectedNode.parent_content?.split('\n')[0]}` : selectedNode.node_label}
+                                                        {selectedNode.node_type === 'Khoản' 
+                                                            ? `${selectedNode.parent_label || 'Văn bản'}. ${selectedNode.parent_content?.split('\n')[0] || ''}` 
+                                                            : `${selectedNode.node_label}: ${selectedNode.content?.split('\n')[0] || ''}`}
                                                     </span>
-                                                    <span className="badge bg-light text-muted border">{selectedNode.node_type}</span>
+                                                    <span className="badge bg-light-subtle text-muted border border-light-subtle">{selectedNode.node_type}</span>
                                                 </h5>
-                                                <div className="fs-15 text-body lh-lg" style={{ whiteSpace: 'pre-wrap' }}>
+                                                <div className="fs-14 text-body lh-base" style={{ whiteSpace: 'pre-wrap' }}>
                                                     {selectedNode.node_type === 'Khoản' ? (
-                                                        <span><strong className="text-dark me-2">{selectedNode.node_label.replace('Khoản ', '')}.</strong>{selectedNode.content}</span>
+                                                        <span><span className="text-body me-2">{(selectedNode.node_label || "").replace('Khoản ', '')}.</span>{selectedNode.content}</span>
                                                     ) : (
                                                         <div className="space-y-3">
-                                                            {selectedNode.content.split('\n').map((line, idx) => (
-                                                                <p key={idx} className={idx === 0 ? "fw-bold mb-2" : "mb-2"}>{line}</p>
-                                                            ))}
+                                                            {(selectedNode.content || "").split('\n').map((line, idx) => {
+                                                                if (selectedNode.node_type === 'Điều' && idx === 0) return null;
+                                                                return <p key={idx} className="mb-1">{line}</p>;
+                                                            })}
                                                             {selectedNode.children && selectedNode.children.map(child => (
                                                                 <div key={child.id} className="ms-3 mt-2 pb-2 border-bottom border-light border-opacity-50 border-dashed">
-                                                                    <strong className="text-dark me-2">{child.node_label.replace('Khoản ', '')}.</strong>
+                                                                    <span className="text-body me-2">{child.node_label.replace('Khoản ', '')}.</span>
                                                                     <span>{child.content}</span>
                                                                 </div>
                                                             ))}
@@ -365,7 +371,7 @@ const DocumentDetails = () => {
                                         ) : (
                                             <div className="d-flex flex-column justify-content-center align-items-center h-100 text-muted">
                                                 <div className="avatar-md mb-3">
-                                                    <div className="avatar-title bg-light text-primary rounded-circle fs-24">
+                                                    <div className="avatar-title bg-light-subtle text-primary rounded-circle fs-24">
                                                         <i className="ri-article-line"></i>
                                                     </div>
                                                 </div>
@@ -381,7 +387,7 @@ const DocumentDetails = () => {
                         {/* RIGHT COLUMN: FEEDBACKS (4/12) */}
                         <Col lg={4} className="h-100 d-flex flex-column">
                             <Card className="h-100 border-0 shadow-sm mb-0">
-                                <CardHeader className="bg-white border-bottom p-3">
+                                <CardHeader className="border-bottom p-3">
                                     <div className="d-flex justify-content-between align-items-center">
                                         <h6 className="card-title mb-0 fw-bold">
                                             <i className="ri-discuss-line align-bottom me-1 text-primary"></i> 
@@ -408,7 +414,7 @@ const DocumentDetails = () => {
                                         </div>
                                     </div>
                                 </CardHeader>
-                                <CardBody className="p-0 d-flex flex-column overflow-hidden bg-light">
+                                <CardBody className="p-0 d-flex flex-column overflow-hidden bg-body-tertiary">
                                     {/* Feedbacks List (Top Half) */}
                                     <div className="flex-grow-1 overflow-hidden" style={{ minHeight: '40%' }}>
                                         <SimpleBar style={{ height: '100%' }} className="p-3">
@@ -428,12 +434,12 @@ const DocumentDetails = () => {
                                                                     {fb.status === 'approved' ? 'Đã duyệt' : fb.status === 'reviewed' ? 'Đã thẩm định' : 'Chờ xử lý'}
                                                                 </span>
                                                             </div>
-                                                            <p className="fs-13 mb-0 text-body bg-light p-2 rounded">"{fb.content}"</p>
+                                                            <p className="fs-13 mb-0 text-body bg-light-subtle p-2 rounded">"{fb.content}"</p>
                                                         </div>
                                                     </div>
                                                 ))
                                             ) : (
-                                                <div className="text-center text-muted py-4 fs-13 bg-white rounded border border-dashed">
+                                                <div className="text-center text-muted py-4 fs-13 bg-card rounded border border-dashed">
                                                     Không có ý kiến cho mục này.
                                                 </div>
                                             )}
@@ -441,7 +447,7 @@ const DocumentDetails = () => {
                                     </div>
 
                                     {/* Explanation Editor (Bottom Half) */}
-                                    <div className="bg-white border-top p-3 shrink-0" style={{ minHeight: '250px' }}>
+                                    <div className="bg-card border-top p-3 shrink-0">
                                         <div className="d-flex justify-content-between align-items-center mb-2">
                                             <label className="form-label mb-0 fw-bold fs-12 text-uppercase text-muted">Nội dung Giải trình</label>
                                             <Button 
@@ -455,8 +461,8 @@ const DocumentDetails = () => {
                                         </div>
                                         <Input
                                             type="textarea"
-                                            rows={5}
-                                            className="form-control bg-light border-light mb-3"
+                                            rows={3}
+                                            className="form-control bg-light-subtle border-light-subtle mb-3"
                                             placeholder={selectedFeedback ? "Nhập nội dung tiếp thu/giải trình..." : "Chọn ý kiến để giải trình."}
                                             value={explanationContent}
                                             onChange={(e) => setExplanationContent(e.target.value)}

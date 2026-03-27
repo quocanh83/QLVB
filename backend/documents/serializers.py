@@ -14,9 +14,13 @@ class DocumentNodeSerializer(serializers.ModelSerializer):
     total_feedbacks = serializers.IntegerField(read_only=True, default=0)
     resolved_feedbacks = serializers.IntegerField(read_only=True, default=0)
     
+    parent_id = serializers.IntegerField(read_only=True)
+    parent_label = serializers.CharField(source='parent.node_label', read_only=True)
+    parent_content = serializers.CharField(source='parent.content', read_only=True)
+    
     class Meta:
         model = DocumentNode
-        fields = ['id', 'node_type', 'node_label', 'content', 'order_index', 'is_editable', 'children', 'assignments', 'total_feedbacks', 'resolved_feedbacks']
+        fields = ['id', 'parent_id', 'node_type', 'node_label', 'content', 'order_index', 'is_editable', 'children', 'assignments', 'total_feedbacks', 'resolved_feedbacks', 'parent_label', 'parent_content']
 
     def get_children(self, obj):
         # Lấy từ Ram Memory (tránh N+1)

@@ -7,7 +7,8 @@ import withRouter from '../Components/Common/withRouter';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import Footer from './Footer';
-import RightSidebar from '../Components/Common/RightSidebar';
+import axios from 'axios';
+import { getAuthHeader } from '../helpers/api_helper';
 
 //import actions
 import {
@@ -66,6 +67,25 @@ const Layout = (props) => {
     /*
     layout settings
     */
+    useEffect(() => {
+        const fetchSidebarConfig = async () => {
+            try {
+                const res = await axios.get('/api/settings/', getAuthHeader());
+                const data = res.data || res;
+                const config = {};
+                data.forEach(s => {
+                    if (s.key.startsWith('SIDEBAR_HIDE_')) {
+                        config[s.key] = s.value === 'true';
+                    }
+                });
+                localStorage.setItem('sidebarConfig', JSON.stringify(config));
+            } catch (e) {
+                console.error("Failed to sync sidebar config", e);
+            }
+        };
+        fetchSidebarConfig();
+    }, []);
+
     useEffect(() => {
         if (
             layoutType ||
@@ -145,7 +165,6 @@ const Layout = (props) => {
                     <Footer />
                 </div>
             </div>
-            <RightSidebar />
         </React.Fragment>
 
     );

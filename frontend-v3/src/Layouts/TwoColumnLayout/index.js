@@ -9,14 +9,14 @@ import logoSm from "../../assets/images/logo-sm.png";
 import { withTranslation } from "react-i18next";
 
 // Import Data
-import navdata from "../LayoutMenuData";
+import useNavData from "../LayoutMenuData";
 
 //SimpleBar
 import SimpleBar from "simplebar-react";
 import VerticalLayout from '../VerticalLayouts';
 
 const TwoColumnLayout = (props) => {
-    const navData = navdata().props.children;
+    const navData = useNavData();
 
     const activateParentDropdown = useCallback((item) => {
         item.classList.add("active");

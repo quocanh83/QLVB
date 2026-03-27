@@ -35,8 +35,8 @@ const DocumentList = () => {
     const fetchDocuments = async () => {
         setLoading(true);
         try {
-            const response = await axios.get('/api/documents/', getAuthHeader());
-            setDocs(response.data);
+            const data = await axios.get('/api/documents/', getAuthHeader());
+            setDocs(data.results || data);
         } catch (error) {
             toast.error("Không thể lấy danh sách văn bản.");
         } finally {
@@ -46,9 +46,9 @@ const DocumentList = () => {
 
     const fetchUsers = async () => {
         try {
-            const res = await axios.get('/api/accounts/users/', getAuthHeader());
-            const data = res.data.results || res.data;
-            setUsers(Array.isArray(data) ? data : []);
+            const data = await axios.get('/api/accounts/users/', getAuthHeader());
+            const results = data.results || data;
+            setUsers(Array.isArray(results) ? results : []);
         } catch (e) {
             console.error("Lỗi lấy danh sách user:", e);
         }

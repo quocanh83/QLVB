@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import { getAuthHeader } from "../helpers/api_helper";
 
-const Navdata = () => {
+const useNavData = () => {
   const history = useNavigate();
   //state data
   const [isDashboard, setIsDashboard] = useState(false);
@@ -75,6 +77,33 @@ const Navdata = () => {
       });
     }
   }
+
+  const [sidebarConfig, setSidebarConfig] = useState(JSON.parse(localStorage.getItem('sidebarConfig') || '{}'));
+  const [sidebarJSONConfig, setSidebarJSONConfig] = useState(JSON.parse(localStorage.getItem('sidebarJSONConfig') || '[]'));
+
+  useEffect(() => {
+    const handleUpdate = (e) => {
+      const config = e.detail || JSON.parse(localStorage.getItem('sidebarJSONConfig') || '[]');
+      if (Array.isArray(config)) {
+          setSidebarJSONConfig(config);
+          localStorage.setItem('sidebarJSONConfig', JSON.stringify(config));
+      } else {
+          setSidebarConfig(config);
+      }
+    };
+    window.addEventListener('sidebar-config-update', handleUpdate);
+
+    const handleStorage = () => {
+      setSidebarJSONConfig(JSON.parse(localStorage.getItem('sidebarJSONConfig') || '[]'));
+      setSidebarConfig(JSON.parse(localStorage.getItem('sidebarConfig') || '{}'));
+    };
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      window.removeEventListener('sidebar-config-update', handleUpdate);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
 
   useEffect(() => {
     document.body.classList.remove("twocolumn-panel");
@@ -175,6 +204,12 @@ const Navdata = () => {
           label: "Cấu hình Hệ thống",
           link: "/settings",
           parentId: "qlvb",
+        },
+        {
+          id: "user-management",
+          label: "Quản lý Cán bộ",
+          link: "/user-management",
+          parentId: "qlvb",
         }
       ],
     },
@@ -182,37 +217,20 @@ const Navdata = () => {
       id: "dashboard",
       label: "Dashboards",
       icon: "las la-tachometer-alt",
-      link: "/#",
+      link: "/dashboard-analytics",
       stateVariables: isDashboard,
       click: function (e) {
         e.preventDefault();
         setIsDashboard(!isDashboard);
         setIscurrentState("Dashboard");
         updateIconSidebar(e);
+        history("/dashboard-analytics");
       },
       subItems: [
         {
           id: "analytics",
           label: "Analytics",
           link: "/dashboard-analytics",
-          parentId: "dashboard",
-        },
-        {
-          id: "crm",
-          label: "CRM",
-          link: "/dashboard-crm",
-          parentId: "dashboard",
-        },
-        {
-          id: "ecommerce",
-          label: "Ecommerce",
-          link: "/dashboard",
-          parentId: "dashboard",
-        },
-        {
-          id: "crypto",
-          label: "Crypto",
-          link: "/dashboard-crypto",
           parentId: "dashboard",
         },
         {
@@ -1530,6 +1548,92 @@ const Navdata = () => {
       ],
     },
   ];
-  return <React.Fragment>{menuItems}</React.Fragment>;
+  // Helper function to flatten the menu structure for lookup
+  const flattenMenuItems = (items) => {
+    let flat = {};
+    items.forEach(item => {
+      if (item.id) flat[item.id] = item;
+      if (item.subItems) {
+        flat = { ...flat, ...flattenMenuItems(item.subItems) };
+      }
+      if (item.childItems) {
+        flat = { ...flat, ...flattenMenuItems(item.childItems) };
+      }
+    });
+    return flat;
+  };
+
+  const flatMenuMap = flattenMenuItems(menuItems);
+
+
+  // 1. Build the ordered menu list based on JSON config
+  let finalMenuItems = [];
+
+  if (sidebarJSONConfig && sidebarJSONConfig.length > 0) {
+    sidebarJSONConfig.forEach(configItem => {
+      if (!configItem.visible) return;
+
+      // Look up in our flattened map
+      const originalItem = flatMenuMap[configItem.id];
+
+      if (originalItem) {
+        // Clone the item so we don't mutate the original master list
+        const filteredItem = {
+          ...originalItem,
+          label: configItem.label || originalItem.label, // Override label if provided
+          icon: configItem.icon || originalItem.icon,   // Override icon if provided
+          isHeader: configItem.isHeader || false,       // Handle separator/header type
+        };
+
+        // If there are subItems in the config, filter the originalItem's subItems
+        if (configItem.subItems && configItem.subItems.length > 0) {
+          // If the original item had sub-items, we filter them
+          if (originalItem.subItems) {
+            filteredItem.subItems = originalItem.subItems.filter(sub => {
+              const subConfig = configItem.subItems.find(s => s.id === sub.id);
+              return subConfig ? subConfig.visible : true;
+            }).map(sub => {
+              // Apply label overrides to sub-items too
+              const subConfig = configItem.subItems.find(s => s.id === sub.id);
+              return subConfig ? { ...sub, label: subConfig.label || sub.label } : sub;
+            });
+          }
+        } else if (originalItem.subItems && configItem.id !== 'dashboard') {
+          // If no subItems config but original has them, keep all (except dashboard which we simplified)
+          // Actually, better to just keep them if they are not explicitly hidden
+        }
+
+        finalMenuItems.push(filteredItem);
+      } else if (configItem.id.toString().startsWith('custom-')) {
+        // Construct custom item
+        finalMenuItems.push({
+          id: configItem.id,
+          label: configItem.label,
+          icon: configItem.icon || "ri-external-link-line",
+          link: configItem.link,
+          isHeader: configItem.isHeader || false,
+          stateVariables: false,
+        });
+      }
+    });
+
+    // NO AUTO-MERGE: Respect exactly what is in the JSON config
+    // If the user wants to restore, they can use the "Restore" button in Settings.
+  } else {
+    // Fallback: Use the old filtering logic if JSON config is missing
+    finalMenuItems = menuItems.filter(item => {
+      if (item.id === 'qlvb' && sidebarConfig.SIDEBAR_HIDE_QLVB) return false;
+      if (item.id === 'dashboard' && sidebarConfig.SIDEBAR_HIDE_DASHBOARD) return false;
+      if (item.id === 'apps' && sidebarConfig.SIDEBAR_HIDE_APPS) return false;
+      if (['authentication', 'pages'].includes(item.id) && sidebarConfig.SIDEBAR_HIDE_PAGES) return false;
+
+      const componentIds = ['baseUi', 'advanceUi', 'widgets', 'forms', 'tables', 'charts', 'icons', 'maps', 'multilevel'];
+      if (componentIds.includes(item.id) && sidebarConfig.SIDEBAR_HIDE_COMPONENTS) return false;
+
+      return true;
+    });
+  }
+
+  return finalMenuItems;
 };
-export default Navdata;
+export default useNavData;

@@ -106,7 +106,18 @@ const getLoggedinUser = () => {
   }
 };
 const getAuthHeader = () => {
-  const token = localStorage.getItem("access_token");
+  let token = localStorage.getItem("access_token");
+  if (!token) {
+      // Fallback to authUser object if access_token key is missing
+      const authUserStr = localStorage.getItem("authUser") || sessionStorage.getItem("authUser");
+      if (authUserStr) {
+          try {
+              const authUser = JSON.parse(authUserStr);
+              token = authUser.access || authUser.token || (authUser.data ? authUser.data.access : null);
+          } catch (e) { console.error("Error parsing authUser for token", e); }
+      }
+  }
+  
   return {
     headers: {
       Authorization: token ? `Bearer ${token}` : "",

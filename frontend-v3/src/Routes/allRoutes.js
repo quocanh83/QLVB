@@ -35,8 +35,8 @@ import DocumentDetails from "../pages/Documents/DocumentDetails";
 // QLVB - Reports
 import Reports from "../pages/Reports";
 
-// QLVB - Settings
 import SystemSettings from "../pages/Settings";
+import UserManagement from "../pages/UserManagement";
 
 //Task
 import TaskDetails from "../pages/Tasks/TaskDetails";
@@ -260,8 +260,8 @@ import PageBlogOverview from "../pages/Pages/Blogs/Overview/index.jsx";
 const authProtectedRoutes = [
   { path: "/dashboard-analytics", component: <DashboardAnalytics /> },
   { path: "/dashboard-crm", component: <DashboardCrm /> },
-  { path: "/dashboard", component: <DashboardEcommerce /> },
-  { path: "/index", component: <DashboardEcommerce /> },
+  { path: "/dashboard", component: <DashboardAnalytics /> },
+  { path: "/index", component: <DashboardAnalytics /> },
   { path: "/dashboard-crypto", component: <DashboardCrypto /> },
   { path: "/dashboard-projects", component: <DashboardProject /> },
   { path: "/dashboard-nft", component: <DashboardNFT /> },
@@ -307,6 +307,7 @@ const authProtectedRoutes = [
 
   // QLVB - Settings
   { path: "/settings", component: <SystemSettings /> },
+  { path: "/user-management", component: <UserManagement /> },
 
   //Task
   { path: "/apps-tasks-list-view", component: <TaskList /> },
@@ -465,9 +466,9 @@ const authProtectedRoutes = [
   {
     path: "/",
     exact: true,
-    component: <Navigate to="/dashboard" />,
+    component: <Navigate to="/dashboard-analytics" />,
   },
-  { path: "*", component: <Navigate to="/dashboard" /> },
+  { path: "*", component: <Navigate to="/dashboard-analytics" /> },
   //Job pages
   { path: "/apps-job-statistics", component: <Statistics /> },
   { path: "/apps-job-lists", component: <JobList /> },

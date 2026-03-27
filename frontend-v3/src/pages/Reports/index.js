@@ -18,6 +18,8 @@ const Reports = () => {
     const [reportMode, setReportMode] = useState('mau10');
     const [customAgency, setCustomAgency] = useState('all');
     const [customStatus, setCustomStatus] = useState('all');
+    const [customSpecialist, setCustomSpecialist] = useState('all');
+    const [specialists, setSpecialists] = useState([]);
     const [customAgenciesList, setCustomAgenciesList] = useState([]);
     const [customStatsData, setCustomStatsData] = useState([]);
     const [isCustomLoading, setIsCustomLoading] = useState(false);
@@ -26,15 +28,46 @@ const Reports = () => {
     const [statsData, setStatsData] = useState({ agency_stats: [], category_stats: {} });
     const [isStatsLoading, setIsStatsLoading] = useState(false);
 
+    const [reportTemplates, setReportTemplates] = useState([]);
+    const [activeTemplate, setActiveTemplate] = useState(null);
+
     useEffect(() => {
         fetchDocuments();
+        fetchTemplates();
+        fetchSpecialists();
     }, []);
+
+    useEffect(() => {
+        if (reportTemplates.length > 0) {
+            const mode = reportMode === 'mau10' ? 'mau_10' : 'custom';
+            const tpl = reportTemplates.find(t => t.template_type === mode) || reportTemplates[0];
+            setActiveTemplate(tpl);
+        }
+    }, [reportMode, reportTemplates]);
+
+    const fetchTemplates = async () => {
+        try {
+            const res = await axios.get('/api/reports/templates/', getAuthHeader());
+            setReportTemplates(res);
+        } catch (e) {
+            console.error("Lỗi tải mẫu báo cáo", e);
+        }
+    };
+
+    const fetchSpecialists = async () => {
+        try {
+            const res = await axios.get('/api/accounts/users/', getAuthHeader());
+            setSpecialists(res);
+        } catch (e) {
+            console.error("Lỗi tải danh sách chuyên viên", e);
+        }
+    };
 
     const fetchDocuments = async () => {
         try {
             const res = await axios.get('/api/documents/', getAuthHeader());
-            setDocuments(res.data);
-            if (res.data.length > 0) setSelectedDocId(res.data[0].id);
+            setDocuments(res);
+            if (res.length > 0) setSelectedDocId(res[0].id);
         } catch (e) {
             toast.error("Lỗi tải danh sách dự thảo");
         }
@@ -45,16 +78,16 @@ const Reports = () => {
             fetchSubjectStats(selectedDocId);
         } else if (activeTab === '2') {
             fetchCustomAgencies(selectedDocId);
-            fetchCustomPreview(selectedDocId, customAgency, customStatus);
+            fetchCustomPreview(selectedDocId, customAgency, customStatus, customSpecialist);
         }
-    }, [selectedDocId, activeTab, customAgency, customStatus]);
+    }, [selectedDocId, activeTab, customAgency, customStatus, customSpecialist]);
 
     const fetchSubjectStats = async (docId) => {
         setIsStatsLoading(true);
         try {
             const url = `/api/feedbacks/subject_stats/${docId ? `?document_id=${docId}` : ''}`;
             const res = await axios.get(url, getAuthHeader());
-            setStatsData(res.data);
+            setStatsData(res);
         } catch (error) { 
             toast.error("Lỗi tải thống kê"); 
             setStatsData({ agency_stats: [], category_stats: {} }); 
@@ -67,18 +100,19 @@ const Reports = () => {
         if (!docId) return;
         try {
             const res = await axios.get(`/api/feedbacks/subject_stats/?document_id=${docId}`, getAuthHeader());
-            setCustomAgenciesList((res.data.agency_stats || []).map(a => a.agency));
+            setCustomAgenciesList((res.agency_stats || []).map(a => a.agency));
         } catch (e) { console.error(e); }
     };
 
-    const fetchCustomPreview = async (docId, agency, statusFilter) => {
+    const fetchCustomPreview = async (docId, agency, statusFilter, specialist) => {
         if (!docId) return;
         setIsCustomLoading(true);
         try {
-            let url = `/api/feedbacks/custom_report_preview/?document_id=${docId}&status=${statusFilter}`;
+            let url = `/api/feedbacks/custom_report_preview/?document_id=${docId}&status=${statusFilter}&report_type=${reportMode === 'mau10' ? 'mau_10' : 'custom'}`;
             if (agency && agency !== 'all') url += `&agency=${encodeURIComponent(agency)}`;
+            if (specialist && specialist !== 'all') url += `&specialist=${specialist}`;
             const res = await axios.get(url, getAuthHeader());
-            setCustomStatsData(res.data);
+            setCustomStatsData(res);
         } catch (error) { console.error(error); }
         finally { setIsCustomLoading(false); }
     };
@@ -88,6 +122,7 @@ const Reports = () => {
         try {
             let url = `/api/feedbacks/export_mau_10/?document_id=${selectedDocId}&status=${customStatus}`;
             if (customAgency && customAgency !== 'all') url += `&agency=${encodeURIComponent(customAgency)}`;
+            if (customSpecialist && customSpecialist !== 'all') url += `&specialist=${customSpecialist}`;
             url += `&report_type=${reportMode}`;
             
             const response = await axios.get(url, {
@@ -244,7 +279,7 @@ const Reports = () => {
                                                 </div>
                                             </div>
                                             <Row className="g-3 mb-4">
-                                                <Col lg={4}>
+                                                <Col lg={3}>
                                                     <label className="form-label text-muted text-uppercase fw-semibold fs-12">Loại mẫu xuất</label>
                                                     <Input type="select" value={reportMode} onChange={(e) => setReportMode(e.target.value)}>
                                                         <option value="mau10">Mẫu số 10 (Chuẩn NĐ 30 - Xoay ngang)</option>
@@ -257,11 +292,19 @@ const Reports = () => {
                                                         {documents.map(d => <option key={d.id} value={d.id}>{d.project_name}</option>)}
                                                     </Input>
                                                 </Col>
-                                                <Col lg={3}>
+                                                <Col lg={2}>
                                                     <label className="form-label text-muted text-uppercase fw-semibold fs-12">Cơ quan góp ý</label>
                                                     <Input type="select" value={customAgency} onChange={(e) => setCustomAgency(e.target.value)}>
                                                         <option value="all">Tất cả Cơ quan</option>
                                                         {customAgenciesList.map((a, i) => <option key={i} value={a}>{a}</option>)}
+                                                    </Input>
+                                                </Col>
+                                                <Col lg={2}>
+                                                    <label className="form-label text-muted text-uppercase fw-semibold fs-12">Chuyên viên</label>
+                                                    <Input type="select" value={customSpecialist} onChange={(e) => setCustomSpecialist(e.target.value)}>
+                                                        <option value="all">Tất cả Chuyên viên</option>
+                                                        <option value="none">Chưa được giao</option>
+                                                        {specialists.map(s => <option key={s.id} value={s.id}>{s.username}</option>)}
                                                     </Input>
                                                 </Col>
                                                 <Col lg={2}>
@@ -278,26 +321,46 @@ const Reports = () => {
                                                 <table className="table align-middle table-nowrap table-striped-columns mb-0">
                                                     <thead className="table-light">
                                                         <tr>
-                                                            <th scope="col" style={{ width: "50px" }}>TT</th>
-                                                            <th scope="col">Điều/Khoản</th>
-                                                            <th scope="col">Cơ quan</th>
-                                                            <th scope="col" style={{ maxWidth: "300px" }}>Nội dung góp ý</th>
-                                                            <th scope="col" style={{ maxWidth: "300px" }}>Giải trình</th>
+                                                            {activeTemplate ? (
+                                                                activeTemplate.field_configs.filter(f => f.is_enabled).map(f => (
+                                                                    <th key={f.id} scope="col" style={{ minWidth: f.field_key === 'stt' ? '50px' : '150px' }}>
+                                                                        {f.field_label}
+                                                                    </th>
+                                                                ))
+                                                            ) : (
+                                                                <>
+                                                                    <th scope="col" style={{ width: "50px" }}>TT</th>
+                                                                    <th scope="col">Điều/Khoản</th>
+                                                                    <th scope="col">Cơ quan</th>
+                                                                    <th scope="col" style={{ maxWidth: "300px" }}>Nội dung góp ý</th>
+                                                                    <th scope="col" style={{ maxWidth: "300px" }}>Giải trình</th>
+                                                                </>
+                                                            )}
                                                         </tr>
                                                     </thead>
                                                     <tbody>
                                                         {isCustomLoading ? (
-                                                            <tr><td colSpan="5" className="text-center py-4"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div></td></tr>
+                                                            <tr><td colSpan="20" className="text-center py-4"><div className="spinner-border text-primary" role="status"></div></td></tr>
                                                         ) : customStatsData?.length === 0 ? (
-                                                            <tr><td colSpan="5" className="text-center py-5 text-muted">Không có dữ liệu hiển thị, hãy chọn lại bộ lọc.</td></tr>
+                                                            <tr><td colSpan="20" className="text-center py-5 text-muted">Không có dữ liệu hiển thị.</td></tr>
                                                         ) : (
                                                             customStatsData?.map((r, i) => (
                                                                 <tr key={i}>
-                                                                    <td className="text-center fw-medium">{r?.stt}</td>
-                                                                    <td>{r?.dieu_khoan}</td>
-                                                                    <td><span className="badge bg-info-subtle text-info">{r?.co_quan}</span></td>
-                                                                    <td className="text-wrap" style={{ maxWidth: "300px" }}>{r?.noi_dung_gop_y}</td>
-                                                                    <td className="text-wrap text-muted fst-italic" style={{ maxWidth: "300px" }}>{r?.noi_dung_giai_trinh || '---'}</td>
+                                                                    {activeTemplate ? (
+                                                                        activeTemplate.field_configs.filter(f => f.is_enabled).map(f => (
+                                                                            <td key={f.id} className={f.field_key === 'stt' ? 'text-center fw-medium' : (f.field_key === 'noi_dung_giai_trinh' ? 'text-wrap text-muted fst-italic' : 'text-wrap')}>
+                                                                                {f.field_key === 'co_quan' ? <span className="badge bg-info-subtle text-info">{r[f.field_key]}</span> : r[f.field_key]}
+                                                                            </td>
+                                                                        ))
+                                                                    ) : (
+                                                                        <>
+                                                                            <td className="text-center fw-medium">{r?.stt}</td>
+                                                                            <td>{r?.dieu_khoan}</td>
+                                                                            <td><span className="badge bg-info-subtle text-info">{r?.co_quan}</span></td>
+                                                                            <td className="text-wrap" style={{ maxWidth: "300px" }}>{r?.noi_dung_gop_y}</td>
+                                                                            <td className="text-wrap text-muted fst-italic" style={{ maxWidth: "300px" }}>{r?.noi_dung_giai_trinh || '---'}</td>
+                                                                        </>
+                                                                    )}
                                                                 </tr>
                                                             ))
                                                         )}

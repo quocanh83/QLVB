@@ -5,14 +5,14 @@ import withRouter from "../../Components/Common/withRouter";
 import { Collapse } from 'reactstrap';
 
 // Import Data
-import navdata from "../LayoutMenuData";
+import useNavData from "../LayoutMenuData";
 //i18n
 import { withTranslation } from "react-i18next";
 import { useSelector } from "react-redux";
 import { createSelector } from 'reselect';
 
 const VerticalLayout = (props) => {
-    const navData = navdata().props.children;
+    const navData = useNavData();
 
     /*
  layout settings
