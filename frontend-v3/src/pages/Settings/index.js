@@ -333,8 +333,9 @@ const Settings = () => {
             let userSidebarJSON = [];
             try {
                 const profileRes = await axios.get('/api/accounts/profile/', getAuthHeader());
-                if (profileRes.data && profileRes.data.sidebar_config) {
-                    userSidebarJSON = profileRes.data.sidebar_config;
+                const profileConfig = profileRes.sidebar_config || (profileRes.data && profileRes.data.sidebar_config);
+                if (profileConfig) {
+                    userSidebarJSON = profileConfig;
                 }
             } catch (err) {
                 console.error("Failed to fetch user profile", err);
@@ -409,6 +410,7 @@ const Settings = () => {
             setSidebarConfig(localSidebarConfig);
             setIsSidebarChanged(false);
             localStorage.setItem('sidebarJSONConfig', configStr);
+            window.dispatchEvent(new CustomEvent('sidebar-config-update', { detail: localSidebarConfig }));
             toast.success("Đã lưu thay đổi thứ tự và hiển thị menu cá nhân.");
         } catch (e) {
             console.error("Failed to sync sidebar config:", e);

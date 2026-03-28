@@ -85,7 +85,7 @@ const useNavData = () => {
     const fetchSidebarConfig = async () => {
       try {
         const response = await axios.get("/api/accounts/profile/", getAuthHeader());
-        const remoteConfig = response.data.sidebar_config;
+        const remoteConfig = response.sidebar_config || (response.data && response.data.sidebar_config);
         if (remoteConfig && Array.isArray(remoteConfig) && remoteConfig.length > 0) {
           setSidebarJSONConfig(remoteConfig);
           localStorage.setItem('sidebarJSONConfig', JSON.stringify(remoteConfig));
