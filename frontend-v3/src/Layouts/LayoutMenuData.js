@@ -1652,13 +1652,14 @@ const useNavData = () => {
     // AUTO-MERGE: Ensure new items in code but missing from JSON config are still visible
     // We check which master items were completely ignored during the JSON processing
     const resultsIds = new Set();
-    const collectIds = (items) => {
+    const collectIdsFromConfig = (items) => {
       items.forEach(it => {
         if (it.id) resultsIds.add(it.id);
-        if (it.subItems) collectIds(it.subItems);
+        if (it.subItems) collectIdsFromConfig(it.subItems);
       });
     };
-    collectIds(finalMenuItems);
+    // Collect all IDs the user's config officially "knows about", even if hidden.
+    collectIdsFromConfig(sidebarJSONConfig);
 
     menuItems.forEach(masterItem => {
       if (masterItem.id && !resultsIds.has(masterItem.id)) {

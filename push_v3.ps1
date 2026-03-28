@@ -21,6 +21,7 @@ Write-Host "- Phien ban moi: v$NEW_VERSION" -ForegroundColor Green
 
 Write-Host "`n[3/4] Dang commit toan bo thay doi..." -ForegroundColor Yellow
 git add .
+git add -f frontend-v3/build
 git commit -m "release(v3): phat hanh ban v$NEW_VERSION - Velzon Migration"
 
 Write-Host "`n[4/4] Day len GitHub (master)..." -ForegroundColor Yellow
