@@ -1,8 +1,9 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import DocumentViewSet
+from .views import DocumentViewSet, NodeViewSet
 
 router = DefaultRouter()
+router.register(r'nodes', NodeViewSet, basename='node')
 router.register(r'', DocumentViewSet, basename='document')
 
 urlpatterns = [

@@ -21,8 +21,10 @@ class Group(models.Model):
 
 class User(AbstractUser):
     full_name = models.CharField(max_length=255, blank=True)
+    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
     roles = models.ManyToManyField(Role, related_name='users', blank=True)
     group = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
+    sidebar_config = models.JSONField(default=list, blank=True, null=True, verbose_name="Cấu hình Sidebar")
 
     def __str__(self):
         return self.username

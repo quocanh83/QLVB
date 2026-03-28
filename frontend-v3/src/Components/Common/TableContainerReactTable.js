@@ -30,7 +30,7 @@ const Filter = ({
         type="text"
         value= {(columnFilterValue ?? '') }
         onChange={value => column.setFilterValue(value)}
-        placeholder="Search..."
+        placeholder="Tìm kiếm..."
         className="w-36 border shadow rounded"
         list={column.id + 'list'}
       />
@@ -203,13 +203,13 @@ const TableContainer = ({
 
       <Row className="align-items-center mt-2 g-3 text-center text-sm-start">
         <div className="col-sm">
-          <div className="text-muted">Showing<span className="fw-semibold ms-1">{getState().pagination.pageSize}</span> of <span className="fw-semibold">{data.length}</span> Results
+          <div className="text-muted">Hiển thị <span className="fw-semibold ms-1">{getState().pagination.pageSize}</span> trong tổng số <span className="fw-semibold">{data.length}</span> kết quả
           </div>
         </div>
         <div className="col-sm-auto">
           <ul className="pagination pagination-separated pagination-md justify-content-center justify-content-sm-start mb-0">
             <li className={!getCanPreviousPage() ? "page-item disabled" : "page-item"}>
-              <Link to="#" className="page-link" onClick={previousPage}>Previous</Link>
+              <Link to="#" className="page-link" onClick={previousPage}>Trước</Link>
             </li>
             {getPageOptions().map((item, key) => (
               <React.Fragment key={key}>
@@ -219,7 +219,7 @@ const TableContainer = ({
               </React.Fragment>
             ))}
             <li className={!getCanNextPage() ? "page-item disabled" : "page-item"}>
-              <Link to="#" className="page-link" onClick={nextPage}>Next</Link>
+              <Link to="#" className="page-link" onClick={nextPage}>Sau</Link>
             </li>
           </ul>
         </div>

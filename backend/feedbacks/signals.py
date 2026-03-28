@@ -14,6 +14,7 @@ def notify_new_feedback(sender, instance, created, **kwargs):
             agency = instance.contributing_agency or "Một cơ quan"
             Notification.objects.create(
                 recipient=document.lead,
+                sender=instance.user,
                 message=f'Có góp ý mới từ "{agency}" cho dự thảo: {document.project_name}',
-                link=f"/vibe-dashboard?docId={document.id}"
+                link=f"/feedbacks?docId={document.id}"
             )

@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'feedbacks',
     'reports',
     'core',
+    'django.contrib.humanize',
 ]
 
 MIDDLEWARE = [

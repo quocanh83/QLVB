@@ -16,6 +16,7 @@ const DocumentDetails = () => {
     const [nodeFeedbacks, setNodeFeedbacks] = useState([]);
     const [selectedFeedback, setSelectedFeedback] = useState(null);
     const [explanationContent, setExplanationContent] = useState('');
+    const [expandedNodeId, setExpandedNodeId] = useState(null);
     
     // States for UI
     const [loading, setLoading] = useState(true);
@@ -224,32 +225,45 @@ const DocumentDetails = () => {
 
     const renderNodeTree = (nodes, depth = 0) => {
         if (!nodes) return null;
-        return nodes.map(node => (
-            <div key={node.id} className="mb-1">
-                <div 
-                    className={`p-2 rounded cursor-pointer transition-colors fs-13 ${selectedNode?.id === node.id ? 'bg-primary text-white shadow-sm' : 'hover:bg-light text-body'}`}
-                    style={{ marginLeft: `${depth * 15}px` }}
-                    onClick={() => setSelectedNode(node)}
-                >
-                    <div className="d-flex align-items-center">
-                        <FeatherIcon icon={node.node_type === 'Khoản' ? 'file-text' : 'folder'} className="icon-xs me-2 opacity-75" />
-                        <span className="fw-medium text-truncate flex-grow-1">
-                            {node.node_label}: {(node.content || "").substring(0, 30)}...
-                        </span>
-                        {node.total_feedbacks > 0 && (
-                            <span className={`badge ${node.resolved_feedbacks === node.total_feedbacks ? 'bg-success' : 'bg-warning'} ms-2`}>
-                                {node.resolved_feedbacks}/{node.total_feedbacks}
+        return nodes.map(node => {
+            const hasChildren = node.children && node.children.length > 0;
+            const isExpanded = expandedNodeId === node.id;
+            
+            return (
+                <div key={node.id} className="mb-1">
+                    <div 
+                        className={`p-2 rounded cursor-pointer transition-colors fs-13 ${selectedNode?.id === node.id ? 'bg-primary text-white shadow-sm' : 'hover:bg-light text-body'}`}
+                        style={{ marginLeft: `${depth * 15}px` }}
+                        onClick={() => {
+                            setSelectedNode(node);
+                            if (node.node_type === 'Điều') {
+                                setExpandedNodeId(isExpanded ? null : node.id);
+                            }
+                        }}
+                    >
+                        <div className="d-flex align-items-center">
+                            <FeatherIcon 
+                                icon={node.node_type === 'Khoản' ? 'file-text' : (isExpanded ? 'chevron-down' : 'chevron-right')} 
+                                className="icon-xs me-2 opacity-75" 
+                            />
+                            <span className="fw-medium text-truncate flex-grow-1">
+                                {node.node_label}: {(node.content || "").substring(0, 30)}...
                             </span>
-                        )}
+                            {node.total_feedbacks > 0 && (
+                                <span className={`badge ${node.resolved_feedbacks === node.total_feedbacks ? 'bg-success' : 'bg-warning'} ms-2`}>
+                                    {node.resolved_feedbacks}/{node.total_feedbacks}
+                                </span>
+                            )}
+                        </div>
                     </div>
+                    {hasChildren && isExpanded && (
+                        <div className="mt-1">
+                            {renderNodeTree(node.children, depth + 1)}
+                        </div>
+                    )}
                 </div>
-                {node.children && node.children.length > 0 && (
-                    <div className="mt-1">
-                        {renderNodeTree(node.children, depth + 1)}
-                    </div>
-                )}
-            </div>
-        ));
+            );
+        });
     };
 
     window.document.title = document ? `Chi tiết: ${document.project_name} | QLVB V3.0` : "Chi tiết Văn bản | QLVB V3.0";

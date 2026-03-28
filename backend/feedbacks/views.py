@@ -262,11 +262,27 @@ class FeedbackViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def get_document_nodes(self, request):
-        """Lấy danh sách node để phục vụ mapping ở frontend"""
+        """Lấy danh sách node để phục vụ mapping ở frontend với nhãn đầy đủ"""
         doc_id = request.query_params.get('document_id')
         if not doc_id: return Response([])
-        nodes = DocumentNode.objects.filter(document_id=doc_id).order_by('order_index')
-        return Response([{"id": n.id, "label": n.node_label, "type": n.node_type} for n in nodes])
+        nodes = DocumentNode.objects.filter(document_id=doc_id).select_related('parent', 'parent__parent').order_by('order_index')
+        
+        results = []
+        for n in nodes:
+            # Tạo nhãn phân tầng: Điều 1 > Khoản 2 > Điểm a
+            path_parts = []
+            curr = n
+            while curr:
+                if curr.node_type != 'Văn bản':
+                    path_parts.insert(0, curr.node_label)
+                curr = curr.parent
+            
+            results.append({
+                "id": n.id, 
+                "label": " > ".join(path_parts) if path_parts else n.node_label, 
+                "type": n.node_type
+            })
+        return Response(results)
 
     @action(detail=False, methods=['post'])
     def bulk_create(self, request):
@@ -437,6 +453,41 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             details="Lãnh đạo đã phê duyệt nội dung giải trình."
         )
         return Response({"message": "Đã phê duyệt thành công"})
+
+    @action(detail=False, methods=['get'])
+    def by_document(self, request):
+        """Lấy toàn bộ góp ý của một dự thảo"""
+        doc_id = request.query_params.get('document_id')
+        if not doc_id: return Response({"error": "document_id is required"}, status=400)
+        
+        feedbacks = Feedback.objects.filter(document_id=doc_id)\
+            .select_related('node', 'agency')\
+            .prefetch_related('explanations')\
+            .order_by('node__order_index', 'created_at')
+        
+        results = []
+        for i, fb in enumerate(feedbacks, 1):
+            path = []
+            curr = fb.node
+            while curr:
+                path.insert(0, curr.node_label)
+                curr = curr.parent
+            
+            explanation_obj = fb.explanations.first()
+            
+            results.append({
+                "stt": i,
+                "id": fb.id,
+                "node_id": fb.node_id,
+                "node_label": fb.node.node_label if fb.node else "Vấn đề khác",
+                "node_path": ", ".join(path),
+                "contributing_agency": fb.contributing_agency or (fb.agency.name if fb.agency else "Ẩn danh"),
+                "content": fb.content,
+                "explanation": explanation_obj.content if explanation_obj else "",
+                "status": fb.status,
+                "created_at": fb.created_at.strftime("%d/%m/%Y %H:%M"),
+            })
+        return Response(results)
 
     @action(detail=False, methods=['get'])
     def by_node(self, request):

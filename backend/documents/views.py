@@ -505,3 +505,31 @@ class DocumentViewSet(viewsets.ModelViewSet):
             import traceback
             print(traceback.format_exc())
             return Response({"error": f"Lỗi trong quá trình xuất báo cáo: {str(e)}"}, status=500)
+
+class NodeViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = DocumentNode.objects.all()
+    serializer_class = DocumentNodeSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    @action(detail=True, methods=['get'])
+    def full_context(self, request, pk=None):
+        """Lấy trọn bộ 'Điều' chứa node này kèm các con của nó"""
+        node = self.get_object()
+        
+        # Nếu là Khoản/Điểm, tìm ngược lên Điều
+        root = node
+        while root.parent and root.node_type != 'Điều':
+            root = root.parent
+            
+        # Serialize root kèm children
+        def serialize_recursive(n):
+            children = n.children.all().order_by('order_index')
+            return {
+                "id": n.id,
+                "node_type": n.node_type,
+                "node_label": n.node_label,
+                "content": n.content,
+                "children": [serialize_recursive(c) for c in children]
+            }
+            
+        return Response(serialize_recursive(root))

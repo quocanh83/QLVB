@@ -14,6 +14,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['roles'] = list(user.roles.values_list('role_name', flat=True))
         return token
 
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        data['username'] = self.user.username
+        data['full_name'] = self.user.full_name
+        data['avatar'] = self.user.avatar.url if self.user.avatar else None
+        data['roles'] = list(self.user.roles.values_list('role_name', flat=True))
+        return data
+
 class RoleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Role
@@ -28,7 +36,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'full_name', 'roles', 'role_ids', 'group']
+        fields = ['id', 'username', 'email', 'full_name', 'avatar', 'roles', 'role_ids', 'group', 'sidebar_config']
 
     def create(self, validated_data):
         roles_data = validated_data.pop('roles', [])

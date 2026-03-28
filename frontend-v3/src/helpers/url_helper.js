@@ -233,3 +233,8 @@ export const GET_TASKS = "/apps/tasks";
 export const ADD_TASKS = "/add/tasks";
 export const UPDATE_TASKS = "/update/tasks";
 export const DELETE_TASKS = "/delete/tasks";
+
+// Notifications
+export const GET_NOTIFICATIONS = "/api/notifications/";
+export const MARK_NOTIFICATION_READ = "/api/notifications/"; // /{id}/mark_read/
+export const MARK_ALL_NOTIFICATIONS_READ = "/api/notifications/mark_all_read/";

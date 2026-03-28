@@ -240,15 +240,12 @@ const Settings = () => {
         { id: 'staff_performance', label: 'Hiệu suất nhân viên' },
         { id: 'qlvb_dasboard', label: 'Tổng quan' },
         { id: 'documents', label: 'Văn bản' },
-        { id: 'categories', label: 'Danh mục' },
-        { id: 'user-management', label: 'Quản lý Cán bộ' },
+        { id: 'feedback-intake', label: 'Nhập góp ý thủ công' },
+        { id: 'draft-explanation', label: 'Giải trình dự thảo' },
+        { id: 'feedbacks', label: 'Danh sách Góp ý' },
         { id: 'reports', label: 'Báo cáo' },
+        { id: 'user-management', label: 'Quản lý Cán bộ' },
         { id: 'settings', label: 'Cấu hình' },
-        { id: 'analytics', label: 'Analytics' },
-        { id: 'crm', label: 'CRM' },
-        { id: 'ecommerce', label: 'Ecommerce' },
-        { id: 'projects', label: 'Projects' },
-        { id: 'tasks', label: 'Tasks' },
         { id: 'apps', label: 'Ứng dụng' },
         { id: 'widgets', label: 'Widgets' }
     ];
@@ -256,11 +253,11 @@ const Settings = () => {
     const SYSTEM_ROUTES = [
         { label: "Tổng quan (QLVB)", link: "/qlvb_dasboard" },
         { label: "Danh sách Văn bản", link: "/documents" },
+        { label: "Nhập góp ý thủ công", link: "/feedback-intake" },
+        { label: "Giải trình Dự thảo", link: "/draft-explanation" },
+        { label: "Danh sách Góp ý", link: "/feedbacks" },
         { label: "Trung tâm Báo cáo", link: "/reports" },
         { label: "Cấu hình Hệ thống", link: "/settings" },
-        { label: "Dashboard Analytics", link: "/dashboard-analytics" },
-        { label: "Dashboard CRM", link: "/dashboard-crm" },
-        { label: "Dashboard Ecommerce", link: "/dashboard-ecommerce" },
         { label: "Quản lý Cán bộ", link: "/user-management" },
         { label: "Calendar", link: "/apps-calendar" },
         { label: "Chat", link: "/apps-chat" },
@@ -332,8 +329,22 @@ const Settings = () => {
                 }
             });
 
-            // SOFT MERGE / FALLBACK
-            if (!sidebarLoaded || finalSidebarJSON.length === 0) {
+            // 2. FETCH USER PROFILE SIDEBAR CONFIG
+            let userSidebarJSON = [];
+            try {
+                const profileRes = await axios.get('/api/accounts/profile/', getAuthHeader());
+                if (profileRes.data && profileRes.data.sidebar_config) {
+                    userSidebarJSON = profileRes.data.sidebar_config;
+                }
+            } catch (err) {
+                console.error("Failed to fetch user profile", err);
+            }
+
+            // 3. PRIORITY LOGIC: Profile > Global System Setting > Default
+            if (userSidebarJSON && userSidebarJSON.length > 0) {
+                finalSidebarJSON = userSidebarJSON;
+            } else if (!sidebarLoaded || finalSidebarJSON.length === 0) {
+                // FALLBACK TO DEFAULT
                 finalSidebarJSON = defaultSidebarItems.map(defItem => ({
                     id: defItem.id,
                     label: defItem.label,
@@ -345,7 +356,8 @@ const Settings = () => {
                     }))
                 }));
             } else {
-                // Ensure all default items are at least present (Soft Merge)
+                // Keep the global finalSidebarJSON already loaded from SIDEBAR_JSON_CONFIG
+                // But ensure all default items are at least present (Soft Merge)
                 defaultSidebarItems.forEach(defItem => {
                     if (!finalSidebarJSON.find(p => p.id === defItem.id)) {
                         finalSidebarJSON.push({
@@ -389,30 +401,20 @@ const Settings = () => {
         setLoading(true);
         try {
             const configStr = JSON.stringify(localSidebarConfig);
-            // Search case-insensitive or trimmed in case of DB variations
-            const setting = settings.find(s => s.key && s.key.trim() === 'SIDEBAR_JSON_CONFIG');
-            
-            if (setting) {
-                console.log("Updating existing sidebar config ID:", setting.id);
-                await axios.patch(`/api/settings/${setting.id}/`, { value: configStr }, getAuthHeader());
-            } else {
-                console.log("Creating NEW sidebar config");
-                await axios.post('/api/settings/', { 
-                    key: 'SIDEBAR_JSON_CONFIG', 
-                    value: configStr, 
-                    description: 'Sidebar Menu JSON Configuration' 
-                }, getAuthHeader());
-            }
+            // Lưu vào profile của user hiện tại
+            await axios.patch('/api/accounts/profile/', { 
+                sidebar_config: localSidebarConfig 
+            }, getAuthHeader());
 
-            setSidebarConfig(JSON.parse(configStr));
+            setSidebarConfig(localSidebarConfig);
             setIsSidebarChanged(false);
             localStorage.setItem('sidebarJSONConfig', configStr);
-            toast.success("Đã lưu thay đổi thứ tự và hiển thị menu.");
+            toast.success("Đã lưu thay đổi thứ tự và hiển thị menu cá nhân.");
         } catch (e) {
             console.error("Failed to sync sidebar config:", e);
             const msg = (e.response && e.response.status === 401) 
-                ? "Lỗi: Bạn không có quyền Admin (401) hoặc phiên đăng nhập hết hạn." 
-                : "Lỗi khi lưu cấu hình menu.";
+                ? "Lỗi: Phiên đăng nhập hết hạn hoặc không có quyền." 
+                : "Lỗi khi lưu cấu hình menu cá nhân.";
             toast.error(msg);
         } finally {
             setLoading(false);

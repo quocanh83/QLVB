@@ -34,6 +34,9 @@ import DocumentDetails from "../pages/Documents/DocumentDetails";
 
 // QLVB - Reports
 import Reports from "../pages/Reports";
+import FeedbackIntake from "../pages/FeedbackIntake";
+import DraftExplanation from "../pages/DraftExplanation";
+import FeedbackList from "../pages/FeedbackList";
 
 import SystemSettings from "../pages/Settings";
 import UserManagement from "../pages/UserManagement";
@@ -304,6 +307,9 @@ const authProtectedRoutes = [
   
   // QLVB - Reports
   { path: "/reports", component: <Reports /> },
+  { path: "/feedback-intake", component: <FeedbackIntake /> },
+  { path: "/draft-explanation", component: <DraftExplanation /> },
+  { path: "/feedbacks", component: <FeedbackList /> },
 
   // QLVB - Settings
   { path: "/settings", component: <SystemSettings /> },

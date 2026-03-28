@@ -3,29 +3,36 @@ import { Dropdown, DropdownItem, DropdownMenu, DropdownToggle } from 'reactstrap
 import { useSelector } from 'react-redux';
 
 //import images
+import { api } from "../../config";
 import avatar1 from "../../assets/images/users/avatar-1.jpg";
 import { Link } from 'react-router-dom';
 import { createSelector } from 'reselect';
 
 const ProfileDropdown = () => {
-
-    const profiledropdownData = createSelector(
-        (state) => state.Profile,
-        (user) => user.user
-      );
-    // Inside your component
-    const user = useSelector(profiledropdownData);
-
     const [userName, setUserName] = useState("Admin");
+    const [userRole, setUserRole] = useState("Staff");
+    const [userAvatar, setUserAvatar] = useState(avatar1);
 
     useEffect(() => {
-        if (sessionStorage.getItem("authUser")) {
-            const obj = JSON.parse(sessionStorage.getItem("authUser"));
-            setUserName(process.env.REACT_APP_DEFAULTAUTH === "fake" ? obj.username === undefined ? user.first_name ? user.first_name : obj.data.first_name : "Admin" || "Admin" :
-                process.env.REACT_APP_DEFAULTAUTH === "firebase" ? obj.email && obj.email : "Admin"
-            );
+        const authUser = localStorage.getItem("authUser");
+        if (authUser) {
+            const obj = JSON.parse(authUser);
+            setUserName(obj.full_name || obj.username || "Admin");
+            
+            // Set Avatar
+            if (obj.avatar) {
+                const avatarPath = obj.avatar.startsWith('http') ? obj.avatar : `${api.API_URL}${obj.avatar}`;
+                setUserAvatar(avatarPath);
+            } else {
+                setUserAvatar(avatar1);
+            }
+
+            // Set Role
+            if (obj.roles && obj.roles.length > 0) {
+                setUserRole(obj.roles[0]);
+            }
         }
-    }, [userName, user]);
+    }, []);
 
     //Dropdown Toggle
     const [isProfileDropdown, setIsProfileDropdown] = useState(false);
@@ -36,12 +43,12 @@ const ProfileDropdown = () => {
         <React.Fragment>
             <Dropdown isOpen={isProfileDropdown} toggle={toggleProfileDropdown} className="ms-sm-3 header-item topbar-user">
                 <DropdownToggle tag="button" type="button" className="btn">
-                    <span className="d-flex align-items-center">
-                        <img className="rounded-circle header-profile-user" src={avatar1}
+                    <span className="flex align-items-center">
+                        <img className="rounded-circle header-profile-user" src={userAvatar}
                             alt="Header Avatar" />
                         <span className="text-start ms-xl-2">
                             <span className="d-none d-xl-inline-block ms-1 fw-medium user-name-text">{userName}</span>
-                            <span className="d-none d-xl-block ms-1 fs-13 text-muted user-name-sub-text">Founder</span>
+                            <span className="d-none d-xl-block ms-1 fs-13 text-muted user-name-sub-text">{userRole}</span>
                         </span>
                     </span>
                 </DropdownToggle>

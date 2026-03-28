@@ -82,6 +82,20 @@ const useNavData = () => {
   const [sidebarJSONConfig, setSidebarJSONConfig] = useState(JSON.parse(localStorage.getItem('sidebarJSONConfig') || '[]'));
 
   useEffect(() => {
+    const fetchSidebarConfig = async () => {
+      try {
+        const response = await axios.get("/api/accounts/profile/", getAuthHeader());
+        const remoteConfig = response.data.sidebar_config;
+        if (remoteConfig && Array.isArray(remoteConfig) && remoteConfig.length > 0) {
+          setSidebarJSONConfig(remoteConfig);
+          localStorage.setItem('sidebarJSONConfig', JSON.stringify(remoteConfig));
+        }
+      } catch (error) {
+        console.error("Failed to fetch sidebar config from profile", error);
+      }
+    };
+    fetchSidebarConfig();
+
     const handleUpdate = (e) => {
       const config = e.detail || JSON.parse(localStorage.getItem('sidebarJSONConfig') || '[]');
       if (Array.isArray(config)) {
@@ -198,6 +212,24 @@ const useNavData = () => {
           parentId: "qlvb",
           badgeName: "Mới",
           badgeColor: "success",
+        },
+        {
+          id: "feedback-intake",
+          label: "Nhập góp ý thủ công",
+          link: "/feedback-intake",
+          parentId: "qlvb",
+        },
+        {
+          id: "draft-explanation",
+          label: "Giải trình dự thảo",
+          link: "/draft-explanation",
+          parentId: "qlvb",
+        },
+        {
+          id: "feedbacks",
+          label: "Danh sách Góp ý",
+          link: "/feedbacks",
+          parentId: "qlvb",
         },
         {
           id: "settings",
@@ -1617,8 +1649,37 @@ const useNavData = () => {
       }
     });
 
-    // NO AUTO-MERGE: Respect exactly what is in the JSON config
-    // If the user wants to restore, they can use the "Restore" button in Settings.
+    // AUTO-MERGE: Ensure new items in code but missing from JSON config are still visible
+    // We check which master items were completely ignored during the JSON processing
+    const resultsIds = new Set();
+    const collectIds = (items) => {
+      items.forEach(it => {
+        if (it.id) resultsIds.add(it.id);
+        if (it.subItems) collectIds(it.subItems);
+      });
+    };
+    collectIds(finalMenuItems);
+
+    menuItems.forEach(masterItem => {
+      if (masterItem.id && !resultsIds.has(masterItem.id)) {
+        // Master item completely missing from results (not in JSON at all)
+        finalMenuItems.push(masterItem);
+      } else if (masterItem.subItems) {
+        // If master item exists but some of its sub-items are missing
+        masterItem.subItems.forEach(masterSub => {
+          if (masterSub.id && !resultsIds.has(masterSub.id)) {
+            // Find parent in results to append
+            const parentInFinal = finalMenuItems.find(it => it.id === masterSub.parentId);
+            if (parentInFinal) {
+              if (!parentInFinal.subItems) parentInFinal.subItems = [];
+              if (!parentInFinal.subItems.some(s => s.id === masterSub.id)) {
+                parentInFinal.subItems.push(masterSub);
+              }
+            }
+          }
+        });
+      }
+    });
   } else {
     // Fallback: Use the old filtering logic if JSON config is missing
     finalMenuItems = menuItems.filter(item => {
