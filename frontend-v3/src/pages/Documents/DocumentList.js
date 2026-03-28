@@ -74,7 +74,7 @@ const DocumentList = () => {
 
     const handleExport = (id) => {
         const token = localStorage.getItem('access_token');
-        const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+        const baseUrl = process.env.REACT_APP_API_URL || '';
         const url = `${baseUrl}/api/documents/${id}/export_report/?token=${token}`;
         window.open(url, "_blank");
     };

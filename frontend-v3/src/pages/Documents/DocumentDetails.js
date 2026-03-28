@@ -184,7 +184,7 @@ const DocumentDetails = () => {
         if (!document) return;
         try {
             const token = localStorage.getItem('access_token');
-            const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+            const baseUrl = process.env.REACT_APP_API_URL || '';
             const url = `${baseUrl}/api/feedbacks/export_mau_10/?document_id=${document.id}&token=${token}`;
             window.open(url, "_blank");
         } catch (err) {

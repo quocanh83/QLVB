@@ -9,7 +9,9 @@ Write-Host "[1/4] Tang so hieu phien ban frontend-v3 & Build..." -ForegroundColo
 Set-Location -Path "frontend-v3"
 npm version patch --no-git-tag-version
 Write-Host "=> Dang build ban Production tai máy Local (Toc do cao)..." -ForegroundColor Gray
+if (Test-Path "build") { Remove-Item -Recurse -Force "build" }
 $env:GENERATE_SOURCEMAP="false"
+$env:REACT_APP_API_URL=""
 npm run build
 Set-Location -Path ".."
 
