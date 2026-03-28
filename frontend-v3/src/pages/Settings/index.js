@@ -261,6 +261,7 @@ const Settings = () => {
             ]
         },
         { id: 'apps', label: 'Apps' },
+        { id: 'authentication', label: 'Authentication' },
         { id: 'pages', label: 'Pages' },
         { id: 'landing', label: 'Landing' },
         { id: 'baseUi', label: 'Base UI' },
