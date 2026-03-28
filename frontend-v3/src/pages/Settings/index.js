@@ -236,18 +236,42 @@ const Settings = () => {
     const [isResetConfirmModal, setIsResetConfirmModal] = useState(false);
 
     const defaultSidebarItems = [
-        { id: 'dashboard', label: 'Bảng điều khiển' },
-        { id: 'staff_performance', label: 'Hiệu suất nhân viên' },
-        { id: 'qlvb_dasboard', label: 'Tổng quan' },
-        { id: 'documents', label: 'Văn bản' },
-        { id: 'feedback-intake', label: 'Nhập góp ý thủ công' },
-        { id: 'draft-explanation', label: 'Giải trình dự thảo' },
-        { id: 'feedbacks', label: 'Danh sách Góp ý' },
-        { id: 'reports', label: 'Báo cáo' },
-        { id: 'user-management', label: 'Quản lý Cán bộ' },
-        { id: 'settings', label: 'Cấu hình' },
-        { id: 'apps', label: 'Ứng dụng' },
-        { id: 'widgets', label: 'Widgets' }
+        { 
+            id: 'qlvb', 
+            label: 'Công việc của tôi',
+            subItems: [
+                { id: 'documents', label: 'Danh sách Dự thảo' },
+                { id: 'reports', label: 'Trung tâm Báo cáo' },
+                { id: 'feedback-intake', label: 'Nhập góp ý thủ công' },
+                { id: 'draft-explanation', label: 'Giải trình dự thảo' },
+                { id: 'feedbacks', label: 'Danh sách Góp ý' },
+                { id: 'settings', label: 'Cấu hình Hệ thống' },
+                { id: 'user-management', label: 'Quản lý Cán bộ' }
+            ]
+        },
+        { 
+            id: 'dashboard', 
+            label: 'Dashboards',
+            subItems: [
+                { id: "analytics", label: "Analytics" },
+                { id: "projects", label: "Projects" },
+                { id: "nft", label: "NFT" },
+                { id: "job", label: "Job" },
+                { id: "blog", label: "Blog" }
+            ]
+        },
+        { id: 'apps', label: 'Apps' },
+        { id: 'pages', label: 'Pages' },
+        { id: 'landing', label: 'Landing' },
+        { id: 'baseUi', label: 'Base UI' },
+        { id: 'advanceUi', label: 'Advance UI' },
+        { id: 'widgets', label: 'Widgets' },
+        { id: 'forms', label: 'Forms' },
+        { id: 'tables', label: 'Tables' },
+        { id: 'charts', label: 'Charts' },
+        { id: 'icons', label: 'Icons' },
+        { id: 'maps', label: 'Maps' },
+        { id: 'multilevel', label: 'Multi Level' }
     ];
 
     const SYSTEM_ROUTES = [

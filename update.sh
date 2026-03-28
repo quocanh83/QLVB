@@ -21,6 +21,7 @@ git reset --hard origin/master
 
 echo "=> 🔑 Cấp quyền sở hữu thư mục cho qlvb..."
 sudo chown -R qlvb:qlvb $PROJECT_DIR
+sudo chmod 755 /home/qlvb
 
 # 2. Cập nhật và Build Frontend V3 (Velzon)
 echo "=> 🚧 Đang xây dựng lại Frontend V3..."
