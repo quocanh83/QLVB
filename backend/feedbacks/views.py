@@ -13,7 +13,6 @@ from django.http import FileResponse
 from .utils.mau10_generator import generate_mau_10
 from .utils.v2_template_generator import generate_from_v2_template
 from documents.models import Document
-from .utils.ocr_service import OCRService
 from django.core.files.storage import FileSystemStorage
 import shutil
 
@@ -282,6 +281,7 @@ class FeedbackViewSet(viewsets.ModelViewSet):
         file_path = fs.path(filename)
         
         try:
+            from .utils.ocr_service import OCRService # Lazy load
             service = OCRService()
             ocr_results = service.process_file(file_path)
             
