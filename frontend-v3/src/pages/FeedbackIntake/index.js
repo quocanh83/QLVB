@@ -21,7 +21,9 @@ const FeedbackIntake = () => {
     
     const [loading, setLoading] = useState(false);
     const [file, setFile] = useState(null);
+    const [file2, setFile2] = useState(null); // For Tab 3 (PDF/Image)
     const [uploading, setUploading] = useState(false);
+    const [uploading2, setUploading2] = useState(false); // For Tab 3
     const [saving, setSaving] = useState(false);
     
     // Tab State
@@ -198,6 +200,51 @@ const FeedbackIntake = () => {
         }
     };
 
+    const parseFile2 = async () => {
+        if (!file2) return;
+        if (!selectedDocId) {
+            toast.warning("Vui lòng chọn Dự thảo văn bản trước!");
+            return;
+        }
+
+        setUploading2(true);
+        const formData = new FormData();
+        formData.append('file', file2);
+        formData.append('document_id', selectedDocId);
+
+        try {
+            // Reusing the same endpoint for now as requested (like tab 2)
+            const res = await axios.post('/api/feedbacks/parse_file/', formData, {
+                headers: { ...getAuthHeader().headers, 'Content-Type': 'multipart/form-data' }
+            });
+            
+            const parseData = res.results || res.data || res;
+            const meta = parseData.metadata || {};
+            
+            const defaultAgencyName = meta.drafting_agency || "";
+            const defaultAgency = agencies.find(a => a.name === defaultAgencyName);
+
+            const enriched = (parseData.feedbacks || []).map((f, i) => {
+                const guessedNodeId = guessNodeFromText(f.content, nodes);
+                return {
+                    ...f,
+                    key: `media-${i}-${Date.now()}`,
+                    node_id: f.node_id || guessedNodeId || null,
+                    agency_id: f.agency_id || (defaultAgency ? defaultAgency.id : null),
+                    contributing_agency: f.contributing_agency || defaultAgencyName
+                };
+            });
+            
+            setFeedbacks(enriched);
+            setMetadata(meta);
+            toast.success(`Đã xử lý được ${enriched.length} đoạn góp ý từ tệp ảnh/PDF.`);
+        } catch (e) {
+            toast.error("Lỗi khi xử lý tệp ảnh/PDF. (Lưu ý: Backend hiện đang hỗ trợ tốt nhất cho file .docx)");
+        } finally {
+            setUploading2(false);
+        }
+    };
+
     const guessNodeFromText = (text, nodesList) => {
         if (!text) return null;
         const match = text.match(/Điều\s*(\d+)/i);
@@ -268,7 +315,7 @@ const FeedbackIntake = () => {
         }
     };
 
-    // Dropzone configuration
+    // Dropzone configuration for Tab 2 (DOCX)
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop: (acceptedFiles) => {
             if (!selectedDocId) {
@@ -285,6 +332,33 @@ const FeedbackIntake = () => {
         },
         accept: {
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
+        },
+        multiple: false
+    });
+
+    // Dropzone configuration for Tab 3 (Image/PDF)
+    const { 
+        getRootProps: getRootProps2, 
+        getInputProps: getInputProps2, 
+        isDragActive: isDragActive2 
+    } = useDropzone({
+        onDrop: (acceptedFiles) => {
+            if (!selectedDocId) {
+                toast.warning("Vui lòng chọn Dự thảo văn bản trước khi tải file!");
+                return;
+            }
+            if (acceptedFiles.length > 0) {
+                setFile2(acceptedFiles[0]);
+                toast.success(`Đã chọn tệp: ${acceptedFiles[0].name}`);
+            }
+        },
+        onDropRejected: () => {
+            toast.error("Định dạng không hợp lệ. Vui lòng chọn PDF hoặc Ảnh (.jpg, .png)");
+        },
+        accept: {
+            'application/pdf': ['.pdf'],
+            'image/jpeg': ['.jpg', '.jpeg'],
+            'image/png': ['.png']
         },
         multiple: false
     });
@@ -346,6 +420,15 @@ const FeedbackIntake = () => {
                                 style={{ cursor: 'pointer', fontWeight: activeTab === '2' ? '700' : '500', borderRadius: '30px', padding: '10px 25px' }}
                             >
                                 <i className="ri-file-upload-line align-bottom me-1"></i> 2. Nhập từ File (.docx)
+                            </NavLink>
+                        </NavItem>
+                        <NavItem>
+                            <NavLink
+                                className={classnames({ active: activeTab === '3' })}
+                                onClick={() => toggleTab('3')}
+                                style={{ cursor: 'pointer', fontWeight: activeTab === '3' ? '700' : '500', borderRadius: '30px', padding: '10px 25px' }}
+                            >
+                                <i className="ri-image-line align-bottom me-1"></i> 3. Nhập từ ảnh và PDF
                             </NavLink>
                         </NavItem>
                     </Nav>
@@ -490,30 +573,30 @@ const FeedbackIntake = () => {
                             </Row>
                         </TabPane>
 
-                        {/* TAB 2: FILE INTAKE */}
-                        <TabPane tabId="2">
+                        {/* TAB 3: IMAGE/PDF INTAKE (Cloned from Tab 2) */}
+                        <TabPane tabId="3">
                             <Row>
                                 <Col lg={4}>
                                     <Card className="border-0 shadow-sm h-100 mb-0">
                                         <CardHeader className="bg-light-subtle py-3 mt-0 text-center">
-                                            <h6 className="card-title mb-1 fw-bold"><i className="ri-upload-2-line align-bottom me-1"></i> Tải File dự thảo (.docx)</h6>
-                                            <p className="text-muted mb-0 fs-11">Hỗ trợ các file .docx có bảng biểu</p>
+                                            <h6 className="card-title mb-1 fw-bold"><i className="ri-image-add-line align-bottom me-1"></i> Tải Ảnh hoặc PDF góp ý</h6>
+                                            <p className="text-muted mb-0 fs-11">Hỗ trợ .pdf, .jpg, .png</p>
                                         </CardHeader>
                                         <CardBody className="bg-body-tertiary">
                                             <div 
-                                                {...getRootProps()} 
+                                                {...getRootProps2()} 
                                                 className={classnames(
                                                     "p-5 border rounded-3 text-center mb-4 shadow-sm transition-all",
-                                                    isDragActive ? "border-primary bg-primary-subtle" : "border-dashed bg-card-custom",
+                                                    isDragActive2 ? "border-primary bg-primary-subtle" : "border-dashed bg-card-custom",
                                                     !selectedDocId ? "opacity-50 grayscale-1" : "cursor-pointer"
                                                 )}
                                                 style={{ borderStyle: 'dashed', borderWidth: '2px', cursor: !selectedDocId ? 'not-allowed' : 'pointer' }}
                                             >
-                                                <input {...getInputProps()} />
+                                                <input {...getInputProps2()} />
                                                 <div className="mb-3">
                                                     <i className={classnames(
                                                         "display-4 opacity-50 d-block",
-                                                        isDragActive ? "ri-download-cloud-2-line text-primary" : "ri-upload-cloud-2-line text-muted"
+                                                        isDragActive2 ? "ri-download-cloud-2-line text-primary" : "ri-camera-lens-line text-muted"
                                                     )}></i>
                                                 </div>
                                                 {!selectedDocId ? (
@@ -521,46 +604,46 @@ const FeedbackIntake = () => {
                                                         <i className="ri-information-line align-middle me-1"></i> 
                                                         Vui lòng chọn dự thảo ở trên trước
                                                     </div>
-                                                ) : file ? (
+                                                ) : file2 ? (
                                                     <div>
                                                         <h5 className="text-success fw-bold mb-1">
-                                                            <i className="ri-file-word-line align-bottom me-1"></i> {file.name}
+                                                            <i className="ri-file-pdf-line align-bottom me-1"></i> {file2.name}
                                                         </h5>
-                                                        <p className="text-muted small mb-0">{(file.size / 1024).toFixed(2)} KB - Sẵn sàng để phân rã</p>
+                                                        <p className="text-muted small mb-0">{(file2.size / 1024).toFixed(2)} KB - Sẵn sàng xử lý</p>
                                                     </div>
                                                 ) : (
                                                     <div>
-                                                        <h5 className="fw-bold mb-1">Kéo thả file .docx vào đây</h5>
-                                                        <p className="text-muted mb-0">Hoặc nhấp để chọn file từ máy tính</p>
+                                                        <h5 className="fw-bold mb-1">Kéo thả Ảnh/PDF vào đây</h5>
+                                                        <p className="text-muted mb-0">Hoặc nhấp để chọn tệp</p>
                                                     </div>
                                                 )}
                                             </div>
 
                                             <Button 
-                                                color="primary" 
+                                                color="info" 
                                                 className="w-100 btn-label waves-effect waves-light shadow-none py-2 mb-3" 
                                                 onClick={(e) => {
-                                                    e.stopPropagation(); // Prevent dropzone click
-                                                    parseFile();
+                                                    e.stopPropagation();
+                                                    parseFile2();
                                                 }} 
-                                                disabled={!file || uploading}
+                                                disabled={!file2 || uploading2}
                                             >
-                                                <i className="ri-magic-line label-icon align-middle fs-16 me-2"></i> 
-                                                {uploading ? "Đang xử lý..." : "Bắt đầu Phân rã dữ liệu"}
+                                                <i className="ri-scan-2-line label-icon align-middle fs-16 me-2"></i> 
+                                                {uploading2 ? "Đang xử lý..." : "Bắt đầu Trích xuất Dữ liệu"}
                                             </Button>
 
                                             {metadata && (metadata.drafting_agency !== undefined || metadata.agency_location !== undefined) && (
-                                                <div className="p-3 bg-primary-subtle rounded-3 border border-primary-subtle shadow-sm">
-                                                    <h6 className="text-primary fw-bold mb-3 fs-13 border-bottom border-primary border-opacity-25 pb-2 d-flex justify-content-between">
-                                                        <span><i className="ri-file-search-line align-bottom me-1"></i> Hiệu chỉnh Metadata</span>
-                                                        <Badge color="primary" className="fs-10">Tự động</Badge>
+                                                <div className="p-3 bg-info-subtle rounded-3 border border-info-subtle shadow-sm">
+                                                    <h6 className="text-info fw-bold mb-3 fs-13 border-bottom border-info border-opacity-25 pb-2 d-flex justify-content-between">
+                                                        <span><i className="ri-file-search-line align-bottom me-1"></i> Metadata phát hiện</span>
+                                                        <Badge color="info" className="fs-10">AI Detect</Badge>
                                                     </h6>
                                                     <div className="mb-2">
                                                         <Label className="fs-11 fw-bold text-muted text-uppercase mb-1">Cơ quan chủ trì</Label>
                                                         <Input 
                                                             type="text" 
                                                             size="sm"
-                                                            className="form-control-sm border-primary border-opacity-25"
+                                                            className="form-control-sm border-info border-opacity-25"
                                                             value={metadata.drafting_agency || ''} 
                                                             onChange={(e) => handleMetadataChange('drafting_agency', e.target.value)}
                                                         />
@@ -570,14 +653,10 @@ const FeedbackIntake = () => {
                                                         <Input 
                                                             type="text" 
                                                             size="sm"
-                                                            className="form-control-sm border-primary border-opacity-25"
+                                                            className="form-control-sm border-info border-opacity-25"
                                                             value={metadata.agency_location || ''} 
                                                             onChange={(e) => handleMetadataChange('agency_location', e.target.value)}
                                                         />
-                                                    </div>
-                                                    <div className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top border-primary border-opacity-10">
-                                                        <span className="text-muted fs-11">Số góp ý tìm thấy:</span>
-                                                        <span className="badge bg-primary fs-11">{metadata.total_feedbacks_doc || feedbacks.filter(f => f.key.startsWith('file')).length}</span>
                                                     </div>
                                                 </div>
                                             )}
@@ -587,10 +666,10 @@ const FeedbackIntake = () => {
 
                                 <Col lg={8}>
                                     <Card className="border-0 shadow-sm h-100 mb-0 overflow-hidden">
-                                        <CardHeader className="bg-primary-subtle py-3 border-bottom border-primary border-opacity-10 d-flex justify-content-between align-items-center">
+                                        <CardHeader className="bg-info-subtle py-3 border-bottom border-info border-opacity-10 d-flex justify-content-between align-items-center">
                                             <h6 className="card-title mb-0 fw-bold">
-                                                <i className="ri-list-settings-line align-bottom me-1 text-primary"></i> 
-                                                Review & Mapping Dữ liệu ({feedbacks.filter(f => f.key.startsWith('file')).length})
+                                                <i className="ri-list-settings-line align-bottom me-1 text-info"></i> 
+                                                Kết quả trích xuất ({feedbacks.filter(f => f.key.startsWith('media')).length})
                                             </h6>
                                         </CardHeader>
                                         <CardBody className="p-3">
@@ -605,7 +684,7 @@ const FeedbackIntake = () => {
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {feedbacks.filter(f => f.key.startsWith('file')).length > 0 ? feedbacks.filter(f => f.key.startsWith('file')).map((fb) => (
+                                                        {feedbacks.filter(f => f.key.startsWith('media')).length > 0 ? feedbacks.filter(f => f.key.startsWith('media')).map((fb) => (
                                                             <tr key={fb.key}>
                                                                 <td className="p-2">
                                                                     <Input 
@@ -659,10 +738,10 @@ const FeedbackIntake = () => {
                                                                 <td colSpan="4" className="text-center py-5 text-muted bg-body-tertiary">
                                                                     <div className="py-5">
                                                                         <div className="mb-4">
-                                                                            <i className="ri-file-search-line display-3 text-primary opacity-25"></i>
+                                                                            <i className="ri-camera-lens-line display-3 text-info opacity-25"></i>
                                                                         </div>
-                                                                        <h5 className="text-body fw-bold">Chưa có dữ liệu từ file</h5>
-                                                                        <p className="fs-14 mb-0">Hệ thống sẽ bóc tách dữ liệu ngay sau khi bạn tải file Word và nhấn nút "Bắt đầu Phân rã".</p>
+                                                                        <h5 className="text-body fw-bold">Chưa có dữ liệu từ Ảnh/PDF</h5>
+                                                                        <p className="fs-14 mb-0">Hệ thống sẽ bóc tách dữ liệu ngay sau khi bạn tải Ảnh hoặc PDF và nhấn nút "Bắt đầu Trích xuất".</p>
                                                                     </div>
                                                                 </td>
                                                             </tr>
@@ -672,7 +751,7 @@ const FeedbackIntake = () => {
                                             </div>
                                         </CardBody>
                                     </Card>
-                                </Col>
+                               Col>
                             </Row>
                         </TabPane>
                     </TabContent>
