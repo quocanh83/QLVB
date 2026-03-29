@@ -141,6 +141,8 @@ MEDIA_ROOT = str(BASE_DIR / 'media')
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost',
     'http://127.0.0.1',
+    'http://duthao.giadinhvit.com',
+    'https://duthao.giadinhvit.com',
 ] # User can add their domain/IP here later
 
 # Default primary key field type
