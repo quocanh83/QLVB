@@ -20,6 +20,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Tải cấu hình từ file .env
 load_dotenv(os.path.join(BASE_DIR, '.env'))
 
+# Tắt kiểm tra model của PaddleOCR để tránh treo máy khi khởi động
+os.environ["PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK"] = "True"
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
