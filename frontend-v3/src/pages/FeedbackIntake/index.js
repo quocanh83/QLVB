@@ -10,6 +10,7 @@ import Select from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import SimpleBar from 'simplebar-react';
 import { useDropzone } from 'react-dropzone';
+import OCRComparisonView from './OCRComparisonView';
 
 const FeedbackIntake = () => {
     const [documents, setDocuments] = useState([]);
@@ -30,6 +31,10 @@ const FeedbackIntake = () => {
     const [activeTab, setActiveTab] = useState('1');
     const [nodeSearch, setNodeSearch] = useState('');
     const [selectedNodeId, setSelectedNodeId] = useState(null);
+    
+    // OCR Review State
+    const [ocrResult, setOcrResult] = useState(null);
+    const [showOCRReview, setShowOCRReview] = useState(false);
     
     // Manual Input State
     const [manualEntry, setManualEntry] = useState({
@@ -213,36 +218,49 @@ const FeedbackIntake = () => {
         formData.append('document_id', selectedDocId);
 
         try {
-            // Reusing the same endpoint for now as requested (like tab 2)
-            const res = await axios.post('/api/feedbacks/parse_file/', formData, {
+            // New OCR endpoint
+            const res = await axios.post('/api/feedbacks/ocr_parse/', formData, {
                 headers: { ...getAuthHeader().headers, 'Content-Type': 'multipart/form-data' }
             });
             
-            const parseData = res.results || res.data || res;
-            const meta = parseData.metadata || {};
-            
-            const defaultAgencyName = meta.drafting_agency || "";
-            const defaultAgency = agencies.find(a => a.name === defaultAgencyName);
-
-            const enriched = (parseData.feedbacks || []).map((f, i) => {
-                const guessedNodeId = guessNodeFromText(f.content, nodes);
-                return {
-                    ...f,
-                    key: `media-${i}-${Date.now()}`,
-                    node_id: f.node_id || guessedNodeId || null,
-                    agency_id: f.agency_id || (defaultAgency ? defaultAgency.id : null),
-                    contributing_agency: f.contributing_agency || defaultAgencyName
-                };
-            });
-            
-            setFeedbacks(enriched);
-            setMetadata(meta);
-            toast.success(`Đã xử lý được ${enriched.length} đoạn góp ý từ tệp ảnh/PDF.`);
+            const data = (res.results || res.data || res);
+            if (data.pages && data.pages.length > 0) {
+                setOcrResult(data.pages);
+                setShowOCRReview(true);
+                toast.success("Đã trích xuất & xử lý AI xong. Mời bạn đối soát kết quả.");
+            } else {
+                toast.warning("Không tìm thấy văn bản trong tệp tải lên.");
+            }
         } catch (e) {
-            toast.error("Lỗi khi xử lý tệp ảnh/PDF. (Lưu ý: Backend hiện đang hỗ trợ tốt nhất cho file .docx)");
+            toast.error("Lỗi khi xử lý OCR & AI: " + (e.response?.data?.error || e.message));
         } finally {
             setUploading2(false);
         }
+    };
+
+    const handleConfirmOCR = (finalText) => {
+        // Break final text into paragraphs and guess nodes
+        const paragraphs = finalText.split('\n\n').filter(p => p.trim());
+        
+        const defaultAgencyName = metadata.drafting_agency || "";
+        const defaultAgency = agencies.find(a => a.name === defaultAgencyName);
+
+        const enriched = paragraphs.map((content, i) => {
+            const guessedNodeId = guessNodeFromText(content, nodes);
+            return {
+                key: `ocr-${i}-${Date.now()}`,
+                node_id: guessedNodeId || null,
+                node_label: nodes.find(n => n.id === guessedNodeId)?.label || "Vấn đề khác",
+                agency_id: defaultAgency ? defaultAgency.id : null,
+                contributing_agency: defaultAgencyName,
+                content: content.trim()
+            };
+        });
+
+        setFeedbacks([...enriched, ...feedbacks]);
+        setShowOCRReview(false);
+        setOcrResult(null);
+        toast.success(`Đã xác nhận và thêm ${enriched.length} đoạn góp ý vào danh sách chờ.`);
     };
 
     const guessNodeFromText = (text, nodesList) => {
@@ -575,184 +593,170 @@ const FeedbackIntake = () => {
 
                         {/* TAB 3: IMAGE/PDF INTAKE (Cloned from Tab 2) */}
                         <TabPane tabId="3">
-                            <Row>
-                                <Col lg={4}>
-                                    <Card className="border-0 shadow-sm h-100 mb-0">
-                                        <CardHeader className="bg-light-subtle py-3 mt-0 text-center">
-                                            <h6 className="card-title mb-1 fw-bold"><i className="ri-image-add-line align-bottom me-1"></i> Tải Ảnh hoặc PDF góp ý</h6>
-                                            <p className="text-muted mb-0 fs-11">Hỗ trợ .pdf, .jpg, .png</p>
-                                        </CardHeader>
-                                        <CardBody className="bg-body-tertiary">
-                                            <div 
-                                                {...getRootProps2()} 
-                                                className={classnames(
-                                                    "p-5 border rounded-3 text-center mb-4 shadow-sm transition-all",
-                                                    isDragActive2 ? "border-primary bg-primary-subtle" : "border-dashed bg-card-custom",
-                                                    !selectedDocId ? "opacity-50 grayscale-1" : "cursor-pointer"
-                                                )}
-                                                style={{ borderStyle: 'dashed', borderWidth: '2px', cursor: !selectedDocId ? 'not-allowed' : 'pointer' }}
-                                            >
-                                                <input {...getInputProps2()} />
-                                                <div className="mb-3">
-                                                    <i className={classnames(
-                                                        "display-4 opacity-50 d-block",
-                                                        isDragActive2 ? "ri-download-cloud-2-line text-primary" : "ri-camera-lens-line text-muted"
-                                                    )}></i>
+                            {!showOCRReview ? (
+                                <Row>
+                                    <Col lg={4}>
+                                        <Card className="border-0 shadow-sm h-100 mb-0">
+                                            <CardHeader className="bg-light-subtle py-3 mt-0 text-center">
+                                                <h6 className="card-title mb-1 fw-bold"><i className="ri-image-add-line align-bottom me-1"></i> Tải Ảnh hoặc PDF góp ý</h6>
+                                                <p className="text-muted mb-0 fs-11">Hỗ trợ .pdf, .jpg, .png</p>
+                                            </CardHeader>
+                                            <CardBody className="bg-body-tertiary">
+                                                <div 
+                                                    {...getRootProps2()} 
+                                                    className={classnames(
+                                                        "p-5 border rounded-3 text-center mb-4 shadow-sm transition-all",
+                                                        isDragActive2 ? "border-primary bg-primary-subtle" : "border-dashed bg-card-custom",
+                                                        !selectedDocId ? "opacity-50 grayscale-1" : "cursor-pointer"
+                                                    )}
+                                                    style={{ borderStyle: 'dashed', borderWidth: '2px', cursor: !selectedDocId ? 'not-allowed' : 'pointer' }}
+                                                >
+                                                    <input {...getInputProps2()} />
+                                                    <div className="mb-3">
+                                                        <i className={classnames(
+                                                            "display-4 opacity-50 d-block",
+                                                            isDragActive2 ? "ri-download-cloud-2-line text-primary" : "ri-camera-lens-line text-muted"
+                                                        )}></i>
+                                                    </div>
+                                                    {!selectedDocId ? (
+                                                        <div className="text-danger fw-medium">
+                                                            <i className="ri-information-line align-middle me-1"></i> 
+                                                            Vui lòng chọn dự thảo ở trên trước
+                                                        </div>
+                                                    ) : file2 ? (
+                                                        <div>
+                                                            <h5 className="text-success fw-bold mb-1">
+                                                                <i className="ri-file-pdf-line align-bottom me-1"></i> {file2.name}
+                                                            </h5>
+                                                            <p className="text-muted small mb-0">{(file2.size / 1024).toFixed(2)} KB - Sẵn sàng xử lý</p>
+                                                        </div>
+                                                    ) : (
+                                                        <div>
+                                                            <h5 className="fw-bold mb-1">Kéo thả Ảnh/PDF vào đây</h5>
+                                                            <p className="text-muted mb-0">Hoặc nhấp để chọn tệp</p>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                {!selectedDocId ? (
-                                                    <div className="text-danger fw-medium">
-                                                        <i className="ri-information-line align-middle me-1"></i> 
-                                                        Vui lòng chọn dự thảo ở trên trước
-                                                    </div>
-                                                ) : file2 ? (
-                                                    <div>
-                                                        <h5 className="text-success fw-bold mb-1">
-                                                            <i className="ri-file-pdf-line align-bottom me-1"></i> {file2.name}
-                                                        </h5>
-                                                        <p className="text-muted small mb-0">{(file2.size / 1024).toFixed(2)} KB - Sẵn sàng xử lý</p>
-                                                    </div>
-                                                ) : (
-                                                    <div>
-                                                        <h5 className="fw-bold mb-1">Kéo thả Ảnh/PDF vào đây</h5>
-                                                        <p className="text-muted mb-0">Hoặc nhấp để chọn tệp</p>
-                                                    </div>
-                                                )}
-                                            </div>
 
-                                            <Button 
-                                                color="info" 
-                                                className="w-100 btn-label waves-effect waves-light shadow-none py-2 mb-3" 
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    parseFile2();
-                                                }} 
-                                                disabled={!file2 || uploading2}
-                                            >
-                                                <i className="ri-scan-2-line label-icon align-middle fs-16 me-2"></i> 
-                                                {uploading2 ? "Đang xử lý..." : "Bắt đầu Trích xuất Dữ liệu"}
-                                            </Button>
+                                                <Button 
+                                                    color="info" 
+                                                    className="w-100 btn-label waves-effect waves-light shadow-none py-2 mb-3" 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        parseFile2();
+                                                    }} 
+                                                    disabled={!file2 || uploading2}
+                                                >
+                                                    <i className="ri-scan-2-line label-icon align-middle fs-16 me-2"></i> 
+                                                    {uploading2 ? "Đang xử lý bằng AI..." : "Bắt đầu Trích xuất OCR & AI"}
+                                                </Button>
 
-                                            {metadata && (metadata.drafting_agency !== undefined || metadata.agency_location !== undefined) && (
-                                                <div className="p-3 bg-info-subtle rounded-3 border border-info-subtle shadow-sm">
-                                                    <h6 className="text-info fw-bold mb-3 fs-13 border-bottom border-info border-opacity-25 pb-2 d-flex justify-content-between">
-                                                        <span><i className="ri-file-search-line align-bottom me-1"></i> Metadata phát hiện</span>
-                                                        <Badge color="info" className="fs-10">AI Detect</Badge>
-                                                    </h6>
-                                                    <div className="mb-2">
-                                                        <Label className="fs-11 fw-bold text-muted text-uppercase mb-1">Cơ quan chủ trì</Label>
-                                                        <Input 
-                                                            type="text" 
-                                                            size="sm"
-                                                            className="form-control-sm border-info border-opacity-25"
-                                                            value={metadata.drafting_agency || ''} 
-                                                            onChange={(e) => handleMetadataChange('drafting_agency', e.target.value)}
-                                                        />
-                                                    </div>
-                                                    <div className="mb-2">
-                                                        <Label className="fs-11 fw-bold text-muted text-uppercase mb-1">Địa danh</Label>
-                                                        <Input 
-                                                            type="text" 
-                                                            size="sm"
-                                                            className="form-control-sm border-info border-opacity-25"
-                                                            value={metadata.agency_location || ''} 
-                                                            onChange={(e) => handleMetadataChange('agency_location', e.target.value)}
-                                                        />
-                                                    </div>
+                                                <div className="p-3 bg-info-subtle rounded-3 border border-dashed border-info shadow-none">
+                                                    <p className="text-info mb-0 fs-12 lh-base">
+                                                        <i className="ri-information-line align-middle me-1"></i>
+                                                        Hệ thống sẽ sử dụng <b>PaddleOCR</b> để nhận diện và <b>AI (GPT-4o)</b> để tự động sửa lỗi chính tả, bù từ mờ dựa trên ngữ cảnh pháp luật. Dữ liệu sẽ hiển thị đối soát song song sau khi xử lý.
+                                                    </p>
                                                 </div>
-                                            )}
-                                        </CardBody>
-                                    </Card>
-                                </Col>
+                                            </CardBody>
+                                        </Card>
+                                    </Col>
 
-                                <Col lg={8}>
-                                    <Card className="border-0 shadow-sm h-100 mb-0 overflow-hidden">
-                                        <CardHeader className="bg-info-subtle py-3 border-bottom border-info border-opacity-10 d-flex justify-content-between align-items-center">
-                                            <h6 className="card-title mb-0 fw-bold">
-                                                <i className="ri-list-settings-line align-bottom me-1 text-info"></i> 
-                                                Kết quả trích xuất ({feedbacks.filter(f => f.key.startsWith('media')).length})
-                                            </h6>
-                                        </CardHeader>
-                                        <CardBody className="p-3">
-                                            <div className="table-responsive" style={{ maxHeight: '650px' }}>
-                                                <Table className="align-middle mb-0 table-hover">
-                                                    <thead className="bg-light text-dark fs-13">
-                                                        <tr>
-                                                            <th scope="col" className="fw-bold" style={{ width: '45%' }}>Nội dung góp ý</th>
-                                                            <th scope="col" className="fw-bold" style={{ width: '25%' }}>Cơ quan góp ý</th>
-                                                            <th scope="col" className="fw-bold" style={{ width: '25%' }}>Điều/Khoản tương ứng</th>
-                                                            <th scope="col" className="text-center" style={{ width: '5%' }}>Thao tác</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {feedbacks.filter(f => f.key.startsWith('media')).length > 0 ? feedbacks.filter(f => f.key.startsWith('media')).map((fb) => (
-                                                            <tr key={fb.key}>
-                                                                <td className="p-2">
-                                                                    <Input 
-                                                                        type="textarea" 
-                                                                        rows={6} 
-                                                                        value={fb.content} 
-                                                                        onChange={(e) => updateFeedbackField(fb.key, 'content', e.target.value)}
-                                                                        className="form-control border-light-subtle bg-light-subtle text-body fs-14"
-                                                                        style={{ padding: '12px', minHeight: '150px' }}
-                                                                    />
-                                                                </td>
-                                                                <td className="p-2">
-                                                                    <CreatableSelect
-                                                                        isClearable
-                                                                        value={agencies.find(a => a.id === fb.agency_id) ? { value: fb.agency_id, label: agencies.find(a => a.id === fb.agency_id).name } : (fb.contributing_agency ? {label: fb.contributing_agency, value: null} : null)}
-                                                                        onChange={(opt) => {
-                                                                            updateFeedbackField(fb.key, 'agency_id', opt && !opt.__isNew__ ? opt.value : null);
-                                                                            updateFeedbackField(fb.key, 'contributing_agency', opt ? opt.label : '');
-                                                                        }}
-                                                                        options={agencies.map(a => ({ value: a.id, label: a.name }))}
-                                                                        placeholder="Cơ quan..."
-                                                                        formatCreateLabel={(inputValue) => `Mới: "${inputValue}"`}
-                                                                        menuPortalTarget={document.body}
-                                                                        menuPosition="fixed"
-                                                                        styles={selectStyles}
-                                                                    />
-                                                                </td>
-                                                                <td className="p-2">
-                                                                    <Select
-                                                                        value={nodes.find(n => n.id === fb.node_id) ? { value: fb.node_id, label: nodes.find(n => n.id === fb.node_id).label } : { value: null, label: 'Chung' }}
-                                                                        onChange={(opt) => updateFeedbackField(fb.key, 'node_id', opt ? opt.value : null)}
-                                                                        options={[
-                                                                            { value: null, label: 'Chung' },
-                                                                            ...nodes.filter(n => n.type !== 'Văn bản').map(n => ({ value: n.id, label: n.label }))
-                                                                        ]}
-                                                                        placeholder="Mức..."
-                                                                        isClearable
-                                                                        menuPortalTarget={document.body}
-                                                                        menuPosition="fixed"
-                                                                        styles={selectStyles}
-                                                                    />
-                                                                </td>
-                                                                <td className="text-center p-2">
-                                                                    <Button color="soft-danger" size="sm" className="btn-icon shadow-none" onClick={() => removeFeedback(fb.key)}>
-                                                                        <i className="ri-delete-bin-line fs-16"></i>
-                                                                    </Button>
-                                                                </td>
-                                                            </tr>
-                                                        )) : (
+                                    <Col lg={8}>
+                                        <Card className="border-0 shadow-sm h-100 mb-0 overflow-hidden">
+                                            <CardHeader className="bg-info-subtle py-3 border-bottom border-info border-opacity-10 d-flex justify-content-between align-items-center">
+                                                <h6 className="card-title mb-0 fw-bold">
+                                                    <i className="ri-list-settings-line align-bottom me-1 text-info"></i> 
+                                                    Kết quả trích xuất ({feedbacks.filter(f => f.key.startsWith('ocr')).length})
+                                                </h6>
+                                            </CardHeader>
+                                            <CardBody className="p-3">
+                                                <div className="table-responsive" style={{ maxHeight: '650px' }}>
+                                                    <Table className="align-middle mb-0 table-hover">
+                                                        <thead className="bg-light text-dark fs-13">
                                                             <tr>
-                                                                <td colSpan="4" className="text-center py-5 text-muted bg-body-tertiary">
-                                                                    <div className="py-5">
-                                                                        <div className="mb-4">
-                                                                            <i className="ri-camera-lens-line display-3 text-info opacity-25"></i>
-                                                                        </div>
-                                                                        <h5 className="text-body fw-bold">Chưa có dữ liệu từ Ảnh/PDF</h5>
-                                                                        <p className="fs-14 mb-0">Hệ thống sẽ bóc tách dữ liệu ngay sau khi bạn tải Ảnh hoặc PDF và nhấn nút "Bắt đầu Trích xuất".</p>
-                                                                    </div>
-                                                                </td>
+                                                                <th scope="col" className="fw-bold" style={{ width: '45%' }}>Nội dung góp ý</th>
+                                                                <th scope="col" className="fw-bold" style={{ width: '25%' }}>Cơ quan góp ý</th>
+                                                                <th scope="col" className="fw-bold" style={{ width: '25%' }}>Điều/Khoản tương ứng</th>
+                                                                <th scope="col" className="text-center" style={{ width: '5%' }}>Thao tác</th>
                                                             </tr>
-                                                        )}
-                                                    </tbody>
-                                                </Table>
-                                            </div>
-                                        </CardBody>
-                                    </Card>
-                                </Col>
-                            </Row>
+                                                        </thead>
+                                                        <tbody>
+                                                            {feedbacks.filter(f => f.key.startsWith('ocr')).length > 0 ? feedbacks.filter(f => f.key.startsWith('ocr')).map((fb) => (
+                                                                <tr key={fb.key}>
+                                                                    <td className="p-2">
+                                                                        <Input 
+                                                                            type="textarea" 
+                                                                            rows={4} 
+                                                                            value={fb.content} 
+                                                                            onChange={(e) => updateFeedbackField(fb.key, 'content', e.target.value)}
+                                                                            className="form-control border-light-subtle bg-light-subtle text-body fs-14"
+                                                                            style={{ padding: '12px' }}
+                                                                        />
+                                                                    </td>
+                                                                    <td className="p-2">
+                                                                        <CreatableSelect
+                                                                            isClearable
+                                                                            value={agencies.find(a => a.id === fb.agency_id) ? { value: fb.agency_id, label: agencies.find(a => a.id === fb.agency_id).name } : (fb.contributing_agency ? {label: fb.contributing_agency, value: null} : null)}
+                                                                            onChange={(opt) => {
+                                                                                updateFeedbackField(fb.key, 'agency_id', opt && !opt.__isNew__ ? opt.value : null);
+                                                                                updateFeedbackField(fb.key, 'contributing_agency', opt ? opt.label : '');
+                                                                            }}
+                                                                            options={agencies.map(a => ({ value: a.id, label: a.name }))}
+                                                                            placeholder="Cơ quan..."
+                                                                            formatCreateLabel={(inputValue) => `Mới: "${inputValue}"`}
+                                                                            menuPortalTarget={document.body}
+                                                                            menuPosition="fixed"
+                                                                            styles={selectStyles}
+                                                                        />
+                                                                    </td>
+                                                                    <td className="p-2">
+                                                                        <Select
+                                                                            value={nodes.find(n => n.id === fb.node_id) ? { value: fb.node_id, label: nodes.find(n => n.id === fb.node_id).label } : { value: null, label: 'Chung' }}
+                                                                            onChange={(opt) => updateFeedbackField(fb.key, 'node_id', opt ? opt.value : null)}
+                                                                            options={[
+                                                                                { value: null, label: 'Chung' },
+                                                                                ...nodes.filter(n => n.type !== 'Văn bản').map(n => ({ value: n.id, label: n.label }))
+                                                                            ]}
+                                                                            placeholder="Mức..."
+                                                                            isClearable
+                                                                            menuPortalTarget={document.body}
+                                                                            menuPosition="fixed"
+                                                                            styles={selectStyles}
+                                                                        />
+                                                                    </td>
+                                                                    <td className="text-center p-2">
+                                                                        <Button color="soft-danger" size="sm" className="btn-icon shadow-none" onClick={() => removeFeedback(fb.key)}>
+                                                                            <i className="ri-delete-bin-line fs-16"></i>
+                                                                        </Button>
+                                                                    </td>
+                                                                </tr>
+                                                            )) : (
+                                                                <tr>
+                                                                    <td colSpan="4" className="text-center py-5 text-muted bg-body-tertiary">
+                                                                        <div className="py-5">
+                                                                            <div className="mb-4">
+                                                                                <i className="ri-camera-lens-line display-3 text-info opacity-25"></i>
+                                                                            </div>
+                                                                            <h5 className="text-body fw-bold">Chưa có dữ liệu từ Ảnh/PDF</h5>
+                                                                            <p className="fs-14 mb-0">Hệ thống sẽ bóc tách dữ liệu ngay sau khi bạn tải tệp và nhấn nút "Bắt đầu Trích xuất".</p>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            )}
+                                                        </tbody>
+                                                    </Table>
+                                                </div>
+                                            </CardBody>
+                                        </Card>
+                                    </Col>
+                                </Row>
+                            ) : (
+                                <OCRComparisonView 
+                                    pages={ocrResult} 
+                                    onConfirm={handleConfirmOCR} 
+                                    onCancel={() => setShowOCRReview(false)} 
+                                />
+                            )}
                         </TabPane>
                     </TabContent>
                 </Container>

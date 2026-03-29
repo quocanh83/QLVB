@@ -33,3 +33,10 @@ wcwidth==0.6.0
 dj-database-url
 djangorestframework-simplejwt>=5.0.0
 openai>=1.0.0
+# OCR & AI
+paddlepaddle
+paddleocr
+pymupdf
+opencv-python-headless
+diff-match-patch
+numpy

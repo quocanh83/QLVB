@@ -13,6 +13,9 @@ from django.http import FileResponse
 from .utils.mau10_generator import generate_mau_10
 from .utils.v2_template_generator import generate_from_v2_template
 from documents.models import Document
+from .utils.ocr_service import OCRService
+from django.core.files.storage import FileSystemStorage
+import shutil
 
 class FeedbackViewSet(viewsets.ModelViewSet):
     queryset = Feedback.objects.all()
@@ -259,6 +262,37 @@ class FeedbackViewSet(viewsets.ModelViewSet):
             "metadata": metadata,
             "feedbacks": results
         })
+
+    @action(detail=False, methods=['post'])
+    def ocr_parse(self, request):
+        """
+        Xử lý OCR cho file Ảnh/PDF, trả về văn bản đã qua AI sửa lỗi và highlight diff.
+        """
+        document_id = request.data.get('document_id')
+        if not self._check_permission(request, document_id, 'Chuyên viên Góp ý'):
+            return Response({"error": "Bạn không có quyền Nhập góp ý cho dự thảo này."}, status=403)
+        
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response({"error": "No file uploaded"}, status=400)
+            
+        # Save temporary file
+        fs = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, 'uploads_ocr'))
+        filename = fs.save(file_obj.name, file_obj)
+        file_path = fs.path(filename)
+        
+        try:
+            service = OCRService()
+            ocr_results = service.process_file(file_path)
+            
+            # Clean up raw upload if desired, or keep for audit
+            # os.remove(file_path) 
+            
+            return Response({
+                "pages": ocr_results
+            })
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
 
     @action(detail=False, methods=['get'])
     def get_document_nodes(self, request):
