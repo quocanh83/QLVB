@@ -1,6 +1,6 @@
 import os
 import fitz  # PyMuPDF
-from paddleocr import PaddleOCR
+# Chuyển PaddleOCR vào trong __init__ để tránh lỗi import khi khởi động Django
 import cv2
 import numpy as np
 import json
@@ -12,9 +12,14 @@ from core.models import SystemSetting
 class OCRService:
     def __init__(self, lang='vi'):
         self.lang = lang
-        # Initialize PaddleOCR (only once if possible, but for simplicity here...)
-        # Note: use_angle_cls=True helps with rotated images
-        self.ocr = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False)
+        try:
+            from paddleocr import PaddleOCR
+            # Initialize PaddleOCR (only once if possible)
+            self.ocr = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False)
+        except Exception as e:
+            print(f"CRITICAL: Không thể khởi tạo PaddleOCR. Lỗi: {e}")
+            self.ocr = None
+            
         self.dmp = diff_match_patch()
 
     def process_file(self, file_path):
@@ -54,6 +59,14 @@ class OCRService:
         return pages_results
 
     def _process_image(self, img_path, temp_dir):
+        if not self.ocr:
+            return {
+                'image_url': '',
+                'raw_text': 'Lỗi: PaddleOCR chưa được khởi tạo thành công trên Server.',
+                'corrected_text': '',
+                'diffs': []
+            }
+            
         # 1. Run OCR
         result = self.ocr.ocr(img_path, cls=True)
         raw_lines = []

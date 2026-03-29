@@ -1,6 +1,6 @@
 {
   "name": "modern-velzon-thunk",
-  "version": "4.3.21",
+  "version": "4.3.22",
   "homepage": "/",
   "private": true,
   "proxy": "http://localhost:8000",
