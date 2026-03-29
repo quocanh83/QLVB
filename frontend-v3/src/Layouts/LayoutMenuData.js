@@ -297,9 +297,10 @@ const useNavData = () => {
 
   const flatMenuMap = flattenMenuItems(menuItems);
 
-  // FORCE DEFAULT LOGIC: If JSON config doesn't have headers, it's likely old and messy. Force defaults.
+  // FORCE DEFAULT LOGIC: If JSON config doesn't have headers or is very short, it's old and messy. Force defaults.
   const hasNewHeaders = sidebarJSONConfig.some(it => it.isHeader && (it.label === "Danh mục Công việc" || it.label === "Hệ thống"));
-  const effectiveConfig = (!hasNewHeaders && sidebarJSONConfig.length > 0) ? [] : sidebarJSONConfig;
+  const hasSettingsSubItems = sidebarJSONConfig.some(it => it.id === "settings" && it.subItems && it.subItems.length > 0);
+  const effectiveConfig = (!(hasNewHeaders && hasSettingsSubItems) && sidebarJSONConfig.length > 0) ? [] : sidebarJSONConfig;
 
   // 1. Build the ordered menu list based on JSON config
   let finalMenuItems = [];

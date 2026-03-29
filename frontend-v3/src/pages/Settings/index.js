@@ -495,16 +495,17 @@ const Settings = () => {
     const promoteToParent = (subId, parentId) => {
         setLocalSidebarConfig(prev => {
             let parentIndex = -1;
+            let itemToMoveInside = null;
             const updatedItems = prev.map((item, idx) => {
                 if (item.id === parentId && item.subItems) {
                     parentIndex = idx;
-                    itemToMove = item.subItems.find(s => s.id === subId);
+                    itemToMoveInside = item.subItems.find(s => s.id === subId);
                     return { ...item, subItems: item.subItems.filter(s => s.id !== subId) };
                 }
                 return item;
             });
-            if (itemToMove) {
-                const newItem = { ...itemToMove, visible: true };
+            if (itemToMoveInside) {
+                const newItem = { ...itemToMoveInside, visible: true };
                 // Chèn vào ngay sau vị trí của cha cũ
                 if (parentIndex !== -1) {
                     updatedItems.splice(parentIndex + 1, 0, newItem);
@@ -535,11 +536,12 @@ const Settings = () => {
         
         setLocalSidebarConfig(prev => {
             let workingConfig = [...prev];
-            let itemToMove = null;
+            let itemToMoveInside = null;
 
             // 1. Find and Extract item
             if (parentId) {
-                const parent = workingConfig.find(p => p.id === parentId);
+                const parentIdx = workingConfig.findIndex(p => p.id === parentId);
+                const parent = parentIdx !== -1 ? { ...workingConfig[parentIdx] } : null;
                 if (parent && parent.subItems) {
                     const idx = parent.subItems.findIndex(s => s.id === id);
                     if (idx !== -1) {
@@ -548,11 +550,13 @@ const Settings = () => {
                         if (parentId === newParentId) {
                             // Cập nhật tại chỗ nếu không đổi cha
                             parent.subItems[idx] = updatedItem;
+                            workingConfig[parentIdx] = parent;
                             return workingConfig;
                         } else {
                             // Rút ra để chuyển đi
-                            itemToMove = updatedItem;
+                            itemToMoveInside = updatedItem;
                             parent.subItems = parent.subItems.filter(s => s.id !== id);
+                            workingConfig[parentIdx] = parent;
                         }
                     }
                 }
@@ -567,25 +571,27 @@ const Settings = () => {
                         return workingConfig;
                     } else {
                         // Rút ra để chuyển vào submenu
-                        itemToMove = updatedItem;
+                        itemToMoveInside = updatedItem;
                         workingConfig = workingConfig.filter(it => it.id !== id);
                     }
                 }
             }
 
-            if (!itemToMove) return prev; // Should not happen
+            if (!itemToMoveInside) return prev; // Should not happen
 
             // 2. Insert into NEW parent (if moved)
             if (newParentId && newParentId !== "") {
-                const targetParent = workingConfig.find(p => p.id === newParentId);
-                if (targetParent) {
+                const targetParentIdx = workingConfig.findIndex(p => p.id === newParentId);
+                if (targetParentIdx !== -1) {
+                    const targetParent = { ...workingConfig[targetParentIdx] };
                     if (!targetParent.subItems) targetParent.subItems = [];
-                    targetParent.subItems.push(itemToMove);
+                    targetParent.subItems.push(itemToMoveInside);
+                    workingConfig[targetParentIdx] = targetParent;
                 } else {
-                    workingConfig.push(itemToMove); // Fallback
+                    workingConfig.push(itemToMoveInside); // Fallback
                 }
             } else {
-                workingConfig.push(itemToMove);
+                workingConfig.push(itemToMoveInside);
             }
 
             return workingConfig;
