@@ -751,7 +751,7 @@ const FeedbackIntake = () => {
                                             </div>
                                         </CardBody>
                                     </Card>
-                               Col>
+                                </Col>
                             </Row>
                         </TabPane>
                     </TabContent>

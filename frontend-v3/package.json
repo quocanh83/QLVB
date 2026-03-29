@@ -1,8 +1,9 @@
 {
   "name": "modern-velzon-thunk",
-  "version": "4.3.18",
+  "version": "4.3.19",
   "homepage": "/",
   "private": true,
+  "proxy": "http://localhost:8000",
   "dependencies": {
     "@ckeditor/ckeditor5-build-classic": "^43.2.0",
     "@ckeditor/ckeditor5-react": "^9.3.0",

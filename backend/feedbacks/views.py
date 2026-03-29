@@ -50,7 +50,7 @@ class FeedbackViewSet(viewsets.ModelViewSet):
             pass
 
         # 3. Chuyên viên Role?
-        return False
+        return user.roles.filter(role_name__in=['Contributor', 'Explainer']).exists()
         
     def _find_best_node_match(self, document_id, label, parent_context=None):
         """
