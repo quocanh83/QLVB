@@ -81,11 +81,24 @@ const useNavData = () => {
   const [sidebarConfig, setSidebarConfig] = useState(JSON.parse(localStorage.getItem('sidebarConfig') || '{}'));
   const [sidebarJSONConfig, setSidebarJSONConfig] = useState(JSON.parse(localStorage.getItem('sidebarJSONConfig') || '[]'));
 
+  const CURRENT_SIDEBAR_VERSION = "4.3.13";
+
   useEffect(() => {
     const fetchSidebarConfig = async () => {
       try {
         const response = await axios.get("/api/accounts/profile/", getAuthHeader());
-        const remoteConfig = response.sidebar_config || (response.data && response.data.sidebar_config);
+        const remoteData = response.data || response;
+        const remoteConfig = remoteData.sidebar_config;
+        const remoteVersion = remoteData.sidebar_version;
+
+        // Reset if version mismatch or config is empty
+        if (remoteVersion !== CURRENT_SIDEBAR_VERSION) {
+          console.log("Sidebar version mismatch, using default.");
+          localStorage.removeItem('sidebarJSONConfig');
+          setSidebarJSONConfig([]);
+          return;
+        }
+
         if (remoteConfig && Array.isArray(remoteConfig) && remoteConfig.length > 0) {
           setSidebarJSONConfig(remoteConfig);
           localStorage.setItem('sidebarJSONConfig', JSON.stringify(remoteConfig));
@@ -284,12 +297,15 @@ const useNavData = () => {
 
   const flatMenuMap = flattenMenuItems(menuItems);
 
+  // FORCE DEFAULT LOGIC: If JSON config doesn't have headers, it's likely old and messy. Force defaults.
+  const hasNewHeaders = sidebarJSONConfig.some(it => it.isHeader && (it.label === "Danh mục Công việc" || it.label === "Hệ thống"));
+  const effectiveConfig = (!hasNewHeaders && sidebarJSONConfig.length > 0) ? [] : sidebarJSONConfig;
 
   // 1. Build the ordered menu list based on JSON config
   let finalMenuItems = [];
 
-  if (sidebarJSONConfig && sidebarJSONConfig.length > 0) {
-    sidebarJSONConfig.forEach(configItem => {
+  if (effectiveConfig && effectiveConfig.length > 0) {
+    effectiveConfig.forEach(configItem => {
       if (!configItem.visible) return;
 
       // Look up in our flattened map
