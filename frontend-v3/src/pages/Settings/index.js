@@ -236,16 +236,25 @@ const Settings = () => {
     const [isResetConfirmModal, setIsResetConfirmModal] = useState(false);
 
     const defaultSidebarItems = [
-        { id: 'documents', label: 'Danh sách Dự thảo', icon: 'ri-file-list-3-line' },
-        { id: 'reports', label: 'Trung tâm Báo cáo', icon: 'ri-bar-chart-2-line' },
-        { id: 'feedback-intake', label: 'Nhập góp ý thủ công', icon: 'ri-chat-new-line' },
-        { id: 'draft-explanation', label: 'Giải trình dự thảo', icon: 'ri-question-answer-line' },
-        { id: 'feedbacks', label: 'Danh sách Góp ý', icon: 'ri-discuss-line' },
-        { id: 'settings', label: 'Cấu hình Hệ thống', icon: 'ri-settings-4-line' },
-        { id: 'document-types', label: 'Quản lý Loại dự thảo', icon: 'ri-stack-line' },
-        { id: 'user-management', label: 'Quản lý Cán bộ', icon: 'ri-user-settings-line' },
-        { id: 'dashboard', label: 'Dashboards', icon: 'las la-tachometer-alt' },
-        { id: 'authentication', label: 'Authentication', icon: 'lar la-user-circle' },
+        { id: 'dashboard', label: 'Tổng quan', icon: 'las la-tachometer-alt', visible: true, subItems: [] },
+        { id: 'header-work', label: 'Danh mục Công việc', isHeader: true, visible: true, subItems: [] },
+        { id: 'documents', label: 'Danh sách Dự thảo', icon: 'ri-file-list-3-line', visible: true, subItems: [] },
+        { id: 'feedbacks', label: 'Danh sách Góp ý', icon: 'ri-discuss-line', visible: true, subItems: [] },
+        { id: 'draft-explanation', label: 'Giải trình dự thảo', icon: 'ri-question-answer-line', visible: true, subItems: [] },
+        { id: 'feedback-intake', label: 'Nhập góp ý thủ công', icon: 'ri-chat-new-line', visible: true, subItems: [] },
+        { id: 'reports', label: 'Báo cáo tổng hợp', icon: 'ri-bar-chart-2-line', visible: true, subItems: [] },
+        { id: 'header-sys', label: 'Hệ thống', isHeader: true, visible: true, subItems: [] },
+        { 
+            id: 'settings', 
+            label: 'Cài đặt', 
+            icon: 'ri-settings-4-line', 
+            visible: true, 
+            subItems: [
+                { id: 'document-types', label: 'Quản lý Loại dự thảo', visible: true },
+                { id: 'user-management', label: 'Quản lý Cán bộ', visible: true },
+                { id: 'sys-settings', label: 'Cấu hình chung', visible: true }
+            ] 
+        },
     ];
 
     const SYSTEM_ROUTES = [
@@ -276,6 +285,8 @@ const Settings = () => {
         const initial = defaultSidebarItems.map(defItem => ({
             id: defItem.id,
             label: defItem.label,
+            icon: defItem.icon,
+            isHeader: defItem.isHeader || false,
             visible: true,
             subItems: (defItem.subItems || []).map(s => ({
                 id: s.id,
