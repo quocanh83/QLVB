@@ -39,6 +39,7 @@ import DraftExplanation from "../pages/DraftExplanation";
 import FeedbackList from "../pages/FeedbackList";
 
 import SystemSettings from "../pages/Settings";
+import DocumentTypeManagement from "../pages/DocumentTypeManagement";
 import UserManagement from "../pages/UserManagement";
 
 //Task
@@ -313,6 +314,7 @@ const authProtectedRoutes = [
 
   // QLVB - Settings
   { path: "/settings", component: <SystemSettings /> },
+  { path: "/document-types", component: <DocumentTypeManagement /> },
   { path: "/user-management", component: <UserManagement /> },
 
   //Task

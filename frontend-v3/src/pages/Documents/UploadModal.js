@@ -4,8 +4,8 @@ import axios from 'axios';
 import { getAuthHeader } from '../../helpers/api_helper';
 import { toast } from 'react-toastify';
 
-const UploadModal = ({ isOpen, toggle, onSuccess }) => {
-    const [formData, setFormData] = useState({ project_name: '', drafting_agency: '', agency_location: '' });
+const UploadModal = ({ isOpen, toggle, onSuccess, types }) => {
+    const [formData, setFormData] = useState({ project_name: '', drafting_agency: '', agency_location: '', document_type_id: '' });
     const [file, setFile] = useState(null);
     const [loading, setLoading] = useState(false);
 
@@ -21,6 +21,9 @@ const UploadModal = ({ isOpen, toggle, onSuccess }) => {
         data.append('project_name', formData.project_name);
         data.append('drafting_agency', formData.drafting_agency);
         data.append('agency_location', formData.agency_location);
+        if (formData.document_type_id) {
+            data.append('document_type_id', formData.document_type_id);
+        }
         data.append('attached_file_path', file);
 
         try {
@@ -30,7 +33,7 @@ const UploadModal = ({ isOpen, toggle, onSuccess }) => {
             toast.success("Tải lên và bóc tách thành công!");
             onSuccess();
             toggle();
-            setFormData({ project_name: '', drafting_agency: '', agency_location: '' });
+            setFormData({ project_name: '', drafting_agency: '', agency_location: '', document_type_id: '' });
             setFile(null);
         } catch (error) {
             const errorMsg = error.response?.data?.error || "Lỗi khi tải lên văn bản.";
@@ -59,6 +62,22 @@ const UploadModal = ({ isOpen, toggle, onSuccess }) => {
                                     onChange={(e) => setFormData({ ...formData, project_name: e.target.value })}
                                     required
                                 />
+                            </FormGroup>
+                        </Col>
+                        <Col lg={12}>
+                            <FormGroup>
+                                <Label for="document_type" className="form-label fw-bold">Loại dự thảo</Label>
+                                <Input
+                                    type="select"
+                                    id="document_type"
+                                    value={formData.document_type_id}
+                                    onChange={(e) => setFormData({ ...formData, document_type_id: e.target.value })}
+                                >
+                                    <option value="">-- Chọn loại dự thảo (không bắt buộc) --</option>
+                                    {(types || []).map(t => (
+                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                    ))}
+                                </Input>
                             </FormGroup>
                         </Col>
                         <Col lg={6}>

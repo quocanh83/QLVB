@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Card, CardBody, Col, DropdownItem, DropdownMenu, DropdownToggle, Input, Row, UncontrolledDropdown, Progress } from 'reactstrap';
+import { Card, CardBody, Col, DropdownItem, DropdownMenu, DropdownToggle, Input, Row, UncontrolledDropdown, Progress, Table, Badge, Button } from 'reactstrap';
 import axios from 'axios';
 import { getAuthHeader } from '../../helpers/api_helper';
 import FeatherIcon from "feather-icons-react";
@@ -18,6 +18,10 @@ const DocumentList = () => {
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     
+    // Types filter
+    const [types, setTypes] = useState([]);
+    const [selectedType, setSelectedType] = useState('all');
+
     // Modals Control
     const [isUploadModal, setIsUploadModal] = useState(false);
     const [isEditModal, setIsEditModal] = useState(false);
@@ -30,12 +34,26 @@ const DocumentList = () => {
     useEffect(() => {
         fetchDocuments();
         fetchUsers();
-    }, []);
+        fetchTypes();
+    }, [selectedType]);
+
+    const fetchTypes = async () => {
+        try {
+            const res = await axios.get('/api/documents/types/', getAuthHeader());
+            const data = res.results || res;
+            setTypes(Array.isArray(data) ? data : []);
+        } catch (e) {
+            console.error("Lỗi lấy danh mục:", e);
+        }
+    };
 
     const fetchDocuments = async () => {
         setLoading(true);
         try {
-            const data = await axios.get('/api/documents/', getAuthHeader());
+            const url = selectedType === 'all' 
+                ? '/api/documents/' 
+                : `/api/documents/?document_type=${selectedType}`;
+            const data = await axios.get(url, getAuthHeader());
             setDocs(data.results || data);
         } catch (error) {
             toast.error("Không thể lấy danh sách văn bản.");
@@ -119,104 +137,130 @@ const DocumentList = () => {
                 </div>
             ) : (
                 <Row>
-                    {filteredDocs.map((item, index) => {
-                        const rate = item.total_feedbacks > 0 
-                            ? Math.round((item.resolved_feedbacks / item.total_feedbacks) * 100) 
-                            : 0;
-                        
-                        return (
-                            <Col xxl={3} sm={6} key={index} className="project-card">
-                                <Card className="card-height-100 border-0 shadow-sm card-animate">
-                                    <CardBody>
-                                        <div className={`p-3 mt-n3 mx-n3 bg-${item.status === 'Completed' ? 'success' : 'primary'}-subtle rounded-top`}>
-                                            <div className="d-flex align-items-center">
-                                                <div className="flex-grow-1">
-                                                    <h5 className="mb-0 fs-14 text-truncate">
-                                                        <Link to={`/documents/${item.id}`} className="text-body fw-bold">{item.project_name}</Link>
-                                                    </h5>
-                                                </div>
-                                                <div className="flex-shrink-0">
-                                                    <UncontrolledDropdown direction='start'>
-                                                        <DropdownToggle tag="button" className="btn btn-link text-muted p-1 mt-n2 py-0 text-decoration-none fs-15">
-                                                            <FeatherIcon icon="more-horizontal" className="icon-sm" />
-                                                        </DropdownToggle>
+                    {/* Left Panel: Document Types */}
+                    <Col lg={3}>
+                        <Card>
+                            <CardBody className="p-0">
+                                <ul className="list-group list-group-flush border-dashed border-0">
+                                    <li 
+                                        className={`list-group-item list-group-item-action cursor-pointer ${selectedType === 'all' ? 'active' : ''}`}
+                                        onClick={() => setSelectedType('all')}
+                                    >
+                                        <i className="ri-folder-2-line align-middle me-2"></i> Tất cả dự thảo
+                                    </li>
+                                    {types.map(t => (
+                                        <li 
+                                            key={t.id}
+                                            className={`list-group-item list-group-item-action cursor-pointer ${selectedType === t.id ? 'active' : ''}`}
+                                            onClick={() => setSelectedType(t.id)}
+                                        >
+                                            <i className="ri-file-list-3-line align-middle me-2"></i> {t.name}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </CardBody>
+                        </Card>
+                    </Col>
 
-                                                        <DropdownMenu className="dropdown-menu-end">
-                                                            <DropdownItem onClick={() => navigate(`/documents/${item.id}`)}>
-                                                                <i className="ri-eye-fill align-bottom me-2 text-muted"></i> Nội dung chi tiết
-                                                            </DropdownItem>
-                                                            <DropdownItem onClick={() => handleExport(item.id)}>
-                                                                <i className="ri-download-2-fill align-bottom me-2 text-muted"></i> Xuất báo cáo
-                                                            </DropdownItem>
-                                                            <DropdownItem onClick={() => { setSelectedDoc(item); setIsLeadModal(true); }}>
-                                                                <i className="ri-user-star-line align-bottom me-2 text-muted"></i> Phân công chủ trì
-                                                            </DropdownItem>
-                                                            <DropdownItem onClick={() => { setSelectedDoc(item); setIsEditModal(true); }}>
-                                                                <i className="ri-pencil-fill align-bottom me-2 text-muted"></i> Hiệu chỉnh
-                                                            </DropdownItem>
-                                                            <div className="dropdown-divider"></div>
-                                                            <DropdownItem onClick={() => onClickDelete(item)} className="text-danger">
-                                                                <i className="ri-delete-bin-fill align-bottom me-2 text-danger"></i> Xóa vĩnh viễn
-                                                            </DropdownItem>
-                                                        </DropdownMenu>
-                                                    </UncontrolledDropdown>
-                                                </div>
-                                            </div>
-                                        </div>
+                    {/* Right Panel: Table List */}
+                    <Col lg={9}>
+                        <Card>
+                            <CardBody>
+                                <div className="table-responsive">
+                                    <Table className="table-hover table-bordered table-nowrap align-middle mb-0">
+                                        <thead className="table-light text-muted">
+                                            <tr>
+                                                <th style={{ width: '50px' }}>STT</th>
+                                                <th>Tên dự thảo</th>
+                                                <th>Loại</th>
+                                                <th>Cơ quan chủ trì</th>
+                                                <th>Tiến độ giải trình</th>
+                                                <th style={{ width: '100px' }}>Thao tác</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {filteredDocs.map((item, index) => {
+                                                const rate = item.total_feedbacks > 0 
+                                                    ? Math.round((item.resolved_feedbacks / item.total_feedbacks) * 100) 
+                                                    : 0;
+                                                return (
+                                                    <tr key={item.id}>
+                                                        <td className="text-center">{index + 1}</td>
+                                                        <td>
+                                                            <Link to={`/documents/${item.id}`} className="fw-medium text-body">
+                                                                {item.project_name}
+                                                            </Link>
+                                                            {item.lead_name && (
+                                                                <div className="text-muted fs-12 mt-1">
+                                                                    <i className="ri-user-line align-bottom me-1"></i> PT: {item.lead_name}
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                        <td>
+                                                            <Badge color="soft-primary" className="text-primary">{item.document_type_name || 'Khác'}</Badge>
+                                                        </td>
+                                                        <td>{item.drafting_agency || '-'}</td>
+                                                        <td>
+                                                            <div className="d-flex align-items-center">
+                                                                <Progress value={rate} color={rate === 100 ? "success" : "primary"} className="w-100 me-2" style={{ height: "6px" }} />
+                                                                <span className="fs-12">{rate}%</span>
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <UncontrolledDropdown direction='start'>
+                                                                <DropdownToggle tag="button" className="btn btn-sm btn-light btn-icon text-muted p-1">
+                                                                    <FeatherIcon icon="more-horizontal" className="icon-sm" />
+                                                                </DropdownToggle>
 
-                                        <div className="py-3">
-                                            <Row className="gy-3">
-                                                <Col xs={6}>
-                                                    <div>
-                                                        <p className="text-muted mb-1 text-uppercase fs-11">Cơ quan chủ trì</p>
-                                                        <div className="fs-12 fw-medium text-truncate" title={item.drafting_agency}>{item.drafting_agency || "Chưa rõ"}</div>
-                                                    </div>
-                                                </Col>
-                                                <Col xs={6}>
-                                                    <div>
-                                                        <p className="text-muted mb-1 text-uppercase fs-11">Cấu trúc AI</p>
-                                                        <h5 className="fs-12">{item.total_dieu} Điều | {item.total_khoan} Khoản</h5>
-                                                    </div>
-                                                </Col>
-                                            </Row>
+                                                                <DropdownMenu className="dropdown-menu-end">
+                                                                    <DropdownItem onClick={() => navigate(`/documents/${item.id}`)}>
+                                                                        <i className="ri-eye-fill align-bottom me-2 text-muted"></i> Xem chi tiết
+                                                                    </DropdownItem>
+                                                                    <DropdownItem onClick={() => handleExport(item.id)}>
+                                                                        <i className="ri-download-2-fill align-bottom me-2 text-muted"></i> Xuất báo cáo
+                                                                    </DropdownItem>
+                                                                    <DropdownItem onClick={() => { setSelectedDoc(item); setIsLeadModal(true); }}>
+                                                                        <i className="ri-user-star-line align-bottom me-2 text-muted"></i> Phân công PT
+                                                                    </DropdownItem>
+                                                                    <DropdownItem onClick={() => { setSelectedDoc(item); setIsEditModal(true); }}>
+                                                                        <i className="ri-pencil-fill align-bottom me-2 text-muted"></i> Sửa văn bản
+                                                                    </DropdownItem>
+                                                                    <div className="dropdown-divider"></div>
+                                                                    <DropdownItem onClick={() => onClickDelete(item)} className="text-danger">
+                                                                        <i className="ri-delete-bin-fill align-bottom me-2 text-danger"></i> Xóa vĩnh viễn
+                                                                    </DropdownItem>
+                                                                </DropdownMenu>
+                                                            </UncontrolledDropdown>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            
+                                            {/* Fill empty rows to make at least 10 rows */}
+                                            {filteredDocs.length < 10 && [...Array(10 - filteredDocs.length)].map((_, i) => (
+                                                <tr key={`empty-${i}`} style={{ height: '59px' }}>
+                                                    <td className="text-center text-muted small">{filteredDocs.length + i + 1}</td>
+                                                    <td></td>
+                                                    <td></td>
+                                                    <td></td>
+                                                    <td></td>
+                                                    <td></td>
+                                                </tr>
+                                            ))}
 
-                                            <div className="d-flex align-items-center mt-3">
-                                                <p className="text-muted mb-0 me-2 fs-11">Người phụ trách:</p>
-                                                <div className={"badge bg-" + (item.lead_name ? "info" : "light") + "-subtle text-" + (item.lead_name ? "info" : "muted")}>
-                                                    {item.lead_name || "Trống"}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="mt-auto">
-                                            <div className="d-flex mb-2">
-                                                <div className="flex-grow-1">
-                                                    <div className="fs-12 text-muted">Giải trình góp ý</div>
-                                                </div>
-                                                <div className="flex-shrink-0">
-                                                    <div className="fs-12 fw-bold">{rate}%</div>
-                                                </div>
-                                            </div>
-                                            <Progress value={rate} color={rate === 100 ? "success" : "primary"} className="animated-progess progress-sm" />
-                                        </div>
-                                    </CardBody>
-                                </Card>
-                            </Col>
-                        );
-                    })}
-
-                    {filteredDocs.length === 0 && !loading && (
-                        <Col lg={12}>
-                            <div className="text-center py-5">
-                                <div className="avatar-lg mx-auto mb-4">
-                                    <div className="avatar-title bg-light text-primary display-5 rounded-circle">
-                                        <i className="ri-file-search-line"></i>
-                                    </div>
+                                            {filteredDocs.length === 0 && (
+                                                <tr>
+                                                    <td colSpan="6" className="text-center py-4 text-muted small italic">
+                                                        (Không có dữ liệu dự thảo trong thư mục này)
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </Table>
                                 </div>
-                                <h5>Không tìm thấy kết quả</h5>
-                                <p className="text-muted">Vui lòng thử lại với từ khóa khác hoặc tải lên văn bản mới.</p>
-                            </div>
-                        </Col>
-                    )}
+                            </CardBody>
+                        </Card>
+                    </Col>
                 </Row>
             )}
 
@@ -225,6 +269,7 @@ const DocumentList = () => {
                 isOpen={isUploadModal} 
                 toggle={() => setIsUploadModal(!isUploadModal)} 
                 onSuccess={fetchDocuments} 
+                types={types}
             />
             
             <EditModal 
@@ -232,6 +277,7 @@ const DocumentList = () => {
                 toggle={() => setIsEditModal(!isEditModal)} 
                 doc={selectedDoc} 
                 onSuccess={fetchDocuments} 
+                types={types}
             />
 
             <LeadModal 

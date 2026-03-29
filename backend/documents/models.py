@@ -1,6 +1,14 @@
 from django.db import models
 from accounts.models import User
 
+class DocumentType(models.Model):
+    name = models.CharField(max_length=255, unique=True, help_text="Tên loại văn bản")
+    description = models.TextField(blank=True, null=True, help_text="Mô tả về loại văn bản")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
 class Document(models.Model):
     STATUS_CHOICES = (
         ('Draft', 'Draft'),
@@ -18,6 +26,7 @@ class Document(models.Model):
     total_consulted_doc = models.IntegerField(default=0, help_text="Tổng số cơ quan, tổ chức, cá nhân được lấy ý kiến")
     total_feedbacks_doc = models.IntegerField(default=0, help_text="Tổng số ý kiến nhận được")
     lead = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='led_documents')
+    document_type = models.ForeignKey(DocumentType, on_delete=models.SET_NULL, null=True, blank=True, related_name='documents')
 
     def __str__(self):
         return self.project_name

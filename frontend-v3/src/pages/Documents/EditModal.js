@@ -4,11 +4,12 @@ import axios from 'axios';
 import { getAuthHeader } from '../../helpers/api_helper';
 import { toast } from 'react-toastify';
 
-const EditModal = ({ isOpen, toggle, doc, onSuccess }) => {
+const EditModal = ({ isOpen, toggle, doc, onSuccess, types }) => {
     const [formData, setFormData] = useState({ 
         project_name: '', 
         drafting_agency: '', 
         agency_location: '',
+        document_type_id: '',
         status: 'Draft' 
     });
     const [loading, setLoading] = useState(false);
@@ -19,6 +20,7 @@ const EditModal = ({ isOpen, toggle, doc, onSuccess }) => {
                 project_name: doc.project_name || '',
                 drafting_agency: doc.drafting_agency || '',
                 agency_location: doc.agency_location || '',
+                document_type_id: doc.document_type_id || '',
                 status: doc.status || 'Draft'
             });
         }
@@ -27,8 +29,13 @@ const EditModal = ({ isOpen, toggle, doc, onSuccess }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
+        const submitData = { ...formData };
+        if (!submitData.document_type_id) {
+            submitData.document_type_id = null;
+        }
+
         try {
-            await axios.patch(`/api/documents/${doc.id}/`, formData, getAuthHeader());
+            await axios.patch(`/api/documents/${doc.id}/`, submitData, getAuthHeader());
             toast.success("Cập nhật thông tin thành công!");
             onSuccess();
             toggle();
@@ -57,6 +64,22 @@ const EditModal = ({ isOpen, toggle, doc, onSuccess }) => {
                                     onChange={(e) => setFormData({ ...formData, project_name: e.target.value })}
                                     required
                                 />
+                            </FormGroup>
+                        </Col>
+                        <Col lg={12}>
+                            <FormGroup>
+                                <Label for="document_type" className="form-label fw-bold">Loại dự thảo</Label>
+                                <Input
+                                    type="select"
+                                    id="document_type"
+                                    value={formData.document_type_id}
+                                    onChange={(e) => setFormData({ ...formData, document_type_id: e.target.value })}
+                                >
+                                    <option value="">-- Chọn loại dự thảo (không bắt buộc) --</option>
+                                    {(types || []).map(t => (
+                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                    ))}
+                                </Input>
                             </FormGroup>
                         </Col>
                         <Col lg={6}>

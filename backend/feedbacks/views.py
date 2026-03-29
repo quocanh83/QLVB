@@ -406,18 +406,53 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         
         # Log action and update feedback status if target is Feedback
         if target_type == 'Feedback':
-            fb = Feedback.objects.get(id=object_id)
-            if fb.status == 'pending':
-                fb.status = 'reviewed'
-                fb.save()
-            ActionLog.objects.create(
-                user=request.user,
-                feedback=fb,
-                action="Lưu giải trình",
-                details=f"Nội dung: {content[:100]}..."
-            )
+            fb = Feedback.objects.filter(id=object_id).first()
+            if fb:
+                if fb.status == 'pending':
+                    fb.status = 'reviewed'
+                    fb.save()
+                ActionLog.objects.create(
+                    user=request.user,
+                    feedback=fb,
+                    action="Lưu giải trình",
+                    details=f"Nội dung: {content[:100]}..."
+                )
             
         return Response({"message": "Đã lưu giải trình"})
+
+    @action(detail=False, methods=['post'])
+    def delete_explanation(self, request):
+        document_id = request.data.get('document_id')
+        if not self._check_permission(request, document_id, 'Chuyên viên Giải trình'):
+            return Response({"error": "Bạn không có quyền Xóa giải trình cho dự thảo này."}, status=403)
+            
+        target_type = request.data.get('target_type')
+        object_id = request.data.get('object_id')
+        
+        if target_type == 'Feedback':
+            content_type = ContentType.objects.get_for_model(Feedback)
+        else:
+            content_type = ContentType.objects.get_for_model(DocumentNode)
+            
+        deleted_count, _ = Explanation.objects.filter(
+            target_type=target_type,
+            content_type=content_type,
+            object_id=object_id
+        ).delete()
+        
+        if target_type == 'Feedback' and deleted_count > 0:
+            fb = Feedback.objects.filter(id=object_id).first()
+            if fb:
+                fb.status = 'pending'
+                fb.save()
+                ActionLog.objects.create(
+                    user=request.user,
+                    feedback=fb,
+                    action="Xóa giải trình",
+                    details="Chuyên viên đã xóa nội dung giải trình."
+                )
+            
+        return Response({"message": "Đã xóa giải trình thành công."})
 
     @action(detail=True, methods=['post'])
     def submit_for_review(self, request, pk=None):

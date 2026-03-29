@@ -3,8 +3,9 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.db.models import Count, Q
 from django.db import transaction
-from .models import Document, DocumentNode, NodeAssignment
-from .serializers import DocumentListSerializer, DocumentUploadSerializer, DocumentNodeSerializer
+from .models import Document, DocumentNode, NodeAssignment, DocumentType
+from .serializers import DocumentListSerializer, DocumentUploadSerializer, DocumentNodeSerializer, DocumentTypeSerializer
+
 from accounts.models import User
 import docx
 import re
@@ -29,7 +30,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Document.objects.annotate(
+        queryset = Document.objects.annotate(
             total_dieu=Count('nodes', filter=Q(nodes__node_type='Điều'), distinct=True),
             total_khoan=Count('nodes', filter=Q(nodes__node_type='Khoản'), distinct=True),
             total_diem=Count('nodes', filter=Q(nodes__node_type='Điểm'), distinct=True),
@@ -37,7 +38,13 @@ class DocumentViewSet(viewsets.ModelViewSet):
             total_nodes=Count('nodes', distinct=True),
             total_feedbacks=Count('feedbacks', distinct=True),
             resolved_feedbacks=Count('feedbacks', filter=Q(feedbacks__explanations__isnull=False), distinct=True)
-        ).order_by('-id')
+        )
+        
+        document_type_id = self.request.query_params.get('document_type')
+        if document_type_id:
+            queryset = queryset.filter(document_type_id=document_type_id)
+            
+        return queryset.order_by('-id')
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -506,7 +513,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
             print(traceback.format_exc())
             return Response({"error": f"Lỗi trong quá trình xuất báo cáo: {str(e)}"}, status=500)
 
-class NodeViewSet(viewsets.ReadOnlyModelViewSet):
+class NodeViewSet(viewsets.ModelViewSet):
     queryset = DocumentNode.objects.all()
     serializer_class = DocumentNodeSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -533,3 +540,8 @@ class NodeViewSet(viewsets.ReadOnlyModelViewSet):
             }
             
         return Response(serialize_recursive(root))
+
+class DocumentTypeViewSet(viewsets.ModelViewSet):
+    queryset = DocumentType.objects.all().order_by('-created_at')
+    serializer_class = DocumentTypeSerializer
+    permission_classes = [permissions.IsAuthenticated]

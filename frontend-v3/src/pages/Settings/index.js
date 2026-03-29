@@ -236,43 +236,16 @@ const Settings = () => {
     const [isResetConfirmModal, setIsResetConfirmModal] = useState(false);
 
     const defaultSidebarItems = [
-        { 
-            id: 'qlvb', 
-            label: 'Công việc của tôi',
-            subItems: [
-                { id: 'documents', label: 'Danh sách Dự thảo' },
-                { id: 'reports', label: 'Trung tâm Báo cáo' },
-                { id: 'feedback-intake', label: 'Nhập góp ý thủ công' },
-                { id: 'draft-explanation', label: 'Giải trình dự thảo' },
-                { id: 'feedbacks', label: 'Danh sách Góp ý' },
-                { id: 'settings', label: 'Cấu hình Hệ thống' },
-                { id: 'user-management', label: 'Quản lý Cán bộ' }
-            ]
-        },
-        { 
-            id: 'dashboard', 
-            label: 'Dashboards',
-            subItems: [
-                { id: "analytics", label: "Analytics" },
-                { id: "projects", label: "Projects" },
-                { id: "nft", label: "NFT" },
-                { id: "job", label: "Job" },
-                { id: "blog", label: "Blog" }
-            ]
-        },
-        { id: 'apps', label: 'Apps' },
-        { id: 'authentication', label: 'Authentication' },
-        { id: 'pages', label: 'Pages' },
-        { id: 'landing', label: 'Landing' },
-        { id: 'baseUi', label: 'Base UI' },
-        { id: 'advanceUi', label: 'Advance UI' },
-        { id: 'widgets', label: 'Widgets' },
-        { id: 'forms', label: 'Forms' },
-        { id: 'tables', label: 'Tables' },
-        { id: 'charts', label: 'Charts' },
-        { id: 'icons', label: 'Icons' },
-        { id: 'maps', label: 'Maps' },
-        { id: 'multilevel', label: 'Multi Level' }
+        { id: 'documents', label: 'Danh sách Dự thảo', icon: 'ri-file-list-3-line' },
+        { id: 'reports', label: 'Trung tâm Báo cáo', icon: 'ri-bar-chart-2-line' },
+        { id: 'feedback-intake', label: 'Nhập góp ý thủ công', icon: 'ri-chat-new-line' },
+        { id: 'draft-explanation', label: 'Giải trình dự thảo', icon: 'ri-question-answer-line' },
+        { id: 'feedbacks', label: 'Danh sách Góp ý', icon: 'ri-discuss-line' },
+        { id: 'settings', label: 'Cấu hình Hệ thống', icon: 'ri-settings-4-line' },
+        { id: 'document-types', label: 'Quản lý Loại dự thảo', icon: 'ri-stack-line' },
+        { id: 'user-management', label: 'Quản lý Cán bộ', icon: 'ri-user-settings-line' },
+        { id: 'dashboard', label: 'Dashboards', icon: 'las la-tachometer-alt' },
+        { id: 'authentication', label: 'Authentication', icon: 'lar la-user-circle' },
     ];
 
     const SYSTEM_ROUTES = [
@@ -510,9 +483,10 @@ const Settings = () => {
 
     const promoteToParent = (subId, parentId) => {
         setLocalSidebarConfig(prev => {
-            let itemToMove = null;
-            const updatedItems = prev.map(item => {
+            let parentIndex = -1;
+            const updatedItems = prev.map((item, idx) => {
                 if (item.id === parentId && item.subItems) {
+                    parentIndex = idx;
                     itemToMove = item.subItems.find(s => s.id === subId);
                     return { ...item, subItems: item.subItems.filter(s => s.id !== subId) };
                 }
@@ -520,7 +494,12 @@ const Settings = () => {
             });
             if (itemToMove) {
                 const newItem = { ...itemToMove, visible: true };
-                updatedItems.push(newItem);
+                // Chèn vào ngay sau vị trí của cha cũ
+                if (parentIndex !== -1) {
+                    updatedItems.splice(parentIndex + 1, 0, newItem);
+                } else {
+                    updatedItems.push(newItem);
+                }
             }
             return updatedItems;
         });
@@ -553,28 +532,46 @@ const Settings = () => {
                 if (parent && parent.subItems) {
                     const idx = parent.subItems.findIndex(s => s.id === id);
                     if (idx !== -1) {
-                        itemToMove = { ...parent.subItems[idx], label: tempEditLabel, icon: tempEditIcon, isHeader: tempEditIsHeader };
-                        parent.subItems = parent.subItems.filter(s => s.id !== id);
+                        const updatedItem = { ...parent.subItems[idx], label: tempEditLabel, icon: tempEditIcon, isHeader: tempEditIsHeader };
+                        
+                        if (parentId === newParentId) {
+                            // Cập nhật tại chỗ nếu không đổi cha
+                            parent.subItems[idx] = updatedItem;
+                            return workingConfig;
+                        } else {
+                            // Rút ra để chuyển đi
+                            itemToMove = updatedItem;
+                            parent.subItems = parent.subItems.filter(s => s.id !== id);
+                        }
                     }
                 }
             } else {
                 const idx = workingConfig.findIndex(it => it.id === id);
                 if (idx !== -1) {
-                    itemToMove = { ...workingConfig[idx], label: tempEditLabel, icon: tempEditIcon, isHeader: tempEditIsHeader };
-                    workingConfig = workingConfig.filter(it => it.id !== id);
+                    const updatedItem = { ...workingConfig[idx], label: tempEditLabel, icon: tempEditIcon, isHeader: tempEditIsHeader };
+                    
+                    if (!newParentId || newParentId === "") {
+                        // Cập nhật tại chỗ ở menu chính
+                        workingConfig[idx] = updatedItem;
+                        return workingConfig;
+                    } else {
+                        // Rút ra để chuyển vào submenu
+                        itemToMove = updatedItem;
+                        workingConfig = workingConfig.filter(it => it.id !== id);
+                    }
                 }
             }
 
             if (!itemToMove) return prev; // Should not happen
 
-            // 2. Insert into NEW parent
+            // 2. Insert into NEW parent (if moved)
             if (newParentId && newParentId !== "") {
                 const targetParent = workingConfig.find(p => p.id === newParentId);
                 if (targetParent) {
                     if (!targetParent.subItems) targetParent.subItems = [];
                     targetParent.subItems.push(itemToMove);
                 } else {
-                    workingConfig.push(itemToMove); // Fallback to top level
+                    workingConfig.push(itemToMove); // Fallback
                 }
             } else {
                 workingConfig.push(itemToMove);

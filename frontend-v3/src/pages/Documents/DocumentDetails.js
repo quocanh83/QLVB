@@ -17,6 +17,9 @@ const DocumentDetails = () => {
     const [selectedFeedback, setSelectedFeedback] = useState(null);
     const [explanationContent, setExplanationContent] = useState('');
     const [expandedNodeId, setExpandedNodeId] = useState(null);
+    const [replyingToId, setReplyingToId] = useState(null);
+    const [isEditingNode, setIsEditingNode] = useState(false);
+    const [editedNodesData, setEditedNodesData] = useState({}); // { id: content }
     
     // States for UI
     const [loading, setLoading] = useState(true);
@@ -24,8 +27,10 @@ const DocumentDetails = () => {
     const [loadingFeedbacks, setLoadingFeedbacks] = useState(false);
     const [isSuggestingAI, setIsSuggestingAI] = useState(false);
     const [savingExplanation, setSavingExplanation] = useState(false);
-    const [uploadingFeedback, setUploadingFeedback] = useState(false);
-    const fileInputRef = useRef(null);
+    
+    // Manual Feedback Modal States
+    const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+    const [newFeedbackData, setNewFeedbackData] = useState({ agency: '', content: '' });
     
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
@@ -41,9 +46,18 @@ const DocumentDetails = () => {
     useEffect(() => {
         if (selectedNode) {
             fetchFeedbacks(selectedNode.id);
+            setIsEditingNode(false);
+            const initialData = { [selectedNode.id]: selectedNode.content || '' };
+            if (selectedNode.children) {
+                selectedNode.children.forEach(child => {
+                    initialData[child.id] = child.content || '';
+                });
+            }
+            setEditedNodesData(initialData);
         } else {
             setNodeFeedbacks([]);
             setSelectedFeedback(null);
+            setIsEditingNode(false);
         }
     }, [selectedNode]);
 
@@ -128,15 +142,15 @@ const DocumentDetails = () => {
         setFilteredStructure(filterTree(result, searchTerm, filterType));
     };
 
-    const handleAISuggest = async () => {
-        if (!selectedFeedback || !selectedNode || !document) return;
+    const handleAISuggestForID = async (fb) => {
+        if (!fb || !selectedNode || !document) return;
         
         setIsSuggestingAI(true);
         try {
             const data = await axios.post('/api/feedbacks/ai_suggest/', {
                 document_id: document.id,
                 node_content: selectedNode.content,
-                feedback_content: selectedFeedback.content
+                feedback_content: fb.content
             }, getAuthHeader());
             setExplanationContent(data.suggestion);
             toast.success("AI đã tạo gợi ý giải trình!");
@@ -147,19 +161,20 @@ const DocumentDetails = () => {
         }
     };
 
-    const handleSaveExplanation = async () => {
-        if (!selectedFeedback || !document) return;
+    const handleSaveExplanationForID = async (fbId) => {
+        if (!fbId || !document) return;
         
         setSavingExplanation(true);
         try {
             await axios.post('/api/feedbacks/save_explanation/', {
                 document_id: document.id,
                 target_type: 'Feedback',
-                object_id: selectedFeedback.id,
+                object_id: fbId,
                 content: explanationContent
             }, getAuthHeader());
             
             toast.success("Đã lưu giải trình!");
+            setReplyingToId(null);
             fetchFeedbacks(selectedNode.id); // Refresh
         } catch (err) {
             toast.error("Lỗi khi lưu giải trình.");
@@ -168,15 +183,36 @@ const DocumentDetails = () => {
         }
     };
 
-    const handleStatusChange = async (action) => {
-        if (!selectedFeedback) return;
+    const handleSaveNodeContent = async () => {
+        if (!selectedNode) return;
         try {
-            const endpoint = action === 'submit' ? 'submit_for_review' : 'approve_feedback';
-            await axios.post(`/api/feedbacks/${selectedFeedback.id}/${endpoint}/`, {}, getAuthHeader());
-            toast.success("Cập nhật trạng thái thành công!");
-            fetchFeedbacks(selectedNode.id);
+            const updatePromises = Object.entries(editedNodesData).map(([id, content]) => {
+                // Chỉ gửi PATCH nếu nội dung thực sự thay đổi (tối ưu hóa)
+                const originalContent = id === selectedNode.id.toString() 
+                    ? selectedNode.content 
+                    : selectedNode.children?.find(c => c.id.toString() === id)?.content;
+                
+                if (content !== originalContent) {
+                    return axios.patch(`/api/nodes/${id}/`, { content }, getAuthHeader());
+                }
+                return null;
+            }).filter(p => p !== null);
+
+            if (updatePromises.length > 0) {
+                await Promise.all(updatePromises);
+                toast.success("Cập nhật nội dung thành công!");
+                fetchStructure();
+                // Update selected node locally
+                const newMainContent = editedNodesData[selectedNode.id] || selectedNode.content;
+                const newChildren = selectedNode.children?.map(child => ({
+                    ...child,
+                    content: editedNodesData[child.id] || child.content
+                }));
+                setSelectedNode({ ...selectedNode, content: newMainContent, children: newChildren });
+            }
+            setIsEditingNode(false);
         } catch (err) {
-            toast.error("Lỗi cập nhật trạng thái.");
+            toast.error("Lỗi cập nhật nội dung.");
         }
     };
 
@@ -192,34 +228,28 @@ const DocumentDetails = () => {
         }
     };
 
-    const handleFeedbackFileUpload = async (e) => {
-        const file = e.target.files[0];
-        if (!file || !document) return;
+    const handleSaveNewFeedback = async () => {
+        if (!selectedNode || !newFeedbackData.content) {
+            toast.warning("Vui lòng chọn Điều/Khoản và nhập nội dung góp ý.");
+            return;
+        }
         
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('document_id', document.id);
-        
-        setUploadingFeedback(true);
         try {
-            const res = await axios.post('/api/feedbacks/parse_file/', formData, {
-                headers: { ...getAuthHeader().headers, 'Content-Type': 'multipart/form-data' }
-            });
-            const parseData = res.results || res;
-            await axios.post('/api/feedbacks/bulk_create/', {
-                document_id: document.id,
-                feedbacks: parseData.feedbacks,
-                metadata: parseData.metadata
+            await axios.post('/api/feedbacks/', {
+                document: document.id,
+                node: selectedNode.id,
+                contributing_agency: newFeedbackData.agency || "Cơ quan góp ý",
+                content: newFeedbackData.content,
+                status: 'pending'
             }, getAuthHeader());
             
-            toast.success(`Đã nhập thành công ${parseData.feedbacks.length} góp ý.`);
-            if (selectedNode) fetchFeedbacks(selectedNode.id);
-            // reset file input
-            if (fileInputRef.current) fileInputRef.current.value = "";
+            toast.success("Đã thêm góp ý thành công!");
+            setShowFeedbackModal(false);
+            setNewFeedbackData({ agency: '', content: '' });
+            fetchFeedbacks(selectedNode.id); // Refresh feedbacks for current node
+            fetchStructure(); // Refresh counts in tree
         } catch (err) {
-            toast.error("Lỗi khi nhập file góp ý.");
-        } finally {
-            setUploadingFeedback(false);
+            toast.error("Lỗi khi thêm góp ý.");
         }
     };
 
@@ -361,24 +391,72 @@ const DocumentDetails = () => {
                                                             ? `${selectedNode.parent_label || 'Văn bản'}. ${selectedNode.parent_content?.split('\n')[0] || ''}` 
                                                             : `${selectedNode.node_label}: ${selectedNode.content?.split('\n')[0] || ''}`}
                                                     </span>
-                                                    <span className="badge bg-light-subtle text-muted border border-light-subtle">{selectedNode.node_type}</span>
+                                                    <div className="d-flex align-items-center gap-2">
+                                                        {!isEditingNode ? (
+                                                            <Button color="light" size="sm" className="btn-icon" onClick={() => setIsEditingNode(true)}>
+                                                                <i className="ri-pencil-line fs-14"></i>
+                                                            </Button>
+                                                        ) : (
+                                                            <div className="d-flex gap-1">
+                                                                <Button color="success" size="sm" onClick={handleSaveNodeContent}>Lưu</Button>
+                                                                <Button color="light" size="sm" onClick={() => setIsEditingNode(false)}>Hủy</Button>
+                                                            </div>
+                                                        )}
+                                                        <span className="badge bg-light-subtle text-muted border border-light-subtle">{selectedNode.node_type}</span>
+                                                    </div>
                                                 </h5>
-                                                <div className="fs-14 text-body lh-base" style={{ whiteSpace: 'pre-wrap' }}>
-                                                    {selectedNode.node_type === 'Khoản' ? (
-                                                        <span><span className="text-body me-2">{(selectedNode.node_label || "").replace('Khoản ', '')}.</span>{selectedNode.content}</span>
-                                                    ) : (
-                                                        <div className="space-y-3">
-                                                            {(selectedNode.content || "").split('\n').map((line, idx) => {
-                                                                if (selectedNode.node_type === 'Điều' && idx === 0) return null;
-                                                                return <p key={idx} className="mb-1">{line}</p>;
-                                                            })}
-                                                            {selectedNode.children && selectedNode.children.map(child => (
-                                                                <div key={child.id} className="ms-3 mt-2 pb-2 border-bottom border-light border-opacity-50 border-dashed">
-                                                                    <span className="text-body me-2">{child.node_label.replace('Khoản ', '')}.</span>
-                                                                    <span>{child.content}</span>
+                                                <div className="fs-14 text-body lh-base">
+                                                    {isEditingNode ? (
+                                                        <div className="space-y-4">
+                                                            {/* Edit Main Node (Điều hoặc Khoản đơn lẻ) */}
+                                                            <div className="mb-4">
+                                                                <label className="form-label fs-12 text-uppercase text-muted fw-bold">
+                                                                    {selectedNode.node_label} (Nội dung chính)
+                                                                </label>
+                                                                <Input 
+                                                                    type="textarea" 
+                                                                    rows={selectedNode.node_type === 'Điều' ? 3 : 10} 
+                                                                    className="form-control bg-white shadow-sm border-info-subtle" 
+                                                                    value={editedNodesData[selectedNode.id] || ''} 
+                                                                    onChange={(e) => setEditedNodesData({ ...editedNodesData, [selectedNode.id]: e.target.value })}
+                                                                />
+                                                            </div>
+
+                                                            {/* Edit Sub-nodes (Nếu là Điều có các Khoản) */}
+                                                            {selectedNode.node_type === 'Điều' && selectedNode.children && selectedNode.children.map(child => (
+                                                                <div key={child.id} className="mb-3 ps-3 border-start border-info border-2">
+                                                                    <label className="form-label fs-12 text-uppercase text-muted fw-bold">
+                                                                        {child.node_label}
+                                                                    </label>
+                                                                    <Input 
+                                                                        type="textarea" 
+                                                                        rows={4} 
+                                                                        className="form-control bg-white shadow-sm" 
+                                                                        value={editedNodesData[child.id] || ''} 
+                                                                        onChange={(e) => setEditedNodesData({ ...editedNodesData, [child.id]: e.target.value })}
+                                                                    />
                                                                 </div>
                                                             ))}
                                                         </div>
+                                                    ) : (
+                                                        selectedNode.node_type === 'Khoản' ? (
+                                                            <div style={{ whiteSpace: 'pre-wrap' }}>
+                                                                <span className="text-body me-2">{(selectedNode.node_label || "").replace('Khoản ', '')}.</span>{selectedNode.content}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="space-y-3" style={{ whiteSpace: 'pre-wrap' }}>
+                                                                {(selectedNode.content || "").split('\n').map((line, idx) => {
+                                                                    if (selectedNode.node_type === 'Điều' && idx === 0) return null;
+                                                                    return <p key={idx} className="mb-1">{line}</p>;
+                                                                })}
+                                                                {selectedNode.children && selectedNode.children.map(child => (
+                                                                    <div key={child.id} className="ms-3 mt-2 pb-2 border-bottom border-light border-opacity-50 border-dashed">
+                                                                        <span className="text-body me-2">{child.node_label.replace('Khoản ', '')}.</span>
+                                                                        <span>{child.content}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )
                                                     )}
                                                 </div>
                                             </div>
@@ -408,96 +486,142 @@ const DocumentDetails = () => {
                                             Ý kiến & Giải trình ({nodeFeedbacks.length})
                                         </h6>
                                         <div>
-                                            <input 
-                                                type="file" 
-                                                ref={fileInputRef} 
-                                                onChange={handleFeedbackFileUpload} 
-                                                className="d-none" 
-                                                accept=".docx"
-                                            />
                                             <Button 
-                                                color="light" 
+                                                color="primary" 
                                                 size="sm" 
-                                                className="btn-icon" 
-                                                onClick={() => fileInputRef.current?.click()}
-                                                disabled={uploadingFeedback}
-                                                title="Nhập Góp ý từ file Word"
+                                                className="btn-label waves-effect waves-light"
+                                                onClick={() => setShowFeedbackModal(true)}
+                                                disabled={!selectedNode}
+                                                title={!selectedNode ? "Vui lòng chọn Điều/Khoản để thêm góp ý" : "Thêm góp ý thủ công"}
                                             >
-                                                {uploadingFeedback ? <Spinner size="sm" /> : <i className="ri-upload-cloud-2-line fs-14"></i>}
+                                                <i className="ri-add-line label-icon align-middle fs-16 me-2"></i> Thêm góp ý
                                             </Button>
                                         </div>
                                     </div>
                                 </CardHeader>
                                 <CardBody className="p-0 d-flex flex-column overflow-hidden bg-body-tertiary">
-                                    {/* Feedbacks List (Top Half) */}
-                                    <div className="flex-grow-1 overflow-hidden" style={{ minHeight: '40%' }}>
+                                    {/* Feedbacks List (Vertical Chat Thread) */}
+                                    <div className="flex-grow-1 overflow-hidden">
                                         <SimpleBar style={{ height: '100%' }} className="p-3">
                                             {loadingFeedbacks ? (
                                                 <div className="text-center py-3"><Spinner size="sm" color="primary"/></div>
                                             ) : nodeFeedbacks.length > 0 ? (
-                                                nodeFeedbacks.map(fb => (
-                                                    <div 
-                                                        key={fb.id} 
-                                                        className={`card mb-2 border rounded cursor-pointer transition-shadow ${selectedFeedback?.id === fb.id ? 'border-primary shadow' : 'border-0 shadow-none'}`}
-                                                        onClick={() => { setSelectedFeedback(fb); setExplanationContent(fb.explanation || ''); }}
-                                                    >
-                                                        <div className="card-body p-3">
-                                                            <div className="d-flex justify-content-between mb-2">
-                                                                <span className="fw-bold fs-12 text-uppercase text-primary">{fb.contributing_agency}</span>
-                                                                <span className={`badge ${fb.status === 'approved' ? 'bg-success-subtle text-success' : fb.status === 'reviewed' ? 'bg-info-subtle text-info' : 'bg-warning-subtle text-warning'}`}>
-                                                                    {fb.status === 'approved' ? 'Đã duyệt' : fb.status === 'reviewed' ? 'Đã thẩm định' : 'Chờ xử lý'}
-                                                                </span>
+                                                <div className="d-flex flex-column gap-3">
+                                                    {nodeFeedbacks.map(fb => (
+                                                        <div key={fb.id} className="feedback-thread">
+                                                            {/* Feedback Bubble (The "Question") */}
+                                                            <div className="d-flex justify-content-start mb-2">
+                                                                <div className="card border-0 mb-0 shadow-sm overflow-hidden" style={{ maxWidth: '85%', borderRadius: '15px 15px 15px 2px' }}>
+                                                                    <div className="card-header py-1 px-3 bg-primary-subtle border-0">
+                                                                        <div className="d-flex justify-content-between align-items-center">
+                                                                            <span className="fw-bold fs-11 text-uppercase text-primary">{fb.contributing_agency}</span>
+                                                                            <span className="fs-10 text-muted ms-2">{new Date(fb.created_at).toLocaleDateString()}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="card-body p-3 bg-white">
+                                                                        <p className="fs-13 mb-2 text-body">"{fb.content}"</p>
+                                                                        <div className="d-flex gap-2">
+                                                                            <Button 
+                                                                                color="link" 
+                                                                                size="sm" 
+                                                                                className="p-0 text-decoration-none fs-12 fw-medium"
+                                                                                onClick={() => {
+                                                                                    if (replyingToId === fb.id) {
+                                                                                        setReplyingToId(null);
+                                                                                    } else {
+                                                                                        setReplyingToId(fb.id);
+                                                                                        setExplanationContent(fb.explanation || '');
+                                                                                    }
+                                                                                }}
+                                                                            >
+                                                                                <i className="ri-reply-line me-1"></i> Phản hồi
+                                                                            </Button>
+                                                                            <Button 
+                                                                                color="link" 
+                                                                                size="sm" 
+                                                                                className="p-0 text-decoration-none fs-12 fw-medium text-info"
+                                                                                onClick={() => {
+                                                                                    setReplyingToId(fb.id);
+                                                                                    handleAISuggestForID(fb);
+                                                                                }}
+                                                                                disabled={isSuggestingAI}
+                                                                            >
+                                                                                <i className="ri-magic-line me-1"></i> AI Gợi ý
+                                                                            </Button>
+                                                                            <span className={`badge ${fb.status === 'approved' ? 'bg-success-subtle text-success' : fb.status === 'reviewed' ? 'bg-info-subtle text-info' : 'bg-warning-subtle text-warning'} ms-auto fs-10`}>
+                                                                                {fb.status === 'approved' ? 'Đã duyệt' : fb.status === 'reviewed' ? 'Đã thẩm định' : 'Chờ xử lý'}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
                                                             </div>
-                                                            <p className="fs-13 mb-0 text-body bg-light-subtle p-2 rounded">"{fb.content}"</p>
+
+                                                            {/* Inline Input (If replying) */}
+                                                            {replyingToId === fb.id && (
+                                                                <div className="ms-5 mb-3 mt-1">
+                                                                    <Input
+                                                                        type="textarea"
+                                                                        rows={2}
+                                                                        className="form-control form-control-sm border-info-subtle shadow-sm mb-2"
+                                                                        placeholder="Nhập nội dung giải tiếp thu/giải trình..."
+                                                                        value={explanationContent}
+                                                                        onChange={(e) => setExplanationContent(e.target.value)}
+                                                                        autoFocus
+                                                                    />
+                                                                    <div className="d-flex gap-2">
+                                                                        <Button 
+                                                                            color="primary" 
+                                                                            size="sm" 
+                                                                            className="px-3"
+                                                                            onClick={() => handleSaveExplanationForID(fb.id)}
+                                                                            disabled={savingExplanation}
+                                                                        >
+                                                                            {savingExplanation ? <Spinner size="sm"/> : "Lưu giải trình"}
+                                                                        </Button>
+                                                                        <Button color="light" size="sm" onClick={() => setReplyingToId(null)}>Hủy</Button>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Explanation Bubble (The "Reply") - If exists */}
+                                                            {fb.explanation && replyingToId !== fb.id && (
+                                                                <div className="d-flex justify-content-end mt-1">
+                                                                    <div className="card border-0 mb-0 shadow-xs" style={{ maxWidth: '85%', borderRadius: '15px 15px 2px 15px', background: '#f0f3f9' }}>
+                                                                        <div className="card-body p-3">
+                                                                            <div className="d-flex align-items-center mb-1">
+                                                                                <i className="ri-shield-user-line text-info me-1 fs-12"></i>
+                                                                                <span className="fw-bold fs-11 text-uppercase text-info">Cơ quan soạn thảo</span>
+                                                                            </div>
+                                                                            <p className="fs-13 mb-0 text-muted lh-base">
+                                                                                {fb.explanation}
+                                                                            </p>
+                                                                            <div className="mt-2 text-end">
+                                                                                <Button 
+                                                                                    color="link" 
+                                                                                    size="sm" 
+                                                                                    className="p-0 text-decoration-none fs-11 text-muted"
+                                                                                    onClick={() => {
+                                                                                        setReplyingToId(fb.id);
+                                                                                        setExplanationContent(fb.explanation);
+                                                                                    }}
+                                                                                >
+                                                                                    Sửa giải trình
+                                                                                </Button>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    </div>
-                                                ))
+                                                    ))}
+                                                </div>
                                             ) : (
-                                                <div className="text-center text-muted py-4 fs-13 bg-card rounded border border-dashed">
+                                                <div className="text-center text-muted py-5 fs-14 bg-white rounded border-dashed border">
+                                                    <i className="ri-chat-off-line fs-24 d-block mb-2 opacity-25"></i>
                                                     Không có ý kiến cho mục này.
                                                 </div>
                                             )}
                                         </SimpleBar>
-                                    </div>
-
-                                    {/* Explanation Editor (Bottom Half) */}
-                                    <div className="bg-card border-top p-3 shrink-0">
-                                        <div className="d-flex justify-content-between align-items-center mb-2">
-                                            <label className="form-label mb-0 fw-bold fs-12 text-uppercase text-muted">Nội dung Giải trình</label>
-                                            <Button 
-                                                color="info" 
-                                                className="btn-sm btn-label text-nowrap rounded-pill" 
-                                                onClick={handleAISuggest} 
-                                                disabled={!selectedFeedback || isSuggestingAI}
-                                            >
-                                                <i className="ri-magic-line label-icon align-middle rounded-pill fs-16 me-2"></i> AI Gợi ý
-                                            </Button>
-                                        </div>
-                                        <Input
-                                            type="textarea"
-                                            rows={3}
-                                            className="form-control bg-light-subtle border-light-subtle mb-3"
-                                            placeholder={selectedFeedback ? "Nhập nội dung tiếp thu/giải trình..." : "Chọn ý kiến để giải trình."}
-                                            value={explanationContent}
-                                            onChange={(e) => setExplanationContent(e.target.value)}
-                                            disabled={!selectedFeedback}
-                                        />
-                                        <div className="d-flex gap-2">
-                                            <Button 
-                                                color="primary" 
-                                                className="w-100" 
-                                                onClick={handleSaveExplanation} 
-                                                disabled={!selectedFeedback || savingExplanation}
-                                            >
-                                                {savingExplanation ? <Spinner size="sm"/> : <><i className="ri-save-3-line align-bottom me-1"></i> Lưu Giải trình</>}
-                                            </Button>
-                                            
-                                            {selectedFeedback && selectedFeedback.status === 'pending' && (
-                                                <Button color="success" outline onClick={() => handleStatusChange('submit')}>
-                                                    Trình duyệt
-                                                </Button>
-                                            )}
-                                        </div>
                                     </div>
                                 </CardBody>
                             </Card>
@@ -505,6 +629,50 @@ const DocumentDetails = () => {
                         
                     </Row>
                 </Container>
+            </div>
+
+            {/* Manual Feedback Modal */}
+            <div className={`modal fade ${showFeedbackModal ? 'show d-block' : ''}`} tabIndex="-1" style={{ background: showFeedbackModal ? 'rgba(0,0,0,0.5)' : 'none' }}>
+                <div className="modal-dialog modal-dialog-centered">
+                    <div className="modal-content border-0 shadow">
+                        <div className="modal-header bg-primary p-3">
+                            <h5 className="modal-title text-white">Thêm góp ý mới</h5>
+                            <button type="button" className="btn-close btn-close-white" onClick={() => setShowFeedbackModal(false)}></button>
+                        </div>
+                        <div className="modal-body p-4">
+                            {selectedNode ? (
+                                <p className="text-muted mb-4 fs-13">
+                                    Góp ý cho: <span className="fw-bold text-primary">{selectedNode.node_label}</span>
+                                </p>
+                            ) : null}
+                            <div className="mb-3">
+                                <label className="form-label fw-bold small">Cơ quan góp ý</label>
+                                <Input 
+                                    type="text" 
+                                    className="form-control" 
+                                    placeholder="Ví dụ: Bộ Tư pháp, UBND TP. Hà Nội..." 
+                                    value={newFeedbackData.agency}
+                                    onChange={(e) => setNewFeedbackData({ ...newFeedbackData, agency: e.target.value })}
+                                />
+                            </div>
+                            <div className="mb-0">
+                                <label className="form-label fw-bold small">Nội dung góp ý</label>
+                                <Input 
+                                    type="textarea" 
+                                    rows={5} 
+                                    className="form-control" 
+                                    placeholder="Nhập nội dung góp ý chi tiết..." 
+                                    value={newFeedbackData.content}
+                                    onChange={(e) => setNewFeedbackData({ ...newFeedbackData, content: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                        <div className="modal-footer bg-light p-3">
+                            <Button color="light" onClick={() => setShowFeedbackModal(false)}>Hủy</Button>
+                            <Button color="primary" onClick={handleSaveNewFeedback}>Lưu góp ý</Button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </React.Fragment>
     );
