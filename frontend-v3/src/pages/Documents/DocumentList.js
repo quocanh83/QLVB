@@ -309,16 +309,17 @@ const DocumentList = () => {
                                                             </td>
                                                             <td>{item.drafting_agency || '-'}</td>
                                                             <td>
-                                                                <div className="d-flex align-items-center" style={{ minWidth: '150px' }}>
-                                                                    <Progress value={rate} color={rate === 100 ? "success" : "primary"} className="w-100 me-2" style={{ height: "6px" }} />
-                                                                    <span className="fs-12">{rate}%</span>
+                                                                <div className="text-center" style={{ minWidth: '80px' }}>
+                                                                    <Badge color={rate === 100 ? "success" : "primary"} className="fs-12">
+                                                                        {rate}%
+                                                                    </Badge>
                                                                 </div>
                                                             </td>
                                                             <td className="text-center">
                                                                 <ul className="list-inline hstack gap-1 justify-content-center mb-0">
                                                                     <li className="list-inline-item" title="Xem chi tiết">
                                                                         <Button color="soft-info" size="sm" className="btn-icon p-1" onClick={() => navigate(`/documents/${item.id}`)}>
-                                                                            <i className="ri-eye-fill align-bottom">Xem chi tiết</i>
+                                                                            <i className="ri-eye-fill align-bottom"></i>
                                                                         </Button>
                                                                     </li>
                                                                     <li className="list-inline-item" title="Quản lý VB góp ý">
