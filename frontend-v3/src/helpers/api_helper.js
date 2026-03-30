@@ -17,7 +17,7 @@ axios.interceptors.response.use(
   function (error) {
     // Any status codes that falls outside the range of 2xx cause this function to trigger
     let message;
-    switch (error.status) {
+    switch (error.response ? error.response.status : error.status) {
       case 500:
         message = "Internal Server Error";
         break;
@@ -30,7 +30,8 @@ axios.interceptors.response.use(
       default:
         message = error.message || error;
     }
-    return Promise.reject(message);
+    // Trả về cả object error để component có thể lấy chi tiết (như error.response.data)
+    return Promise.reject(error.response ? error : message);
   }
 );
 /**

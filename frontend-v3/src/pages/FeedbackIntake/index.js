@@ -209,8 +209,14 @@ const FeedbackIntake = () => {
             }
             
             toggleAgencyModal();
-        } catch (e) {
-            toast.error("Lỗi khi thêm đơn vị nhanh. Tên có thể đã tồn tại.");
+        } catch (error) {
+            console.error("Lỗi khi thêm đơn vị nhanh:", error.response?.data);
+            const errorMsg = error.response?.data 
+                ? Object.entries(error.response.data)
+                    .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(", ") : value}`)
+                    .join(" | ")
+                : "Lỗi khi thêm đơn vị nhanh. Tên có thể đã tồn tại.";
+            toast.error("Lỗi: " + errorMsg);
         } finally {
             setAddingAgency(false);
         }
