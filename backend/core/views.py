@@ -65,11 +65,29 @@ class AgencyViewSet(viewsets.ModelViewSet):
         
         try:
             import pandas as pd
-            df = pd.read_excel(file_obj) if file_obj.name.endswith('.xlsx') else pd.read_csv(file_obj)
-            
-            # Tải mapping danh mục hiện có để tối ưu
+        except ImportError:
+            return Response({"error": "Máy chủ thiếu thư viện 'pandas' và 'openpyxl'. Vui lòng chạy './venv/bin/pip install pandas openpyxl' trên Server."}, status=500)
+
+        try:
+            # Đọc tệp tin dựa trên định dạng
+            if file_obj.name.endswith('.xlsx') or file_obj.name.endswith('.xls'):
+                df = pd.read_excel(file_obj)
+            else:
+                # Thử nhiều bản mã cho CSV (Hỗ trợ tiếng Việt từ Excel export)
+                encodings = ['utf-8', 'latin-1', 'cp1252', 'utf-16']
+                df = None
+                for enc in encodings:
+                    try:
+                        file_obj.seek(0)
+                        df = pd.read_csv(file_obj, encoding=enc)
+                        break
+                    except:
+                        continue
+                if df is None:
+                    raise Exception("Không thể đọc tệp CSV. Vui lòng đảm bảo tệp đúng định dạng.")
+
+            # Tải mapping danh mục hiện có
             categories = {cat.name.lower().strip(): cat for cat in AgencyCategory.objects.all()}
-            default_cat = categories.get('khác') or AgencyCategory.objects.first()
             
             created_count = 0
             updated_count = 0
@@ -78,11 +96,12 @@ class AgencyViewSet(viewsets.ModelViewSet):
                 name = str(row.get('name', '')).strip()
                 if not name or name == 'nan': continue
                 
-                # Tìm danh mục phù hợp
-                cat_name_input = str(row.get('category', '')).strip().lower()
-                target_cat = categories.get(cat_name_input) or default_cat
+                # Xử lý danh mục
+                cat_name_input = str(row.get('category', '')).strip()
+                if not cat_name_input or cat_name_input.lower() == 'nan':
+                    cat_name_input = 'Khác'
                 
-                # Legacy mapping if using old keys
+                # Legacy mapping
                 legacy_map = {
                     'ministry': 'Bộ, cơ quan ngang Bộ',
                     'local': 'Địa phương (UBND tỉnh/thành phố)',
@@ -90,14 +109,19 @@ class AgencyViewSet(viewsets.ModelViewSet):
                     'citizen': 'Công dân, Doanh nghiệp',
                     'other': 'Khác'
                 }
-                if not target_cat and cat_name_input in legacy_map:
-                    target_cat = categories.get(legacy_map[cat_name_input].lower())
+                actual_cat_name = legacy_map.get(cat_name_input.lower(), cat_name_input)
+                
+                # Tìm hoặc tạo danh mục tự động
+                target_cat = categories.get(actual_cat_name.lower().strip())
+                if not target_cat:
+                    target_cat, _ = AgencyCategory.objects.get_or_create(name=actual_cat_name)
+                    categories[actual_cat_name.lower().strip()] = target_cat
 
                 agency, created = Agency.objects.update_or_create(
                     name=name,
                     defaults={
                         'agency_category': target_cat,
-                        'category': cat_name_input[:50] # For backward compatibility
+                        'category': actual_cat_name[:50]
                     }
                 )
                 
@@ -110,6 +134,8 @@ class AgencyViewSet(viewsets.ModelViewSet):
                 "updated": updated_count
             })
         except Exception as e:
+            import traceback
+            print(traceback.format_exc())
             return Response({"error": f"Lỗi xử lý tệp: {str(e)}"}, status=500)
 
 import os
