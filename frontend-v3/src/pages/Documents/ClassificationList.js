@@ -7,7 +7,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import BreadCrumb from '../../Components/Common/BreadCrumb';
 
 const ClassificationList = () => {
-    document.title = "Quản lý Phân loại Dự thảo | QLVB V3.0";
+    document.title = "Tiến độ góp ý | QLVB V3.0";
 
     const [documents, setDocuments] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -48,7 +48,7 @@ const ClassificationList = () => {
         <React.Fragment>
             <div className="page-content">
                 <Container fluid>
-                    <BreadCrumb title="Quản lý Phân loại Dự thảo" pageTitle="QLVB" />
+                    <BreadCrumb title="Tiến độ góp ý" pageTitle="QLVB" />
                     <ToastContainer closeButton={false} />
 
                     <Row>
