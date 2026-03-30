@@ -31,6 +31,8 @@ const Agencies = () => {
     const [isImportModal, setIsImportModal] = useState(false);
     const [importFile, setImportFile] = useState(null);
     const [importing, setImporting] = useState(false);
+    const [importResult, setImportResult] = useState(null);
+    const [isResultModal, setIsResultModal] = useState(false);
 
     useEffect(() => {
         fetchAgencies();
@@ -79,6 +81,14 @@ const Agencies = () => {
     const toggleImport = () => {
         setIsImportModal(!isImportModal);
         setImportFile(null);
+    };
+
+    const toggleResultModal = () => {
+        setIsResultModal(!isResultModal);
+        if (isResultModal) {
+            setImportResult(null);
+            fetchAgencies();
+        }
     };
 
     const handleEditAgency = (agency) => {
@@ -171,11 +181,12 @@ const Agencies = () => {
         setImporting(true);
         try {
             const res = await axios.post('/api/settings/agencies/bulk_import/', formData, getAuthHeader());
-            toast.success(res.message || "Đã nhập dữ liệu thành công.");
-            fetchAgencies();
+            const data = res.data || res;
+            setImportResult(data);
             toggleImport();
+            setIsResultModal(true);
         } catch (e) {
-            toast.error("Lỗi khi nhập dữ liệu từ tệp.");
+            toast.error(e.response?.data?.error || "Lỗi khi nhập dữ liệu từ tệp.");
         } finally {
             setImporting(false);
         }
@@ -432,6 +443,57 @@ const Agencies = () => {
                 onDeleteClick={handleDeleteAgency}
                 onCloseClick={() => setIsDeleteModal(false)}
             />
+
+            {/* Modal Result Import */}
+            <Modal isOpen={isResultModal} toggle={toggleResultModal} centered size="lg">
+                <ModalHeader toggle={toggleResultModal} className="bg-light p-3">
+                    Kết quả nhập dữ liệu
+                </ModalHeader>
+                <ModalBody>
+                    <div className="d-flex mb-3 gap-3">
+                        <div className="p-2 border rounded bg-success-subtle flex-grow-1 text-center">
+                            <h6 className="text-success mb-1">Mới</h6>
+                            <span className="fw-bold fs-16">{importResult?.created || 0}</span>
+                        </div>
+                        <div className="p-2 border rounded bg-info-subtle flex-grow-1 text-center">
+                            <h6 className="text-info mb-1">Cập nhật</h6>
+                            <span className="fw-bold fs-16">{importResult?.updated || 0}</span>
+                        </div>
+                        <div className="p-2 border rounded bg-light flex-grow-1 text-center">
+                            <h6 className="text-muted mb-1">Tổng cộng</h6>
+                            <span className="fw-bold fs-16">{importResult?.details?.length || 0}</span>
+                        </div>
+                    </div>
+                    
+                    <div className="table-responsive" style={{ maxHeight: '400px' }}>
+                        <Table className="table-sm align-middle table-nowrap mb-0">
+                            <thead className="table-light sticky-top">
+                                <tr>
+                                    <th>Tên Đơn vị</th>
+                                    <th>Phân loại</th>
+                                    <th className="text-center">Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {importResult?.details?.map((item, idx) => (
+                                    <tr key={idx}>
+                                        <td className="fs-13">{item.name}</td>
+                                        <td className="fs-13">{item.category}</td>
+                                        <td className="text-center">
+                                            <Badge color={item.status === "Mới" ? "success" : "info"} className="badge-soft-info">
+                                                {item.status}
+                                            </Badge>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </Table>
+                    </div>
+                </ModalBody>
+                <ModalFooter>
+                    <Button color="primary" onClick={toggleResultModal}>Đóng và Cập nhật danh sách</Button>
+                </ModalFooter>
+            </Modal>
         </React.Fragment>
     );
 };

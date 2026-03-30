@@ -73,8 +73,8 @@ class AgencyViewSet(viewsets.ModelViewSet):
             if file_obj.name.endswith('.xlsx') or file_obj.name.endswith('.xls'):
                 df = pd.read_excel(file_obj)
             else:
-                # Thử nhiều bản mã cho CSV (Hỗ trợ tiếng Việt từ Excel export)
-                encodings = ['utf-8', 'latin-1', 'cp1252', 'utf-16']
+                # Thử nhiều bản mã cho CSV
+                encodings = ['utf-8-sig', 'utf-8', 'latin-1', 'cp1252', 'utf-16']
                 df = None
                 for enc in encodings:
                     try:
@@ -86,18 +86,38 @@ class AgencyViewSet(viewsets.ModelViewSet):
                 if df is None:
                     raise Exception("Không thể đọc tệp CSV. Vui lòng đảm bảo tệp đúng định dạng.")
 
+            # --- Tự động nhận diện cột ---
+            col_map = {}
+            # Tìm cột Tên
+            name_keywords = ['name', 'tên', 'don vi', 'đơn vị', 'co quan', 'cơ quan']
+            for col in df.columns:
+                if str(col).lower().strip() in name_keywords:
+                    col_map['name'] = col
+                    break
+            
+            # Tìm cột Phân loại
+            cat_keywords = ['category', 'phân loại', 'phan loai', 'loại', 'loai']
+            for col in df.columns:
+                if str(col).lower().strip() in cat_keywords:
+                    col_map['category'] = col
+                    break
+
+            if 'name' not in col_map:
+                return Response({"error": "Không tìm thấy cột 'Tên' hoặc 'Đơn vị' trong tệp tin của bạn. Vui lòng kiểm tra lại tiêu đề cột."}, status=400)
+
             # Tải mapping danh mục hiện có
             categories = {cat.name.lower().strip(): cat for cat in AgencyCategory.objects.all()}
             
             created_count = 0
             updated_count = 0
+            import_details = []
             
             for _, row in df.iterrows():
-                name = str(row.get('name', '')).strip()
-                if not name or name == 'nan': continue
+                name_val = str(row.get(col_map['name'], '')).strip()
+                if not name_val or name_val.lower() == 'nan': continue
                 
                 # Xử lý danh mục
-                cat_name_input = str(row.get('category', '')).strip()
+                cat_name_input = str(row.get(col_map.get('category'), 'Khác')).strip()
                 if not cat_name_input or cat_name_input.lower() == 'nan':
                     cat_name_input = 'Khác'
                 
@@ -118,7 +138,7 @@ class AgencyViewSet(viewsets.ModelViewSet):
                     categories[actual_cat_name.lower().strip()] = target_cat
 
                 agency, created = Agency.objects.update_or_create(
-                    name=name,
+                    name=name_val,
                     defaults={
                         'agency_category': target_cat,
                         'category': actual_cat_name[:50]
@@ -127,11 +147,21 @@ class AgencyViewSet(viewsets.ModelViewSet):
                 
                 if created: created_count += 1
                 else: updated_count += 1
+                
+                import_details.append({
+                    "name": agency.name,
+                    "category": actual_cat_name,
+                    "status": "Mới" if created else "Cập nhật"
+                })
             
+            if not import_details:
+                return Response({"error": "Tệp tin không chứa dữ liệu hợp lệ (Dòng trống hoặc thiếu tên đơn vị)."}, status=400)
+
             return Response({
-                "message": f"Nhập dữ liệu thành công.",
+                "message": f"Đã xử lý xong {len(import_details)} đơn vị.",
                 "created": created_count,
-                "updated": updated_count
+                "updated": updated_count,
+                "details": import_details
             })
         except Exception as e:
             import traceback
