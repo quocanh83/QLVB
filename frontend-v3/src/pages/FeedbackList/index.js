@@ -21,20 +21,20 @@ const selectStyles = {
     }),
     menu: (base) => ({
         ...base,
-        backgroundColor: "var(--vz-choices-bg, #fff)", 
+        backgroundColor: "var(--vz-choices-bg, #fff)",
         zIndex: 1070,
         border: "1px solid var(--vz-border-color)",
         boxShadow: "0 5px 10px rgba(30,32,37,.12)"
     }),
     option: (base, state) => ({
         ...base,
-        backgroundColor: state.isSelected 
-            ? "var(--vz-primary)" 
-            : state.isFocused 
-                ? "var(--vz-light)" 
+        backgroundColor: state.isSelected
+            ? "var(--vz-primary)"
+            : state.isFocused
+                ? "var(--vz-light)"
                 : "var(--vz-choices-bg, #fff)",
-        color: state.isSelected 
-            ? "#fff" 
+        color: state.isSelected
+            ? "#fff"
             : "var(--vz-body-color)",
         "&:hover": {
             backgroundColor: "var(--vz-light)",
@@ -57,15 +57,15 @@ const FeedbackList = () => {
     const [feedbacks, setFeedbacks] = useState([]);
     const [filteredFeedbacks, setFilteredFeedbacks] = useState([]);
     const [loading, setLoading] = useState(false);
-    
+
     const [docSearch, setDocSearch] = useState("");
     const [tableSearch, setTableSearch] = useState("");
-    
+
     // Filters
     const [agencyOptions, setAgencyOptions] = useState([]);
     const [selectedAgency, setSelectedAgency] = useState('all');
     const [selectedStatus, setSelectedStatus] = useState('all');
-    
+
     // Modal state for Explanation
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentFeedback, setCurrentFeedback] = useState(null);
@@ -76,7 +76,7 @@ const FeedbackList = () => {
     const [isNodeModalOpen, setIsNodeModalOpen] = useState(false);
     const [selectedNodeData, setSelectedNodeData] = useState(null);
     const [nodeLoading, setNodeLoading] = useState(false);
-    
+
     // NEW: Modal state for Editing Feedback
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editContent, setEditContent] = useState("");
@@ -146,11 +146,11 @@ const FeedbackList = () => {
             const list = Array.isArray(data) ? data : [];
             setFeedbacks(list);
             setFilteredFeedbacks(list);
-            
+
             // Generate unique agency options
             const agencies = [...new Set(list.map(fb => fb.contributing_agency))].filter(Boolean);
             setAgencyOptions(agencies);
-            
+
             // Reset filters
             setSelectedAgency('all');
             setSelectedStatus('all');
@@ -161,7 +161,7 @@ const FeedbackList = () => {
         } finally {
             setLoading(false);
         }
-        
+
         // Also pre-fetch nodes for re-assignment
         fetchDocNodes(docId);
     };
@@ -181,16 +181,16 @@ const FeedbackList = () => {
     useEffect(() => {
         let result = feedbacks.filter(fb => {
             const matchesAgency = selectedAgency === 'all' || fb.contributing_agency === selectedAgency;
-            const matchesStatus = selectedStatus === 'all' || 
+            const matchesStatus = selectedStatus === 'all' ||
                 (selectedStatus === 'resolved' ? (fb.explanation && fb.explanation.trim() !== '') : (!fb.explanation || fb.explanation.trim() === ''));
-            const matchesSearch = tableSearch === '' || 
-                fb.content?.toLowerCase().includes(tableSearch.toLowerCase()) || 
+            const matchesSearch = tableSearch === '' ||
+                fb.content?.toLowerCase().includes(tableSearch.toLowerCase()) ||
                 fb.node_label?.toLowerCase().includes(tableSearch.toLowerCase()) ||
                 fb.contributing_agency?.toLowerCase().includes(tableSearch.toLowerCase());
-            
+
             return matchesAgency && matchesStatus && matchesSearch;
         });
-        
+
         setFilteredFeedbacks(result);
     }, [selectedAgency, selectedStatus, feedbacks, tableSearch]);
 
@@ -222,13 +222,13 @@ const FeedbackList = () => {
                 agency: editAgencyId,
                 official_doc_number: editDocNumber
             }, getAuthHeader());
-            
+
             toast.success("Đã cập nhật góp ý thành công.");
             setIsEditModalOpen(false);
             fetchFeedbacks(selectedDoc.id); // Refresh
         } catch (error) {
             console.error("Lỗi khi cập nhật góp ý:", error.response?.data);
-            const errorMsg = error.response?.data 
+            const errorMsg = error.response?.data
                 ? Object.entries(error.response.data)
                     .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(", ") : value}`)
                     .join(" | ")
@@ -247,7 +247,7 @@ const FeedbackList = () => {
         setAddingAgency(true);
         try {
             let categoryId = newAgencyCategory?.value;
-            
+
             // Create category if new
             if (newAgencyCategory && newAgencyCategory.__isNew__) {
                 const catRes = await axios.post('/api/settings/agency-categories/', { name: newAgencyCategory.label }, getAuthHeader());
@@ -255,14 +255,14 @@ const FeedbackList = () => {
                 await fetchCategories();
             }
 
-            const res = await axios.post('/api/settings/agencies/', { 
+            const res = await axios.post('/api/settings/agencies/', {
                 name: newAgencyName,
-                agency_category: categoryId 
+                agency_category: categoryId
             }, getAuthHeader());
-            
+
             toast.success("Thêm đơn vị mới thành công.");
             await fetchAgenciesOnly();
-            
+
             setEditAgencyId(res.data.id); // Set to new agency
             toggleAgencyModal();
         } catch (error) {
@@ -286,7 +286,7 @@ const FeedbackList = () => {
                 object_id: currentFeedback.id,
                 content: explanation
             }, getAuthHeader());
-            
+
             toast.success("Đã ghi nhận nội dung giải trình.");
             setIsModalOpen(false);
             fetchFeedbacks(selectedDoc.id); // Refresh list
@@ -299,14 +299,14 @@ const FeedbackList = () => {
 
     const handleDeleteExplanation = async (fb) => {
         if (!window.confirm("Bạn có chắc chắn muốn xóa nội dung giải trình này không?")) return;
-        
+
         try {
             await axios.post('/api/feedbacks/delete_explanation/', {
                 document_id: selectedDoc.id,
                 target_type: 'Feedback',
                 object_id: fb.id
             }, getAuthHeader());
-            
+
             toast.success("Đã xóa nội dung giải trình.");
             fetchFeedbacks(selectedDoc.id); // Refresh list
         } catch (e) {
@@ -330,7 +330,7 @@ const FeedbackList = () => {
         }
     };
 
-    const sortedDocs = documents.filter(doc => 
+    const sortedDocs = documents.filter(doc =>
         doc.project_name?.toLowerCase().includes(docSearch.toLowerCase()) ||
         doc.drafting_agency?.toLowerCase().includes(docSearch.toLowerCase())
     );
@@ -340,7 +340,7 @@ const FeedbackList = () => {
             <div className="page-content">
                 <Container fluid>
                     <BreadCrumb title="Danh sách Góp ý" pageTitle="Hệ thống" />
-                    
+
                     <Row>
                         {/* LEFT: Documents List */}
                         <Col lg={2}>
@@ -351,10 +351,10 @@ const FeedbackList = () => {
                                 <CardBody className="p-0">
                                     <div className="p-2 bg-light border-bottom">
                                         <div className="search-box">
-                                            <Input 
-                                                type="text" 
-                                                className="form-control form-control-sm fs-11" 
-                                                placeholder="Tìm..." 
+                                            <Input
+                                                type="text"
+                                                className="form-control form-control-sm fs-11"
+                                                placeholder="Tìm..."
                                                 value={docSearch}
                                                 onChange={(e) => setDocSearch(e.target.value)}
                                             />
@@ -364,7 +364,7 @@ const FeedbackList = () => {
                                     <div style={{ maxHeight: '700px', overflowY: 'auto' }}>
                                         <ul className="list-group list-group-flush border-0">
                                             {sortedDocs.map(doc => (
-                                                <li 
+                                                <li
                                                     key={doc.id}
                                                     className={`list-group-item list-group-item-action cursor-pointer px-2 py-2 ${selectedDoc?.id === doc.id ? 'active' : ''}`}
                                                     onClick={() => {
@@ -401,16 +401,16 @@ const FeedbackList = () => {
                                 <CardHeader className="d-flex align-items-center bg-light border-0">
                                     <div className="flex-grow-1">
                                         <h5 className="card-title mb-0 fw-bold">
-                                            <i className="ri-discuss-line align-bottom me-1 text-primary"></i> 
+                                            <i className="ri-discuss-line align-bottom me-1 text-primary"></i>
                                             Ý kiến góp ý: {selectedDoc?.project_name}
                                         </h5>
                                     </div>
                                     <div className="flex-shrink-0 d-flex gap-2">
                                         <div className="search-box">
-                                            <Input 
-                                                type="text" 
-                                                className="form-control border-light" 
-                                                placeholder="Tìm trong danh sách..." 
+                                            <Input
+                                                type="text"
+                                                className="form-control border-light"
+                                                placeholder="Tìm trong danh sách..."
                                                 value={tableSearch}
                                                 onChange={(e) => setTableSearch(e.target.value)}
                                             />
@@ -424,8 +424,8 @@ const FeedbackList = () => {
                                         <Col md={3}>
                                             <div className="input-group input-group-sm">
                                                 <Label className="input-group-text bg-light border-light text-muted">Cơ quan</Label>
-                                                <select 
-                                                    className="form-select border-light bg-light" 
+                                                <select
+                                                    className="form-select border-light bg-light"
                                                     value={selectedAgency}
                                                     onChange={(e) => setSelectedAgency(e.target.value)}
                                                 >
@@ -437,8 +437,8 @@ const FeedbackList = () => {
                                         <Col md={3}>
                                             <div className="input-group input-group-sm">
                                                 <Label className="input-group-text bg-light border-light text-muted">Tình trạng</Label>
-                                                <select 
-                                                    className="form-select border-light bg-light" 
+                                                <select
+                                                    className="form-select border-light bg-light"
                                                     value={selectedStatus}
                                                     onChange={(e) => setSelectedStatus(e.target.value)}
                                                 >
@@ -479,8 +479,8 @@ const FeedbackList = () => {
                                                         <tr key={fb.id}>
                                                             <td className="text-center text-muted fw-medium">{idx + 1}</td>
                                                             <td>
-                                                                <Button 
-                                                                    color="link" 
+                                                                <Button
+                                                                    color="link"
                                                                     className="p-0 text-primary fw-medium text-decoration-none text-start"
                                                                     onClick={() => handleViewNode(fb.node_id, fb.node_label)}
                                                                 >
@@ -496,33 +496,34 @@ const FeedbackList = () => {
                                                                 </div>
                                                             </td>
                                                             <td>
-                                                                <Badge color="soft-info" className="text-info">{fb.contributing_agency}</Badge>
+                                                                <Badge color="soft-info" className="text-muted fs-14 mt-1 ">{fb.contributing_agency}</Badge>
+
                                                             </td>
                                                             <td>
                                                                 {fb.explanation ? (
-                                                                    <div style={{ whiteSpace: 'normal', fontSize: '14px', borderLeft: '3px solid var(--vz-success)' }} className="p-2 bg-light-subtle rounded text-body">
+                                                                    <div style={{ whiteSpace: 'normal', fontSize: '16px', borderLeft: '3px solid var(--vz-success)' }} className="p-2 bg-light-subtle rounded text-body">
                                                                         <span className="fw-medium">{fb.explanation}</span>
                                                                     </div>
                                                                 ) : (
-                                                                    <span className="text-muted small italic opacity-50 px-2 font-italic border-start">Chưa giải trình</span>
+                                                                    <span className="text-muted italic opacity-50 px-2 font-italic border-start">Chưa giải trình</span>
                                                                 )}
                                                             </td>
                                                             <td>
                                                                 <div className="d-flex gap-1 justify-content-center">
-                                                                    <Button 
-                                                                        color="warning" 
-                                                                        size="sm" 
-                                                                        className="btn-soft-warning btn-icon" 
+                                                                    <Button
+                                                                        color="warning"
+                                                                        size="sm"
+                                                                        className="btn-soft-warning btn-icon"
                                                                         onClick={() => handleEditFeedback(fb)}
                                                                         title="Sửa nội dung & Gán lại"
                                                                     >
                                                                         <i className="ri-edit-line"></i>
                                                                     </Button>
                                                                     {!fb.explanation ? (
-                                                                        <Button 
-                                                                            color="success" 
-                                                                            size="sm" 
-                                                                            className="btn-soft-success btn-icon" 
+                                                                        <Button
+                                                                            color="success"
+                                                                            size="sm"
+                                                                            className="btn-soft-success btn-icon"
                                                                             onClick={() => handleAction(fb, 'explain')}
                                                                             title="Giải trình"
                                                                         >
@@ -530,19 +531,19 @@ const FeedbackList = () => {
                                                                         </Button>
                                                                     ) : (
                                                                         <>
-                                                                            <Button 
-                                                                                color="info" 
-                                                                                size="sm" 
-                                                                                className="btn-soft-info btn-icon" 
+                                                                            <Button
+                                                                                color="info"
+                                                                                size="sm"
+                                                                                className="btn-soft-info btn-icon"
                                                                                 onClick={() => handleAction(fb, 'edit')}
                                                                                 title="Sửa giải trình"
                                                                             >
                                                                                 <i className="ri-edit-2-line"></i>
                                                                             </Button>
-                                                                            <Button 
-                                                                                color="danger" 
-                                                                                size="sm" 
-                                                                                className="btn-soft-danger btn-icon" 
+                                                                            <Button
+                                                                                color="danger"
+                                                                                size="sm"
+                                                                                className="btn-soft-danger btn-icon"
                                                                                 onClick={() => handleDeleteExplanation(fb)}
                                                                                 title="Xóa giải trình"
                                                                             >
@@ -592,9 +593,9 @@ const FeedbackList = () => {
                         )}
                         <div className="form-group">
                             <Label className="form-label fw-bold"><i className="ri-edit-line me-1"></i> Nội dung giải trình (Tiếp thu/Giải trình bảo vệ):</Label>
-                            <Input 
-                                type="textarea" 
-                                rows="8" 
+                            <Input
+                                type="textarea"
+                                rows="8"
                                 className="form-control border-dark-subtle"
                                 style={{ backgroundColor: '#fff', color: '#000', fontSize: '14px', minHeight: '150px' }}
                                 value={explanation}
@@ -606,7 +607,7 @@ const FeedbackList = () => {
                     <ModalFooter className="bg-light">
                         <Button color="link" className="text-muted text-decoration-none shadow-none" onClick={() => setIsModalOpen(false)}>Hủy bỏ</Button>
                         <Button color="primary" className="btn-load shadow-md px-4" onClick={saveExplanation} disabled={saving}>
-                            {saving ? <><Spinner size="sm" className="me-2"/> Đang lưu...</> : <><i className="ri-save-3-line align-bottom me-1"></i> Lưu Giải trình</>}
+                            {saving ? <><Spinner size="sm" className="me-2" /> Đang lưu...</> : <><i className="ri-save-3-line align-bottom me-1"></i> Lưu Giải trình</>}
                         </Button>
                     </ModalFooter>
                 </Modal>
@@ -639,7 +640,7 @@ const FeedbackList = () => {
                                             <span className="ms-1">. {selectedNodeData.content.split('\n')[0]}</span>
                                         )}
                                     </h5>
-                                    
+
                                     {/* Article Content (Khoản rơi / Line 2+) */}
                                     {selectedNodeData?.content ? (
                                         <div className="text-body fs-15 mb-3" style={{ lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
@@ -650,7 +651,7 @@ const FeedbackList = () => {
                                             )}
                                         </div>
                                     ) : null}
-                                    
+
                                     {/* Children Hierarchy Section - Integrated */}
                                     {selectedNodeData?.children && selectedNodeData.children.length > 0 && (
                                         <div className="ps-0">
@@ -660,7 +661,7 @@ const FeedbackList = () => {
                                                         <span className="me-2 text-dark fs-14 fw-medium" style={{ minWidth: '70px' }}>{child.node_label}.</span>
                                                         <div className="fs-14 text-body" style={{ whiteSpace: 'pre-wrap' }}>{child.content}</div>
                                                     </div>
-                                                    
+
                                                     {/* Grandchildren */}
                                                     {child.children && child.children.length > 0 && (
                                                         <div className="ms-5 mt-1 border-start ps-3">
@@ -729,8 +730,8 @@ const FeedbackList = () => {
                             </Col>
                             <Col lg={4}>
                                 <Label className="form-label fw-bold small text-muted text-uppercase">Số hiệu công văn:</Label>
-                                <Input 
-                                    type="text" 
+                                <Input
+                                    type="text"
                                     className="form-control"
                                     value={editDocNumber}
                                     onChange={(e) => setEditDocNumber(e.target.value)}
@@ -739,9 +740,9 @@ const FeedbackList = () => {
                             </Col>
                             <Col lg={12}>
                                 <Label className="form-label fw-bold small text-muted text-uppercase">Nội dung góp ý gốc:</Label>
-                                <Input 
-                                    type="textarea" 
-                                    rows="10" 
+                                <Input
+                                    type="textarea"
+                                    rows="10"
                                     className="form-control border-dark-subtle"
                                     style={{ backgroundColor: '#fff', color: '#000', fontSize: '14px' }}
                                     value={editContent}
@@ -754,7 +755,7 @@ const FeedbackList = () => {
                     <ModalFooter className="bg-light">
                         <Button color="link" className="text-muted text-decoration-none shadow-none" onClick={() => setIsEditModalOpen(false)}>Hủy bỏ</Button>
                         <Button color="warning" className="btn-load shadow-md px-4" onClick={saveFeedbackEdit} disabled={updating}>
-                            {updating ? <><Spinner size="sm" className="me-2"/> Đang lưu...</> : <><i className="ri-save-3-line align-bottom me-1"></i> Lưu thay đổi</>}
+                            {updating ? <><Spinner size="sm" className="me-2" /> Đang lưu...</> : <><i className="ri-save-3-line align-bottom me-1"></i> Lưu thay đổi</>}
                         </Button>
                     </ModalFooter>
                 </Modal>
@@ -766,10 +767,10 @@ const FeedbackList = () => {
                     <ModalBody>
                         <div className="mb-3">
                             <Label className="form-label">Tên đơn vị:</Label>
-                            <Input 
-                                type="text" 
-                                value={newAgencyName} 
-                                onChange={(e) => setNewAgencyName(e.target.value)} 
+                            <Input
+                                type="text"
+                                value={newAgencyName}
+                                onChange={(e) => setNewAgencyName(e.target.value)}
                                 placeholder="Nhập tên đơn vị đầy đủ..."
                             />
                         </div>
