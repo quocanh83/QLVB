@@ -9,7 +9,7 @@ import { loginSuccess, logoutUserSuccess, apiError, reset_login_flag } from './r
 export const loginUser = (user, history) => async (dispatch) => {
   try {
     let response = postLogin({
-      username: user.email, // Django login dung username
+      username: user.username,
       password: user.password
     });
 
