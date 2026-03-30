@@ -166,12 +166,27 @@ const ConsultationResponses = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         
+        // Log dữ liệu để kiểm tra trước khi gửi
+        console.log("Submitting Consultation Response:", {
+            document: id,
+            agency: currentResponse.agency,
+            official_number: currentResponse.official_number,
+            official_date: currentResponse.official_date,
+            isEdit
+        });
+
         const formData = new FormData();
         formData.append('document', id);
-        formData.append('agency', currentResponse.agency);
+        
+        // Chỉ append nếu agency có giá trị hợp lệ
+        if (currentResponse.agency) {
+            formData.append('agency', currentResponse.agency);
+        }
+        
         formData.append('official_number', currentResponse.official_number);
         formData.append('official_date', currentResponse.official_date);
-        if (currentResponse.attached_file) {
+        
+        if (currentResponse.attached_file && typeof currentResponse.attached_file !== 'string') {
             formData.append('attached_file', currentResponse.attached_file);
         }
 
@@ -185,8 +200,14 @@ const ConsultationResponses = () => {
             }
             fetchResponses();
             toggle();
-        } catch (e) {
-            toast.error("Lỗi khi lưu dữ liệu.");
+        } catch (error) {
+            console.error("Lỗi khi lưu dữ liệu:", error.response?.data);
+            const errorMsg = error.response?.data 
+                ? Object.entries(error.response.data)
+                    .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(", ") : value}`)
+                    .join(" | ")
+                : "Lỗi không xác định khi kết nối với máy chủ.";
+            toast.error("Lỗi: " + errorMsg);
         }
     };
 
