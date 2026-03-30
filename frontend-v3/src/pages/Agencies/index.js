@@ -189,9 +189,9 @@ const Agencies = () => {
         const label = agency.category_name || agency.category || 'Khác';
         
         return (
-            <Badge color="soft-primary" className="text-primary px-2 py-1">
+            <span className="text-muted fs-14">
                 {label}
-            </Badge>
+            </span>
         );
     };
 
@@ -258,7 +258,7 @@ const Agencies = () => {
                                                 ) : filteredAgencies.length > 0 ? filteredAgencies.map((agency, index) => (
                                                     <tr key={agency.id}>
                                                         <td className="text-center">{index + 1}</td>
-                                                        <td className="fw-bold fs-14">{agency.name}</td>
+                                                        <td className="fs-15">{agency.name}</td>
                                                         <td>{getCategoryBadge(agency)}</td>
                                                         <td>
                                                             <div className="d-flex gap-2 justify-content-center">
@@ -327,6 +327,33 @@ const Agencies = () => {
                     </ModalFooter>
                 </Form>
             </Modal>
+            
+            {/* Modal Import */}
+            <Modal isOpen={isImportModal} toggle={toggleImport} centered>
+                <ModalHeader toggle={toggleImport} className="bg-light p-3">
+                    Nhập đơn vị từ tệp tin
+                </ModalHeader>
+                <ModalBody>
+                    <div className="mb-3">
+                        <Label className="form-label">Chọn tệp tin (.xlsx, .xls, .csv)</Label>
+                        <Input 
+                            type="file" 
+                            accept=".xlsx, .xls, .csv" 
+                            onChange={(e) => setImportFile(e.target.files[0])}
+                        />
+                    </div>
+                    <div className="alert alert-info py-2 small mb-0">
+                        <i className="ri-information-line me-1 align-bottom"></i>
+                        Tệp tin cần có cột <b>name</b> (tên đơn vị) và cột <b>category</b> (tên phân loại hoặc: ministry, local...).
+                    </div>
+                </ModalBody>
+                <ModalFooter>
+                    <Button color="light" onClick={toggleImport}>Đóng</Button>
+                    <Button color="primary" onClick={handleImport} disabled={importing}>
+                        {importing ? <Spinner size="sm" /> : "Bắt đầu nhập"}
+                    </Button>
+                </ModalFooter>
+            </Modal>
 
             {/* Modal Category Management */}
             <Modal isOpen={categoryModal} toggle={toggleCategoryModal} centered size="lg">
@@ -376,9 +403,7 @@ const Agencies = () => {
                             {agencyCategories.map(cat => (
                                 <tr key={cat.id}>
                                     <td>
-                                        <Badge color="soft-info" className="text-info fs-12 fw-medium">
-                                            {cat.name}
-                                        </Badge>
+                                        <span className="fs-14">{cat.name}</span>
                                     </td>
                                     <td className="small text-muted">{cat.description}</td>
                                     <td>{cat.agencies_count} đơn vị</td>
