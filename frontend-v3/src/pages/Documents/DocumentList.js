@@ -315,36 +315,47 @@ const DocumentList = () => {
                                                                 </div>
                                                             </td>
                                                             <td className="text-center">
-                                                                <UncontrolledDropdown direction='start'>
-                                                                    <DropdownToggle tag="button" className="btn btn-sm btn-light btn-icon text-muted p-1">
-                                                                        <FeatherIcon icon="more-horizontal" className="icon-sm" />
-                                                                    </DropdownToggle>
-
-                                                                    <DropdownMenu className="dropdown-menu-end">
-                                                                        <DropdownItem onClick={() => navigate(`/documents/${item.id}`)}>
-                                                                            <i className="ri-eye-fill align-bottom me-2 text-muted"></i> Xem chi tiết
-                                                                        </DropdownItem>
-                                                                        <DropdownItem onClick={() => navigate(`/documents/${item.id}/responses`)}>
-                                                                            <i className="ri-file-list-3-fill align-bottom me-2 text-muted"></i> Quản lý VB góp ý
-                                                                        </DropdownItem>
-                                                                        <DropdownItem onClick={() => handleExport(item.id)}>
-                                                                            <i className="ri-download-2-fill align-bottom me-2 text-muted"></i> Xuất báo cáo
-                                                                        </DropdownItem>
-                                                                        <DropdownItem onClick={() => { setSelectedDoc(item); setIsLeadModal(true); }}>
-                                                                            <i className="ri-user-star-line align-bottom me-2 text-muted"></i> Phân công PT
-                                                                        </DropdownItem>
-                                                                        <DropdownItem onClick={() => { setSelectedDoc(item); setIsIssuanceModal(true); }}>
-                                                                            <i className="ri-send-plane-fill align-bottom me-2 text-muted"></i> Phát hành văn bản
-                                                                        </DropdownItem>
-                                                                        <DropdownItem onClick={() => { setSelectedDoc(item); setIsEditModal(true); }}>
-                                                                            <i className="ri-pencil-fill align-bottom me-2 text-muted"></i> Sửa văn bản
-                                                                        </DropdownItem>
-                                                                        <div className="dropdown-divider"></div>
-                                                                        <DropdownItem onClick={() => onClickDelete(item)} className="text-danger">
-                                                                            <i className="ri-delete-bin-fill align-bottom me-2 text-danger"></i> Xóa vĩnh viễn
-                                                                        </DropdownItem>
-                                                                    </DropdownMenu>
-                                                                </UncontrolledDropdown>
+                                                                <ul className="list-inline hstack gap-1 justify-content-center mb-0">
+                                                                    <li className="list-inline-item" title="Xem chi tiết">
+                                                                        <Button color="soft-info" size="sm" className="btn-icon p-1" onClick={() => navigate(`/documents/${item.id}`)}>
+                                                                            <i className="ri-eye-fill align-bottom"></i>
+                                                                        </Button>
+                                                                    </li>
+                                                                    <li className="list-inline-item" title="Quản lý VB góp ý">
+                                                                        <Button color="soft-primary" size="sm" className="btn-icon p-1" onClick={() => navigate(`/documents/${item.id}/responses`)}>
+                                                                            <i className="ri-file-list-3-fill align-bottom"></i>
+                                                                        </Button>
+                                                                    </li>
+                                                                    <li className="list-inline-item" title="Xuất báo cáo">
+                                                                        <Button color="soft-success" size="sm" className="btn-icon p-1" onClick={() => handleExport(item.id)}>
+                                                                            <i className="ri-download-2-fill align-bottom"></i>
+                                                                        </Button>
+                                                                    </li>
+                                                                    <li className="list-inline-item" title="Sửa văn bản">
+                                                                        <Button color="soft-warning" size="sm" className="btn-icon p-1" onClick={() => { setSelectedDoc(item); setIsEditModal(true); }}>
+                                                                            <i className="ri-pencil-fill align-bottom"></i>
+                                                                        </Button>
+                                                                    </li>
+                                                                    <li className="list-inline-item">
+                                                                        <UncontrolledDropdown direction='start'>
+                                                                            <DropdownToggle tag="button" className="btn btn-sm btn-soft-secondary btn-icon p-1">
+                                                                                <i className="ri-more-fill align-bottom"></i>
+                                                                            </DropdownToggle>
+                                                                            <DropdownMenu className="dropdown-menu-end">
+                                                                                <DropdownItem onClick={() => { setSelectedDoc(item); setIsLeadModal(true); }}>
+                                                                                    <i className="ri-user-star-line align-bottom me-2 text-muted"></i> Phân công PT
+                                                                                </DropdownItem>
+                                                                                <DropdownItem onClick={() => { setSelectedDoc(item); setIsIssuanceModal(true); }}>
+                                                                                    <i className="ri-send-plane-fill align-bottom me-2 text-muted"></i> Phát hành văn bản
+                                                                                </DropdownItem>
+                                                                                <div className="dropdown-divider"></div>
+                                                                                <DropdownItem onClick={() => onClickDelete(item)} className="text-danger">
+                                                                                    <i className="ri-delete-bin-fill align-bottom me-2 text-danger"></i> Xóa vĩnh viễn
+                                                                                </DropdownItem>
+                                                                            </DropdownMenu>
+                                                                        </UncontrolledDropdown>
+                                                                    </li>
+                                                                </ul>
                                                             </td>
                                                         </tr>
                                                     );
