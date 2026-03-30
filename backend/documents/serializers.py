@@ -51,9 +51,31 @@ class DocumentListSerializer(serializers.ModelSerializer):
         allow_null=True
     )
 
+    consultation_summary = serializers.SerializerMethodField()
+    
+    def get_consultation_summary(self, obj):
+        agencies = obj.consulted_agencies.all()
+        # Lấy tất cả phản hồi liên quan đến dự thảo này (giảm thiểu N+1)
+        # Giả định phản hồi mới nhất sẽ ghi đè nếu một cơ quan gửi nhiều lần
+        responses = {r.agency_id: r for r in obj.responses.all().order_by('created_at')}
+        
+        summary = []
+        for agency in agencies:
+            resp = responses.get(agency.id)
+            summary.append({
+                "agency_id": agency.id,
+                "agency_name": agency.name,
+                "has_response": resp is not None,
+                "official_number": resp.official_number if resp else None,
+                "official_date": resp.official_date if resp else None,
+                "attached_file": resp.attached_file.url if resp and resp.attached_file else None,
+                "response_id": resp.id if resp else None
+            })
+        return summary
+
     class Meta:
         model = Document
-        fields = ['id', 'description', 'project_name', 'drafting_agency', 'agency_location', 'status', 'lead', 'lead_name', 'document_type_id', 'document_type_name', 'created_at', 'total_nodes', 'total_dieu', 'total_khoan', 'total_diem', 'total_phu_luc', 'total_feedbacks', 'resolved_feedbacks', 'total_consulted_doc', 'total_feedbacks_doc', 'issuance_number', 'issuance_date', 'issuance_file', 'consulted_agencies']
+        fields = ['id', 'description', 'project_name', 'drafting_agency', 'agency_location', 'status', 'lead', 'lead_name', 'document_type_id', 'document_type_name', 'created_at', 'total_nodes', 'total_dieu', 'total_khoan', 'total_diem', 'total_phu_luc', 'total_feedbacks', 'resolved_feedbacks', 'total_consulted_doc', 'total_feedbacks_doc', 'issuance_number', 'issuance_date', 'issuance_file', 'consulted_agencies', 'consultation_summary']
 
     def get_lead_name(self, obj):
         if obj.lead:
