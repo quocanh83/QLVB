@@ -269,7 +269,7 @@ const DocumentList = () => {
                                     </div>
                                 </CardHeader>
                                 <CardBody>
-                                    <div className="table-responsive table-card">
+                                    <div className="table-responsive">
                                         <Table className="table-hover table-bordered align-middle table-nowrap mb-0">
                                             <thead className="table-light">
                                                 <tr>
