@@ -756,11 +756,6 @@ const DocumentDetails = () => {
                     </Button>
                 </ModalFooter>
             </Modal>
-            <DeleteModal
-                show={isDeleteModal}
-                onDeleteClick={handleDeleteAgency}
-                onCloseClick={() => setIsDeleteModal(false)}
-            />
         </React.Fragment>
     );
 };
