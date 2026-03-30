@@ -15,6 +15,7 @@ class ExplanationSerializer(serializers.ModelSerializer):
 
 class ConsultationResponseSerializer(serializers.ModelSerializer):
     agency_name = serializers.CharField(source='agency.name', read_only=True)
+    attached_file = serializers.FileField(required=False, allow_null=True)
     class Meta:
         model = ConsultationResponse
         fields = ['id', 'document', 'agency', 'agency_name', 'official_number', 'official_date', 'attached_file', 'created_at']
