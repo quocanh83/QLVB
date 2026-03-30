@@ -25,7 +25,7 @@ const Agencies = () => {
     // Category Management State
     const [categoryModal, setCategoryModal] = useState(false);
     const [isCategoryEdit, setIsCategoryEdit] = useState(false);
-    const [currentCategory, setCurrentCategory] = useState({ name: '', description: '', color: '#405189' });
+    const [currentCategory, setCurrentCategory] = useState({ name: '', description: '' });
 
     // Import state
     const [isImportModal, setIsImportModal] = useState(false);
@@ -71,7 +71,7 @@ const Agencies = () => {
     const toggleCategoryModal = () => {
         setCategoryModal(!categoryModal);
         if (categoryModal) {
-            setCurrentCategory({ name: '', description: '', color: '#405189' });
+            setCurrentCategory({ name: '', description: '' });
             setIsCategoryEdit(false);
         }
     };
@@ -187,13 +187,9 @@ const Agencies = () => {
 
     const getCategoryBadge = (agency) => {
         const label = agency.category_name || agency.category || 'Khác';
-        const color = agency.category_color || '#405189';
         
         return (
-            <Badge 
-                style={{ backgroundColor: color + '20', color: color, border: `1px solid ${color}40` }} 
-                className="px-2 py-1"
-            >
+            <Badge color="soft-primary" className="text-primary px-2 py-1">
                 {label}
             </Badge>
         );
@@ -340,7 +336,7 @@ const Agencies = () => {
                 <ModalBody>
                     <Form onSubmit={handleCategorySubmit} className="mb-4 p-3 border rounded bg-light-subtle">
                         <Row className="g-3">
-                            <Col md={4}>
+                            <Col md={5}>
                                 <Label className="form-label">Tên phân loại</Label>
                                 <Input 
                                     type="text" 
@@ -350,22 +346,13 @@ const Agencies = () => {
                                     placeholder="Ví dụ: Cấp Trung ương"
                                 />
                             </Col>
-                            <Col md={5}>
+                            <Col md={6}>
                                 <Label className="form-label">Mô tả</Label>
                                 <Input 
                                     type="text" 
                                     value={currentCategory.description || ""} 
                                     onChange={(e) => setCurrentCategory({...currentCategory, description: e.target.value})}
                                     placeholder="Nhập ghi chú..."
-                                />
-                            </Col>
-                            <Col md={2}>
-                                <Label className="form-label">Màu sắc</Label>
-                                <Input 
-                                    type="color" 
-                                    value={currentCategory.color} 
-                                    onChange={(e) => setCurrentCategory({...currentCategory, color: e.target.value})}
-                                    className="form-control-color w-100"
                                 />
                             </Col>
                             <Col md={1} className="d-flex align-items-end">
@@ -389,7 +376,7 @@ const Agencies = () => {
                             {agencyCategories.map(cat => (
                                 <tr key={cat.id}>
                                     <td>
-                                        <Badge style={{ backgroundColor: cat.color + '20', color: cat.color }} className="fs-12">
+                                        <Badge color="soft-info" className="text-info fs-12 fw-medium">
                                             {cat.name}
                                         </Badge>
                                     </td>
