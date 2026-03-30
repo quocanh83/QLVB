@@ -81,7 +81,7 @@ const useNavData = () => {
   const [sidebarConfig, setSidebarConfig] = useState(JSON.parse(localStorage.getItem('sidebarConfig') || '{}'));
   const [sidebarJSONConfig, setSidebarJSONConfig] = useState(JSON.parse(localStorage.getItem('sidebarJSONConfig') || '[]'));
 
-  const CURRENT_SIDEBAR_VERSION = "4.3.13";
+  const CURRENT_SIDEBAR_VERSION = "4.3.43";
 
   useEffect(() => {
     const fetchSidebarConfig = async () => {
@@ -217,6 +217,12 @@ const useNavData = () => {
       label: "Danh sách Dự thảo",
       icon: "ri-file-list-3-line",
       link: "/documents",
+    },
+    {
+      id: "draft-classification",
+      label: "Phân loại Dự thảo",
+      icon: "ri-folders-line",
+      link: "/draft-classification",
     },
     {
       id: "feedbacks",
