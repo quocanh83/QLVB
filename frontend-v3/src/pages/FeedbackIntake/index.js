@@ -51,6 +51,19 @@ const FeedbackIntake = () => {
         content: ''
     });
 
+    // Quick Add Agency Modal State
+    const [agencyModal, setAgencyModal] = useState(false);
+    const [newAgencyName, setNewAgencyName] = useState("");
+    const [addingAgency, setAddingAgency] = useState(false);
+    // Track which field is requesting new agency: 'manual' or 'global'
+    const [requestSource, setRequestSource] = useState('global');
+    
+    const toggleAgencyModal = (source = 'global') => {
+        setRequestSource(source);
+        setAgencyModal(!agencyModal);
+        setNewAgencyName("");
+    };
+
     // Custom styles for react-select to match Velzon dynamic light/dark theme
     const selectStyles = {
         control: (base, state) => ({
@@ -138,6 +151,44 @@ const FeedbackIntake = () => {
     useEffect(() => {
         if (selectedDocId) fetchNodes(selectedDocId);
     }, [selectedDocId]);
+
+    const fetchAgenciesOnly = async () => {
+        try {
+            const agencyData = await axios.get('/api/settings/agencies/', getAuthHeader());
+            setAgencies(Array.isArray(agencyData.results || agencyData) ? (agencyData.results || agencyData) : []);
+        } catch (e) {
+            console.error("Lỗi khi tải danh sách đơn vị.");
+        }
+    };
+
+    const handleQuickAgencySave = async () => {
+        if (!newAgencyName.trim()) {
+            toast.warning("Vui lòng nhập tên đơn vị.");
+            return;
+        }
+        setAddingAgency(true);
+        try {
+            const res = await axios.post('/api/settings/agencies/', { name: newAgencyName }, getAuthHeader());
+            toast.success("Thêm đơn vị mới thành công.");
+            await fetchAgenciesOnly();
+            
+            const newId = res.id || res.data?.id;
+            const newName = res.name || res.data?.name || newAgencyName;
+            
+            if (requestSource === 'manual') {
+                setManualEntry({ ...manualEntry, agency_id: newId, contributing_agency: newName });
+            } else {
+                setGlobalAgencyId(newId);
+                setGlobalAgency(newName);
+            }
+            
+            toggleAgencyModal();
+        } catch (e) {
+            toast.error("Lỗi khi thêm đơn vị nhanh. Tên có thể đã tồn tại.");
+        } finally {
+            setAddingAgency(false);
+        }
+    };
 
     const fetchInitialData = async () => {
         setLoading(true);
@@ -561,7 +612,12 @@ const FeedbackIntake = () => {
                                                 <Row>
                                                     <Col md={6}>
                                                         <FormGroup>
-                                                            <Label className="fs-13 fw-bold text-muted text-uppercase mb-1">Cơ quan tham vấn</Label>
+                                                            <div className="d-flex align-items-center justify-content-between mb-1">
+                                                                <Label className="fs-13 fw-bold text-muted text-uppercase mb-0">Cơ quan tham vấn</Label>
+                                                                <Button color="link" size="sm" className="p-0 text-primary fw-medium fs-12" onClick={() => toggleAgencyModal('manual')}>
+                                                                    <i className="ri-add-line align-bottom me-1"></i> Thêm nhanh
+                                                                </Button>
+                                                            </div>
                                                             <CreatableSelect
                                                                 isClearable
                                                                 value={agencies.find(a => a.id === manualEntry.agency_id) ? { value: manualEntry.agency_id, label: agencies.find(a => a.id === manualEntry.agency_id).name } : (manualEntry.contributing_agency ? {label: manualEntry.contributing_agency, value: null} : null)}
@@ -722,7 +778,12 @@ const FeedbackIntake = () => {
                                                 <div className="p-3 bg-light border rounded-3 mb-3 shadow-sm">
                                                     <Row className="g-3">
                                                         <Col md={7}>
-                                                            <Label className="form-label fw-bold text-uppercase fs-11 text-muted">Cơ quan góp ý (Góp chung cho cả file):</Label>
+                                                            <div className="d-flex align-items-center justify-content-between mb-1">
+                                                                <Label className="form-label fw-bold text-uppercase fs-11 text-muted mb-0">Cơ quan góp ý (Góp chung):</Label>
+                                                                <Button color="link" size="sm" className="p-0 text-primary fw-medium fs-11" onClick={() => toggleAgencyModal('global')}>
+                                                                    <i className="ri-add-line align-bottom me-1"></i> Thêm nhanh
+                                                                </Button>
+                                                            </div>
                                                             <CreatableSelect
                                                                 isClearable
                                                                 value={agencies.find(a => a.id === globalAgencyId) ? { value: globalAgencyId, label: agencies.find(a => a.id === globalAgencyId).name } : (globalAgency ? {label: globalAgency, value: null} : null)}
@@ -992,6 +1053,33 @@ const FeedbackIntake = () => {
                         </TabPane>
                     </TabContent>
                 </Container>
+
+                {/* Quick Add Agency Modal */}
+                <Modal isOpen={agencyModal} toggle={toggleAgencyModal} centered size="sm">
+                    <ModalHeader toggle={toggleAgencyModal} className="bg-light p-3">Thêm nhanh đối tượng/đơn vị</ModalHeader>
+                    <ModalBody>
+                        <FormGroup className="mb-0">
+                            <Label className="form-label fw-bold">Tên đơn vị mới:</Label>
+                            <Input 
+                                type="text" 
+                                placeholder="Nhập tên đơn vị..." 
+                                value={newAgencyName}
+                                onChange={(e) => setNewAgencyName(e.target.value)}
+                                autoFocus
+                            />
+                            <p className="text-muted small mt-2 mb-0">
+                                Hệ thống sẽ lưu đơn vị này vào danh mục "Khác". Bạn có thể thay đổi sau.
+                            </p>
+                        </FormGroup>
+                    </ModalBody>
+                    <ModalFooter className="bg-light p-2">
+                        <Button color="link" className="text-muted" onClick={toggleAgencyModal}>Hủy</Button>
+                        <Button color="primary" onClick={handleQuickAgencySave} disabled={addingAgency}>
+                            {addingAgency ? <Spinner size="sm" className="me-2" /> : <i className="ri-save-line align-bottom me-1"></i>}
+                            Lưu đơn vị
+                        </Button>
+                    </ModalFooter>
+                </Modal>
             </div>
         </React.Fragment>
     );

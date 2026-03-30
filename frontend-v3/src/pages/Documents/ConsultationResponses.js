@@ -29,6 +29,16 @@ const ConsultationResponses = () => {
     const [isDeleteModal, setIsDeleteModal] = useState(false);
     const [selectedResponse, setSelectedResponse] = useState(null);
 
+    // Quick Add Agency Modal State
+    const [agencyModal, setAgencyModal] = useState(false);
+    const [newAgencyName, setNewAgencyName] = useState("");
+    const [addingAgency, setAddingAgency] = useState(false);
+
+    const toggleAgencyModal = () => {
+        setAgencyModal(!agencyModal);
+        setNewAgencyName("");
+    };
+
     useEffect(() => {
         fetchDocumentInfo();
         fetchResponses();
@@ -64,6 +74,25 @@ const ConsultationResponses = () => {
             setAgencies(Array.isArray(data) ? data : []);
         } catch (e) {
             console.error("Lỗi lấy danh sách đơn vị.");
+        }
+    };
+
+    const handleQuickAgencySave = async () => {
+        if (!newAgencyName.trim()) {
+            toast.warning("Vui lòng nhập tên đơn vị.");
+            return;
+        }
+        setAddingAgency(true);
+        try {
+            const res = await axios.post('/api/settings/agencies/', { name: newAgencyName }, getAuthHeader());
+            toast.success("Thêm đơn vị mới thành công.");
+            await fetchAgencies(); // Tải lại danh sách
+            setCurrentResponse({ ...currentResponse, agency: res.id || res.data?.id }); // Tự động chọn
+            toggleAgencyModal();
+        } catch (e) {
+            toast.error("Lỗi khi thêm đơn vị nhanh. Tên có thể đã tồn tại.");
+        } finally {
+            setAddingAgency(false);
         }
     };
 
@@ -230,7 +259,12 @@ const ConsultationResponses = () => {
                         <Row>
                             <Col lg={12}>
                                 <FormGroup>
-                                    <Label className="form-label">Đơn vị góp ý <span className="text-danger">*</span></Label>
+                                    <div className="d-flex align-items-center justify-content-between mb-2">
+                                        <Label className="form-label mb-0">Đơn vị góp ý <span className="text-danger">*</span></Label>
+                                        <Button color="link" size="sm" className="p-0 text-primary fw-medium" onClick={toggleAgencyModal}>
+                                            <i className="ri-add-line align-bottom me-1"></i> Thêm nhanh đơn vị
+                                        </Button>
+                                    </div>
                                     <Input 
                                         type="select" 
                                         value={currentResponse.agency}
@@ -293,6 +327,29 @@ const ConsultationResponses = () => {
                 onDeleteClick={handleDelete}
                 onCloseClick={() => setIsDeleteModal(false)}
             />
+
+            {/* Quick Add Agency Modal */}
+            <Modal isOpen={agencyModal} toggle={toggleAgencyModal} centered size="sm">
+                <ModalHeader toggle={toggleAgencyModal}>Thêm nhanh đơn vị</ModalHeader>
+                <ModalBody>
+                    <FormGroup>
+                        <Label>Tên đơn vị/cơ quan mới</Label>
+                        <Input 
+                            type="text" 
+                            placeholder="Nhập tên đơn vị..." 
+                            value={newAgencyName}
+                            onChange={(e) => setNewAgencyName(e.target.value)}
+                            autoFocus
+                        />
+                    </FormGroup>
+                </ModalBody>
+                <ModalFooter>
+                    <Button color="light" size="sm" onClick={toggleAgencyModal}>Hủy</Button>
+                    <Button color="primary" size="sm" onClick={handleQuickAgencySave} disabled={addingAgency}>
+                        {addingAgency ? <Spinner size="sm" /> : "Lưu đơn vị"}
+                    </Button>
+                </ModalFooter>
+            </Modal>
         </React.Fragment>
     );
 };
