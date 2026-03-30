@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, CardBody, CardHeader, Button, Input, Table, Spinner, Form, FormGroup, Label, Nav, NavItem, NavLink, TabContent, TabPane, Badge } from 'reactstrap';
+import { Container, Row, Col, Card, CardBody, CardHeader, Button, Input, Table, Spinner, Form, FormGroup, Label, Nav, NavItem, NavLink, TabContent, TabPane, Badge, Modal, ModalHeader, ModalBody, ModalFooter } from 'reactstrap';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import classnames from 'classnames';
