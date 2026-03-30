@@ -133,6 +133,29 @@ class DocumentViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({"error": f"Lỗi parse: {str(e)}"}, status=400)
 
+    @action(detail=False, methods=['get'])
+    def type_stats(self, request):
+        """Lấy danh sách các Loại văn bản kèm theo số lượng Dự thảo của từng loại"""
+        from .models import DocumentType, Document
+        from django.db.models import Count
+        
+        stats = DocumentType.objects.annotate(
+            doc_count=Count('documents')
+        ).order_by('-doc_count')
+        
+        data = [
+            {
+                "id": s.id,
+                "name": s.name,
+                "count": s.doc_count
+            } for s in stats
+        ]
+        # Thêm mục 'Tổng số'
+        total_count = Document.objects.count()
+        data.insert(0, {"id": "All", "name": "Tất cả", "count": total_count})
+        
+        return Response(data)
+
     @action(detail=True, methods=['get'], permission_classes=[])
     def nodes(self, request, pk=None):
         document = self.get_object()

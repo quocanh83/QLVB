@@ -17,7 +17,8 @@ const DocumentList = () => {
     const [documents, setDocuments] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
-    const [filterType, setFilterType] = useState("All"); // Thêm bộ lọc theo loại
+    const [filterType, setFilterType] = useState("All"); 
+    const [typeStats, setTypeStats] = useState([]); // State cho bảng phân loại bên trái
 
     // Modals
     const [selectedDoc, setSelectedDoc] = useState(null);
@@ -27,7 +28,17 @@ const DocumentList = () => {
 
     useEffect(() => {
         fetchDocuments();
+        fetchTypeStats();
     }, []);
+
+    const fetchTypeStats = async () => {
+        try {
+            const res = await axios.get('/api/documents/type_stats/', getAuthHeader());
+            setTypeStats(res);
+        } catch (e) {
+            console.error("Lỗi khi tải thống kê loại văn bản", e);
+        }
+    };
 
     const fetchDocuments = async () => {
         setLoading(true);
@@ -187,39 +198,83 @@ const DocumentList = () => {
                         </Col>
                     </Row>
 
-                    <Row className="g-4 mb-3">
-                        <Col sm="auto">
-                            <Button color="success" onClick={() => navigate('/documents/upload')}>
-                                <i className="ri-add-line align-bottom me-1"></i> Tải lên dự thảo mới
-                            </Button>
-                        </Col>
-                        <Col sm="3" className="ms-auto">
-                            <div className="search-box">
-                                <Input 
-                                    type="text" 
-                                    placeholder="Tìm kiếm dự thảo..." 
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
-                                <i className="ri-search-line search-icon"></i>
+                    <Row>
+                        {/* Cột trái: Bảng phân loại văn bản */}
+                        <Col lg={3}>
+                            <Card>
+                                <CardHeader className="bg-light">
+                                    <h5 className="card-title mb-0"><i className="ri-filter-3-line align-bottom me-1"></i> Phân loại văn bản</h5>
+                                </CardHeader>
+                                <CardBody className="p-0">
+                                    <div className="table-responsive">
+                                        <Table className="table-hover mb-0">
+                                            <tbody>
+                                                {typeStats.map((item) => (
+                                                    <tr 
+                                                        key={item.id} 
+                                                        onClick={() => setFilterType(item.name === "Tất cả" ? "All" : item.name)}
+                                                        className={`cursor-pointer ${((filterType === "All" && item.name === "Tất cả") || filterType === item.name) ? 'table-active fw-bold' : ''}`}
+                                                    >
+                                                        <td className="ps-3 border-0">
+                                                            <div className="d-flex align-items-center">
+                                                                <div className="flex-grow-1">
+                                                                    {item.name}
+                                                                </div>
+                                                                <div className="flex-shrink-0">
+                                                                    <Badge color="light" className="text-body border">{item.count}</Badge>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </Table>
+                                    </div>
+                                </CardBody>
+                            </Card>
+
+                            <div className="mt-3 text-center d-none d-lg-block">
+                                <p className="text-muted fs-12">Nhấn vào loại văn bản để lọc nhanh danh sách</p>
                             </div>
                         </Col>
-                    </Row>
 
-                    <Row>
-                        <Col lg={12}>
+                        {/* Cột phải: Ưidgets và Danh sách */}
+                        <Col lg={9}>
+                            <Row className="g-4 mb-3">
+                                <Col sm="auto">
+                                    <Button color="success" onClick={() => navigate('/documents/upload')}>
+                                        <i className="ri-add-line align-bottom me-1"></i> Tải lên dự thảo mới
+                                    </Button>
+                                </Col>
+                                <Col sm={4} className="ms-auto">
+                                    <div className="search-box">
+                                        <Input 
+                                            type="text" 
+                                            placeholder="Tìm kiếm dự thảo..." 
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                        />
+                                        <i className="ri-search-line search-icon"></i>
+                                    </div>
+                                </Col>
+                            </Row>
+
                             <Card>
-                                <CardHeader>
-                                    <h5 className="card-title mb-0">Tất cả Dự thảo</h5>
+                                <CardHeader className="d-flex align-items-center border-0">
+                                    <h5 className="card-title mb-0 flex-grow-1">
+                                        {filterType === 'All' ? 'Tất cả Dự thảo' : `Dự thảo loại: ${filterType}`}
+                                    </h5>
+                                    <div className="flex-shrink-0">
+                                        <Badge color="info-subtle" className="text-info fs-12">{filteredDocs.length} kết quả</Badge>
+                                    </div>
                                 </CardHeader>
                                 <CardBody>
-                                    <div className="table-responsive">
-                                        <Table className="table-hover table-bordered align-middle table-nowrap">
+                                    <div className="table-responsive table-card">
+                                        <Table className="table-hover table-bordered align-middle table-nowrap mb-0">
                                             <thead className="table-light">
                                                 <tr>
                                                     <th style={{ width: '50px' }}>STT</th>
                                                     <th>Tên dự thảo / Dự án</th>
-                                                    <th>Loại văn bản</th>
                                                     <th>Cơ quan chủ trì</th>
                                                     <th>Tiến độ giải trình</th>
                                                     <th style={{ width: '100px' }}>Thao tác</th>
@@ -228,7 +283,7 @@ const DocumentList = () => {
                                             <tbody>
                                                 {loading ? (
                                                     <tr>
-                                                        <td colSpan="6" className="text-center py-5">
+                                                        <td colSpan="5" className="text-center py-5">
                                                             <Spinner color="primary" />
                                                         </td>
                                                     </tr>
@@ -239,37 +294,27 @@ const DocumentList = () => {
                                                     return (
                                                         <tr key={item.id}>
                                                             <td className="text-center">{index + 1}</td>
-                                                            <td>
-                                                                <Link to={`/documents/${item.id}`} className="fw-medium text-body">
+                                                            <td style={{ whiteSpace: 'normal', minWidth: '300px' }}>
+                                                                <Link to={`/documents/${item.id}`} className="fw-medium text-body d-block">
                                                                     {item.project_name}
                                                                 </Link>
-                                                                {item.lead_name && (
-                                                                    <div className="text-muted fs-12 mt-1">
-                                                                        <i className="ri-user-line align-bottom me-1"></i> PT: {item.lead_name}
-                                                                    </div>
-                                                                )}
-                                                                {item.issuance_number && (
-                                                                    <div className="text-success fs-12 mt-1 fw-bold d-flex align-items-center">
-                                                                        <i className="ri-send-plane-line align-bottom me-1"></i> Số: {item.issuance_number} ({item.issuance_date})
-                                                                        {item.issuance_file && (
-                                                                            <a href={item.issuance_file} target="_blank" rel="noreferrer" className="ms-2 badge badge-soft-info">
-                                                                                <i className="ri-download-line align-bottom"></i> Tải về
-                                                                            </a>
-                                                                        )}
-                                                                    </div>
-                                                                )}
-                                                            </td>
-                                                            <td>
-                                                                <Badge color="soft-primary" className="text-primary">{item.document_type_name || 'Khác'}</Badge>
+                                                                <div className="d-flex gap-2 mt-1">
+                                                                    <Badge color="soft-primary" className="text-primary">{item.document_type_name || 'Khác'}</Badge>
+                                                                    {item.lead_name && (
+                                                                        <span className="text-muted fs-12">
+                                                                            <i className="ri-user-line align-bottom me-1"></i> PT: {item.lead_name}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             </td>
                                                             <td>{item.drafting_agency || '-'}</td>
                                                             <td>
-                                                                <div className="d-flex align-items-center">
+                                                                <div className="d-flex align-items-center" style={{ minWidth: '150px' }}>
                                                                     <Progress value={rate} color={rate === 100 ? "success" : "primary"} className="w-100 me-2" style={{ height: "6px" }} />
                                                                     <span className="fs-12">{rate}%</span>
                                                                 </div>
                                                             </td>
-                                                            <td>
+                                                            <td className="text-center">
                                                                 <UncontrolledDropdown direction='start'>
                                                                     <DropdownToggle tag="button" className="btn btn-sm btn-light btn-icon text-muted p-1">
                                                                         <FeatherIcon icon="more-horizontal" className="icon-sm" />
