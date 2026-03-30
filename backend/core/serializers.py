@@ -20,9 +20,19 @@ class NotificationSerializer(serializers.ModelSerializer):
     def get_created_at_formatted(self, obj):
         return naturaltime(obj.created_at)
 
-from .models import Agency
+from .models import Agency, AgencyCategory
+
+class AgencyCategorySerializer(serializers.ModelSerializer):
+    agencies_count = serializers.IntegerField(source='agencies.count', read_only=True)
+    
+    class Meta:
+        model = AgencyCategory
+        fields = ['id', 'name', 'description', 'color', 'agencies_count', 'created_at']
 
 class AgencySerializer(serializers.ModelSerializer):
+    category_name = serializers.CharField(source='agency_category.name', read_only=True)
+    category_color = serializers.CharField(source='agency_category.color', read_only=True)
+
     class Meta:
         model = Agency
-        fields = '__all__'
+        fields = ['id', 'name', 'category', 'agency_category', 'category_name', 'category_color', 'created_at']

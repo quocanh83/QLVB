@@ -11,31 +11,30 @@ const Agencies = () => {
     document.title = "Quản lý Đơn vị | QLVB V3.0";
 
     const [agencies, setAgencies] = useState([]);
+    const [agencyCategories, setAgencyCategories] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     
     // Modal state
     const [modal, setModal] = useState(false);
     const [isEdit, setIsEdit] = useState(false);
-    const [currentAgency, setCurrentAgency] = useState({ name: '', category: 'other' });
+    const [currentAgency, setCurrentAgency] = useState({ name: '', agency_category: '' });
     const [isDeleteModal, setIsDeleteModal] = useState(false);
     const [selectedAgency, setSelectedAgency] = useState(null);
+
+    // Category Management State
+    const [categoryModal, setCategoryModal] = useState(false);
+    const [isCategoryEdit, setIsCategoryEdit] = useState(false);
+    const [currentCategory, setCurrentCategory] = useState({ name: '', description: '', color: '#405189' });
 
     // Import state
     const [isImportModal, setIsImportModal] = useState(false);
     const [importFile, setImportFile] = useState(null);
     const [importing, setImporting] = useState(false);
 
-    const categories = [
-        { id: 'ministry', label: 'Bộ, cơ quan ngang Bộ' },
-        { id: 'local', label: 'Địa phương (UBND tỉnh/thành phố)' },
-        { id: 'organization', label: 'Sở, Ban, Ngành, Tổ chức, Đoàn thể' },
-        { id: 'citizen', label: 'Công dân, Doanh nghiệp' },
-        { id: 'other', label: 'Khác' }
-    ];
-
     useEffect(() => {
         fetchAgencies();
+        fetchCategories();
     }, []);
 
     const fetchAgencies = async () => {
@@ -51,11 +50,29 @@ const Agencies = () => {
         }
     };
 
+    const fetchCategories = async () => {
+        try {
+            const res = await axios.get('/api/settings/agency-categories/', getAuthHeader());
+            const data = res.results || res;
+            setAgencyCategories(Array.isArray(data) ? data : []);
+        } catch (e) {
+            console.error("Lỗi khi tải danh mục phân loại.");
+        }
+    };
+
     const toggle = () => {
         setModal(!modal);
         if (modal) {
-            setCurrentAgency({ name: '', category: 'other' });
+            setCurrentAgency({ name: '', agency_category: '' });
             setIsEdit(false);
+        }
+    };
+
+    const toggleCategoryModal = () => {
+        setCategoryModal(!categoryModal);
+        if (categoryModal) {
+            setCurrentCategory({ name: '', description: '', color: '#405189' });
+            setIsCategoryEdit(false);
         }
     };
 
@@ -108,6 +125,40 @@ const Agencies = () => {
         }
     };
 
+    const handleCategorySubmit = async (e) => {
+        e.preventDefault();
+        try {
+            if (isCategoryEdit) {
+                await axios.put(`/api/settings/agency-categories/${currentCategory.id}/`, currentCategory, getAuthHeader());
+                toast.success("Cập nhật phân loại thành công.");
+            } else {
+                await axios.post('/api/settings/agency-categories/', currentCategory, getAuthHeader());
+                toast.success("Thêm phân loại mới thành công.");
+            }
+            fetchCategories();
+            toggleCategoryModal();
+        } catch (e) {
+            toast.error("Lỗi khi lưu phân loại.");
+        }
+    };
+
+    const handleEditCategory = (cat) => {
+        setCurrentCategory(cat);
+        setIsCategoryEdit(true);
+        setCategoryModal(true);
+    };
+
+    const handleDeleteCategory = async (id) => {
+        if (!window.confirm("Bạn có chắc chắn muốn xóa phân loại này?")) return;
+        try {
+            await axios.delete(`/api/settings/agency-categories/${id}/`, getAuthHeader());
+            toast.success("Xóa phân loại thành công.");
+            fetchCategories();
+        } catch (e) {
+            toast.error("Lỗi khi xóa phân loại (Có thể phân loại đang được sử dụng).");
+        }
+    };
+
     const handleImport = async () => {
         if (!importFile) {
             toast.warning("Vui lòng chọn tệp tin (.xlsx hoặc .csv)");
@@ -134,16 +185,18 @@ const Agencies = () => {
         a.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const getCategoryBadge = (cat) => {
-        const found = categories.find(c => c.id === cat);
-        const label = found ? found.label : 'Khác';
-        let color = "secondary";
-        if (cat === 'ministry') color = "danger";
-        if (cat === 'local') color = "primary";
-        if (cat === 'organization') color = "info";
-        if (cat === 'citizen') color = "success";
+    const getCategoryBadge = (agency) => {
+        const label = agency.category_name || agency.category || 'Khác';
+        const color = agency.category_color || '#405189';
         
-        return <Badge color={`soft-${color}`} className={`text-${color}`}>{label}</Badge>;
+        return (
+            <Badge 
+                style={{ backgroundColor: color + '20', color: color, border: `1px solid ${color}40` }} 
+                className="px-2 py-1"
+            >
+                {label}
+            </Badge>
+        );
     };
 
     return (
@@ -158,6 +211,9 @@ const Agencies = () => {
                             <div className="d-flex gap-2">
                                 <Button color="success" onClick={toggle}>
                                     <i className="ri-add-line align-bottom me-1"></i> Thêm mới
+                                </Button>
+                                <Button color="info" onClick={toggleCategoryModal}>
+                                    <i className="ri-list-settings-line align-bottom me-1"></i> Quản lý phân loại
                                 </Button>
                                 <Button color="soft-info" onClick={toggleImport}>
                                     <i className="ri-file-upload-line align-bottom me-1"></i> Nhập từ tệp
@@ -206,8 +262,8 @@ const Agencies = () => {
                                                 ) : filteredAgencies.length > 0 ? filteredAgencies.map((agency, index) => (
                                                     <tr key={agency.id}>
                                                         <td className="text-center">{index + 1}</td>
-                                                        <td className="fw-bold">{agency.name}</td>
-                                                        <td>{getCategoryBadge(agency.category)}</td>
+                                                        <td className="fw-bold fs-14">{agency.name}</td>
+                                                        <td>{getCategoryBadge(agency)}</td>
                                                         <td>
                                                             <div className="d-flex gap-2 justify-content-center">
                                                                 <Button color="soft-primary" size="sm" onClick={() => handleEditAgency(agency)}>
@@ -254,14 +310,15 @@ const Agencies = () => {
                             />
                         </FormGroup>
                         <FormGroup>
-                            <Label className="form-label">Phân loại hệ thống</Label>
+                            <Label className="form-label">Phân loại Cơ quan</Label>
                             <Input 
                                 type="select" 
-                                value={currentAgency.category}
-                                onChange={(e) => setCurrentAgency({ ...currentAgency, category: e.target.value })}
+                                value={currentAgency.agency_category || ""}
+                                onChange={(e) => setCurrentAgency({ ...currentAgency, agency_category: e.target.value })}
                             >
-                                {categories.map(c => (
-                                    <option key={c.id} value={c.id}>{c.label}</option>
+                                <option value="">-- Chọn phân loại --</option>
+                                {agencyCategories.map(c => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
                                 ))}
                             </Input>
                         </FormGroup>
@@ -275,30 +332,86 @@ const Agencies = () => {
                 </Form>
             </Modal>
 
-            {/* Modal Import */}
-            <Modal isOpen={isImportModal} toggle={toggleImport} centered>
-                <ModalHeader toggle={toggleImport} className="bg-light p-3">
-                    Nhập đơn vị từ tệp tin
+            {/* Modal Category Management */}
+            <Modal isOpen={categoryModal} toggle={toggleCategoryModal} centered size="lg">
+                <ModalHeader toggle={toggleCategoryModal} className="bg-light p-3">
+                    Quản lý Danh mục Phân loại Cơ quan
                 </ModalHeader>
                 <ModalBody>
-                    <div className="mb-3">
-                        <Label className="form-label">Chọn tệp tin (.xlsx, .xls, .csv)</Label>
-                        <Input 
-                            type="file" 
-                            accept=".xlsx, .xls, .csv" 
-                            onChange={(e) => setImportFile(e.target.files[0])}
-                        />
-                    </div>
-                    <div className="alert alert-info py-2 small mb-0">
-                        <i className="ri-information-line me-1 align-bottom"></i>
-                        Tệp tin cần có cột <b>name</b> (tên đơn vị) và cột <b>category</b> (tùy chọn: ministry, local, organization, citizen, other).
-                    </div>
+                    <Form onSubmit={handleCategorySubmit} className="mb-4 p-3 border rounded bg-light-subtle">
+                        <Row className="g-3">
+                            <Col md={4}>
+                                <Label className="form-label">Tên phân loại</Label>
+                                <Input 
+                                    type="text" 
+                                    value={currentCategory.name} 
+                                    onChange={(e) => setCurrentCategory({...currentCategory, name: e.target.value})}
+                                    required 
+                                    placeholder="Ví dụ: Cấp Trung ương"
+                                />
+                            </Col>
+                            <Col md={5}>
+                                <Label className="form-label">Mô tả</Label>
+                                <Input 
+                                    type="text" 
+                                    value={currentCategory.description || ""} 
+                                    onChange={(e) => setCurrentCategory({...currentCategory, description: e.target.value})}
+                                    placeholder="Nhập ghi chú..."
+                                />
+                            </Col>
+                            <Col md={2}>
+                                <Label className="form-label">Màu sắc</Label>
+                                <Input 
+                                    type="color" 
+                                    value={currentCategory.color} 
+                                    onChange={(e) => setCurrentCategory({...currentCategory, color: e.target.value})}
+                                    className="form-control-color w-100"
+                                />
+                            </Col>
+                            <Col md={1} className="d-flex align-items-end">
+                                <Button color={isCategoryEdit ? "primary" : "success"} type="submit">
+                                    <i className={isCategoryEdit ? "ri-save-line" : "ri-add-line"}></i>
+                                </Button>
+                            </Col>
+                        </Row>
+                    </Form>
+
+                    <Table className="align-middle">
+                        <thead className="table-light">
+                            <tr>
+                                <th>Tên phân loại</th>
+                                <th>Mô tả</th>
+                                <th>Đang dùng</th>
+                                <th style={{ width: '80px' }}>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {agencyCategories.map(cat => (
+                                <tr key={cat.id}>
+                                    <td>
+                                        <Badge style={{ backgroundColor: cat.color + '20', color: cat.color }} className="fs-12">
+                                            {cat.name}
+                                        </Badge>
+                                    </td>
+                                    <td className="small text-muted">{cat.description}</td>
+                                    <td>{cat.agencies_count} đơn vị</td>
+                                    <td>
+                                        <div className="d-flex gap-1">
+                                            <Button color="soft-primary" size="sm" onClick={() => handleEditCategory(cat)}>
+                                                <i className="ri-pencil-fill"></i>
+                                            </Button>
+                                            <Button color="soft-danger" size="sm" onClick={() => handleDeleteCategory(cat.id)}>
+                                                <i className="ri-delete-bin-fill"></i>
+                                            </Button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </Table>
                 </ModalBody>
                 <ModalFooter>
-                    <Button color="light" onClick={toggleImport}>Đóng</Button>
-                    <Button color="primary" onClick={handleImport} disabled={importing}>
-                        {importing ? <Spinner size="sm" /> : "Bắt đầu nhập"}
-                    </Button>
+                    <Button color="light" onClick={toggleCategoryModal}>Đóng</Button>
                 </ModalFooter>
             </Modal>
 

@@ -44,6 +44,20 @@ class APIKey(models.Model):
         verbose_name = "API Key"
         verbose_name_plural = "API Keys"
 
+class AgencyCategory(models.Model):
+    name = models.CharField(max_length=255, unique=True, verbose_name="Tên phân loại")
+    description = models.CharField(max_length=500, blank=True, null=True, verbose_name="Mô tả")
+    color = models.CharField(max_length=20, default="#405189", verbose_name="Mã màu hiển thị")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = "Danh mục Phân loại Cơ quan"
+        verbose_name_plural = "Danh mục Phân loại Cơ quan"
+        ordering = ['name']
+
 class Agency(models.Model):
     CATEGORY_CHOICES = [
         ('ministry', 'Bộ, cơ quan ngang Bộ'),
@@ -53,13 +67,14 @@ class Agency(models.Model):
         ('other', 'Khác'),
     ]
     name = models.CharField(max_length=255, unique=True, verbose_name="Tên cơ quan/tổ chức")
-    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='other', verbose_name="Phân loại hệ thống")
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='other', verbose_name="Phân loại hệ thống (Legacy)")
+    agency_category = models.ForeignKey(AgencyCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name='agencies', verbose_name="Phân loại cơ quan")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.name
 
     class Meta:
-        ordering = ['category', 'name']
+        ordering = ['agency_category__name', 'name']
         verbose_name = "Cơ quan/Chủ thể"
         verbose_name_plural = "Cơ quan/Chủ thể"

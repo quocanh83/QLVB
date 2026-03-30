@@ -39,6 +39,19 @@ class NotificationViewSet(viewsets.ModelViewSet):
         Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
         return Response({"status": "đã đọc tất cả"})
 
+from .models import AgencyCategory
+from .serializers import AgencyCategorySerializer
+
+class AgencyCategoryViewSet(viewsets.ModelViewSet):
+    queryset = AgencyCategory.objects.all()
+    serializer_class = AgencyCategorySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAdminOrCustomAdmin()]
+        return [permissions.IsAuthenticated()]
+
 class AgencyViewSet(viewsets.ModelViewSet):
     queryset = Agency.objects.all()
     serializer_class = AgencySerializer
