@@ -54,6 +54,8 @@ const FeedbackIntake = () => {
     // Quick Add Agency Modal State
     const [agencyModal, setAgencyModal] = useState(false);
     const [newAgencyName, setNewAgencyName] = useState("");
+    const [newAgencyCategory, setNewAgencyCategory] = useState(null);
+    const [categories, setCategories] = useState([]);
     const [addingAgency, setAddingAgency] = useState(false);
     // Track which field is requesting new agency: 'manual' or 'global'
     const [requestSource, setRequestSource] = useState('global');
@@ -62,6 +64,7 @@ const FeedbackIntake = () => {
         setRequestSource(source);
         setAgencyModal(!agencyModal);
         setNewAgencyName("");
+        setNewAgencyCategory(null);
     };
 
     // Custom styles for react-select to match Velzon dynamic light/dark theme
@@ -161,6 +164,16 @@ const FeedbackIntake = () => {
         }
     };
 
+    const fetchCategories = async () => {
+        try {
+            const res = await axios.get('/api/settings/agency-categories/', getAuthHeader());
+            const data = res.results || res;
+            setCategories(Array.isArray(data) ? data : []);
+        } catch (e) {
+            console.error("Lỗi lấy danh mục phân loại.");
+        }
+    };
+
     const handleQuickAgencySave = async () => {
         if (!newAgencyName.trim()) {
             toast.warning("Vui lòng nhập tên đơn vị.");
@@ -168,7 +181,20 @@ const FeedbackIntake = () => {
         }
         setAddingAgency(true);
         try {
-            const res = await axios.post('/api/settings/agencies/', { name: newAgencyName }, getAuthHeader());
+            let categoryId = newAgencyCategory?.value;
+            
+            // Nếu là phân loại mới gõ vào
+            if (newAgencyCategory && newAgencyCategory.__isNew__) {
+                const catRes = await axios.post('/api/settings/agency-categories/', { name: newAgencyCategory.label }, getAuthHeader());
+                categoryId = catRes.id || catRes.data?.id;
+                await fetchCategories(); // Refresh list
+            }
+
+            const res = await axios.post('/api/settings/agencies/', { 
+                name: newAgencyName,
+                agency_category: categoryId 
+            }, getAuthHeader());
+            
             toast.success("Thêm đơn vị mới thành công.");
             await fetchAgenciesOnly();
             
@@ -193,12 +219,14 @@ const FeedbackIntake = () => {
     const fetchInitialData = async () => {
         setLoading(true);
         try {
-            const [docData, agencyData] = await Promise.all([
+            const [docData, agencyData, categoryData] = await Promise.all([
                 axios.get('/api/documents/', getAuthHeader()),
-                axios.get('/api/settings/agencies/', getAuthHeader())
+                axios.get('/api/settings/agencies/', getAuthHeader()),
+                axios.get('/api/settings/agency-categories/', getAuthHeader())
             ]);
             setDocuments(Array.isArray(docData.results || docData) ? (docData.results || docData) : []);
             setAgencies(Array.isArray(agencyData.results || agencyData) ? (agencyData.results || agencyData) : []);
+            setCategories(Array.isArray(categoryData.results || categoryData) ? (categoryData.results || categoryData) : []);
         } catch (e) {
             toast.error("Lỗi khi tải dữ liệu khởi tạo.");
         } finally {
@@ -1058,8 +1086,8 @@ const FeedbackIntake = () => {
                 <Modal isOpen={agencyModal} toggle={toggleAgencyModal} centered size="sm">
                     <ModalHeader toggle={toggleAgencyModal} className="bg-light p-3">Thêm nhanh đối tượng/đơn vị</ModalHeader>
                     <ModalBody>
-                        <FormGroup className="mb-0">
-                            <Label className="form-label fw-bold">Tên đơn vị mới:</Label>
+                        <FormGroup>
+                            <Label className="form-label fw-bold">Tên đơn vị mới <span className="text-danger">*</span></Label>
                             <Input 
                                 type="text" 
                                 placeholder="Nhập tên đơn vị..." 
@@ -1067,8 +1095,20 @@ const FeedbackIntake = () => {
                                 onChange={(e) => setNewAgencyName(e.target.value)}
                                 autoFocus
                             />
+                        </FormGroup>
+                        <FormGroup className="mb-0">
+                            <Label className="form-label fw-bold">Phân loại đơn vị</Label>
+                            <CreatableSelect
+                                isClearable
+                                placeholder="Chọn hoặc gõ để thêm loại mới..."
+                                value={newAgencyCategory}
+                                onChange={(opt) => setNewAgencyCategory(opt)}
+                                options={categories.map(c => ({ value: c.id, label: c.name }))}
+                                formatCreateLabel={(inputValue) => `Thêm phân loại mới: "${inputValue}"`}
+                                styles={selectStyles}
+                            />
                             <p className="text-muted small mt-2 mb-0">
-                                Hệ thống sẽ lưu đơn vị này vào danh mục "Khác". Bạn có thể thay đổi sau.
+                                Bạn có thể bỏ trống phân loại nếu chưa rõ.
                             </p>
                         </FormGroup>
                     </ModalBody>
