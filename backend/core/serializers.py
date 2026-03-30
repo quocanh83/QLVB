@@ -27,12 +27,11 @@ class AgencyCategorySerializer(serializers.ModelSerializer):
     
     class Meta:
         model = AgencyCategory
-        fields = ['id', 'name', 'description', 'color', 'agencies_count', 'created_at']
+        fields = ['id', 'name', 'description', 'agencies_count', 'created_at']
 
 class AgencySerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='agency_category.name', read_only=True)
-    category_color = serializers.CharField(source='agency_category.color', read_only=True)
 
     class Meta:
         model = Agency
-        fields = ['id', 'name', 'category', 'agency_category', 'category_name', 'category_color', 'created_at']
+        fields = ['id', 'name', 'category', 'agency_category', 'category_name', 'created_at']

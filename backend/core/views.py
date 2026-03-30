@@ -67,22 +67,48 @@ class AgencyViewSet(viewsets.ModelViewSet):
             import pandas as pd
             df = pd.read_excel(file_obj) if file_obj.name.endswith('.xlsx') else pd.read_csv(file_obj)
             
-            # expected columns: name, category (optional)
+            # Tải mapping danh mục hiện có để tối ưu
+            categories = {cat.name.lower().strip(): cat for cat in AgencyCategory.objects.all()}
+            default_cat = categories.get('khác') or AgencyCategory.objects.first()
+            
             created_count = 0
+            updated_count = 0
+            
             for _, row in df.iterrows():
                 name = str(row.get('name', '')).strip()
                 if not name or name == 'nan': continue
                 
-                category = str(row.get('category', 'other')).strip().lower()
-                # matching with choices if needed...
+                # Tìm danh mục phù hợp
+                cat_name_input = str(row.get('category', '')).strip().lower()
+                target_cat = categories.get(cat_name_input) or default_cat
                 
-                Agency.objects.get_or_create(
+                # Legacy mapping if using old keys
+                legacy_map = {
+                    'ministry': 'Bộ, cơ quan ngang Bộ',
+                    'local': 'Địa phương (UBND tỉnh/thành phố)',
+                    'organization': 'Sở, Ban, Ngành, Tổ chức, Đoàn thể',
+                    'citizen': 'Công dân, Doanh nghiệp',
+                    'other': 'Khác'
+                }
+                if not target_cat and cat_name_input in legacy_map:
+                    target_cat = categories.get(legacy_map[cat_name_input].lower())
+
+                agency, created = Agency.objects.update_or_create(
                     name=name,
-                    defaults={'category': category}
+                    defaults={
+                        'agency_category': target_cat,
+                        'category': cat_name_input[:50] # For backward compatibility
+                    }
                 )
-                created_count += 1
+                
+                if created: created_count += 1
+                else: updated_count += 1
             
-            return Response({"message": f"Đã nhập thành công {created_count} đơn vị."})
+            return Response({
+                "message": f"Nhập dữ liệu thành công.",
+                "created": created_count,
+                "updated": updated_count
+            })
         except Exception as e:
             return Response({"error": f"Lỗi xử lý tệp: {str(e)}"}, status=500)
 

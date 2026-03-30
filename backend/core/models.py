@@ -47,7 +47,6 @@ class APIKey(models.Model):
 class AgencyCategory(models.Model):
     name = models.CharField(max_length=255, unique=True, verbose_name="Tên phân loại")
     description = models.CharField(max_length=500, blank=True, null=True, verbose_name="Mô tả")
-    color = models.CharField(max_length=20, default="#405189", verbose_name="Mã màu hiển thị")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
