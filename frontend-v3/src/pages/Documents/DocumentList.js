@@ -17,6 +17,7 @@ const DocumentList = () => {
     const [documents, setDocuments] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [filterType, setFilterType] = useState("All"); // Thêm bộ lọc theo loại
 
     // Modals
     const [selectedDoc, setSelectedDoc] = useState(null);
@@ -69,9 +70,23 @@ const DocumentList = () => {
         }
     };
 
-    const filteredDocs = documents.filter(doc => 
-        doc.project_name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredDocs = documents.filter(doc => {
+        const matchesSearch = doc.project_name.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesType = filterType === "All" || (doc.document_type_name || "Khác") === filterType;
+        return matchesSearch && matchesType;
+    });
+
+    const getStats = () => {
+        const stats = {
+            Total: documents.length,
+            Luat: documents.filter(d => (d.document_type_name || "").includes("Luật")).length,
+            NghiDinh: documents.filter(d => (d.document_type_name || "").includes("Nghị định")).length,
+            ThongTu: documents.filter(d => (d.document_type_name || "").includes("Thông tư")).length,
+        };
+        return stats;
+    };
+
+    const stats = getStats();
 
     return (
         <React.Fragment>
@@ -79,6 +94,98 @@ const DocumentList = () => {
                 <Container fluid>
                     <BreadCrumb title="Danh sách Dự thảo Văn bản" pageTitle="Quản lý" />
                     <ToastContainer closeButton={false} />
+
+                    {/* Widgets Section */}
+                    <Row className="mb-4">
+                        <Col xl={3} md={6}>
+                            <Card className={`card-animate cursor-pointer ${filterType === 'All' ? 'border-primary border' : ''}`} onClick={() => setFilterType('All')}>
+                                <CardBody>
+                                    <div className="d-flex align-items-center">
+                                        <div className="flex-grow-1 overflow-hidden">
+                                            <p className="text-uppercase fw-medium text-muted text-truncate mb-0"> Tổng Dự thảo</p>
+                                        </div>
+                                    </div>
+                                    <div className="d-flex align-items-end justify-content-between mt-4">
+                                        <div>
+                                            <h4 className="fs-22 fw-semibold ff-secondary mb-4">{stats.Total}</h4>
+                                            <span className="badge bg-primary-subtle text-primary">Tất cả</span>
+                                        </div>
+                                        <div className="avatar-sm flex-shrink-0">
+                                            <span className="avatar-title bg-primary-subtle rounded fs-3">
+                                                <i className="ri-file-list-3-line text-primary"></i>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </CardBody>
+                            </Card>
+                        </Col>
+                        <Col xl={3} md={6}>
+                            <Card className={`card-animate cursor-pointer ${filterType === 'Luật' ? 'border-success border' : ''}`} onClick={() => setFilterType('Luật')}>
+                                <CardBody>
+                                    <div className="d-flex align-items-center">
+                                        <div className="flex-grow-1 overflow-hidden">
+                                            <p className="text-uppercase fw-medium text-muted text-truncate mb-0"> Dự thảo Luật</p>
+                                        </div>
+                                    </div>
+                                    <div className="d-flex align-items-end justify-content-between mt-4">
+                                        <div>
+                                            <h4 className="fs-22 fw-semibold ff-secondary mb-4">{stats.Luat}</h4>
+                                            <span className="badge bg-success-subtle text-success">Cấp cao nhất</span>
+                                        </div>
+                                        <div className="avatar-sm flex-shrink-0">
+                                            <span className="avatar-title bg-success-subtle rounded fs-3">
+                                                <i className="ri-bank-line text-success"></i>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </CardBody>
+                            </Card>
+                        </Col>
+                        <Col xl={3} md={6}>
+                            <Card className={`card-animate cursor-pointer ${filterType === 'Nghị định' ? 'border-warning border' : ''}`} onClick={() => setFilterType('Nghị định')}>
+                                <CardBody>
+                                    <div className="d-flex align-items-center">
+                                        <div className="flex-grow-1 overflow-hidden">
+                                            <p className="text-uppercase fw-medium text-muted text-truncate mb-0"> Nghị định</p>
+                                        </div>
+                                    </div>
+                                    <div className="d-flex align-items-end justify-content-between mt-4">
+                                        <div>
+                                            <h4 className="fs-22 fw-semibold ff-secondary mb-4">{stats.NghiDinh}</h4>
+                                            <span className="badge bg-warning-subtle text-warning">Chính phủ</span>
+                                        </div>
+                                        <div className="avatar-sm flex-shrink-0">
+                                            <span className="avatar-title bg-warning-subtle rounded fs-3">
+                                                <i className="ri-government-line text-warning"></i>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </CardBody>
+                            </Card>
+                        </Col>
+                        <Col xl={3} md={6}>
+                            <Card className={`card-animate cursor-pointer ${filterType === 'Thông tư' ? 'border-info border' : ''}`} onClick={() => setFilterType('Thông tư')}>
+                                <CardBody>
+                                    <div className="d-flex align-items-center">
+                                        <div className="flex-grow-1 overflow-hidden">
+                                            <p className="text-uppercase fw-medium text-muted text-truncate mb-0"> Thông tư</p>
+                                        </div>
+                                    </div>
+                                    <div className="d-flex align-items-end justify-content-between mt-4">
+                                        <div>
+                                            <h4 className="fs-22 fw-semibold ff-secondary mb-4">{stats.ThongTu}</h4>
+                                            <span className="badge bg-info-subtle text-info">Bộ/Ngành</span>
+                                        </div>
+                                        <div className="avatar-sm flex-shrink-0">
+                                            <span className="avatar-title bg-info-subtle rounded fs-3">
+                                                <i className="ri-file-text-line text-info"></i>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </CardBody>
+                            </Card>
+                        </Col>
+                    </Row>
 
                     <Row className="g-4 mb-3">
                         <Col sm="auto">
