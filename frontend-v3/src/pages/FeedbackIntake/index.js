@@ -186,7 +186,7 @@ const FeedbackIntake = () => {
             // Nếu là phân loại mới gõ vào
             if (newAgencyCategory && newAgencyCategory.__isNew__) {
                 const catRes = await axios.post('/api/settings/agency-categories/', { name: newAgencyCategory.label }, getAuthHeader());
-                categoryId = catRes.id || catRes.data?.id;
+                categoryId = catRes.data.id;
                 await fetchCategories(); // Refresh list
             }
 
@@ -198,8 +198,8 @@ const FeedbackIntake = () => {
             toast.success("Thêm đơn vị mới thành công.");
             await fetchAgenciesOnly();
             
-            const newId = res.id || res.data?.id;
-            const newName = res.name || res.data?.name || newAgencyName;
+            const newId = res.data.id;
+            const newName = res.data.name || newAgencyName;
             
             if (requestSource === 'manual') {
                 setManualEntry({ ...manualEntry, agency_id: newId, contributing_agency: newName });

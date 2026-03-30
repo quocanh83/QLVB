@@ -105,7 +105,7 @@ const ConsultationResponses = () => {
             // Nếu là phân loại mới gõ vào
             if (newAgencyCategory && newAgencyCategory.__isNew__) {
                 const catRes = await axios.post('/api/settings/agency-categories/', { name: newAgencyCategory.label }, getAuthHeader());
-                categoryId = catRes.id || catRes.data?.id;
+                categoryId = catRes.data.id;
                 await fetchCategories(); // Refresh list cho lần sau
             }
 
@@ -116,7 +116,7 @@ const ConsultationResponses = () => {
             
             toast.success("Thêm đơn vị mới thành công.");
             await fetchAgencies(); // Tải lại danh sách đơn vị
-            setCurrentResponse({ ...currentResponse, agency: res.id || res.data?.id }); // Tự động chọn
+            setCurrentResponse({ ...currentResponse, agency: res.data.id }); // Tự động chọn
             toggleAgencyModal();
         } catch (e) {
             toast.error("Lỗi khi thêm đơn vị nhanh. Tên có thể đã tồn tại.");

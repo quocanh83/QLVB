@@ -51,7 +51,7 @@ class ConsultationResponse(models.Model):
     agency = models.ForeignKey('core.Agency', on_delete=models.CASCADE, related_name='consultation_responses', verbose_name="Đơn vị góp ý")
     official_number = models.CharField(max_length=255, verbose_name="Số hiệu công văn")
     official_date = models.DateField(verbose_name="Ngày công văn")
-    attached_file = models.FileField(upload_to='consultation_responses/', verbose_name="File đính kèm công văn")
+    attached_file = models.FileField(upload_to='consultation_responses/', verbose_name="File đính kèm công văn", blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
