@@ -745,34 +745,62 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         if doc_id:
             queryset = queryset.filter(document_id=doc_id)
             
-        # Group by agency (using agency__name and agency__category if linked, else contributing_agency)
+        # Group by the unified display name: contributing_agency
+        # contributing_agency is now synced with agency.name in the model's save() method.
         stats_qs = queryset.filter(
             Q(agency__isnull=False) | Q(contributing_agency__isnull=False)
-        ).values('agency__name', 'agency__category', 'contributing_agency').annotate(
+        ).values('contributing_agency', 'agency__name', 'agency__category').annotate(
             total_feedbacks=Count('id', distinct=True),
             resolved_count=Count('explanations', distinct=True)
         ).order_by('-total_feedbacks')
         
-        agency_results = []
+        agency_data_map = {}
         category_counts = {}
         
         for item in stats_qs:
-            agency_name = item['agency__name'] or item['contributing_agency']
-            category = item['agency__category'] or 'other'
-            if not agency_name: continue
+            raw_name = item['contributing_agency'] or item['agency__name']
+            if not raw_name: continue
             
-            # Aggregate by category
+            import unicodedata
+            norm_name = unicodedata.normalize('NFC', raw_name).strip().lower()
+            category = item['agency__category'] or 'other'
+            
+            # Aggregate by category (keep original SQL behavior for category charts)
             if category not in category_counts:
                 category_counts[category] = 0
             category_counts[category] += item['total_feedbacks']
             
+            # Merge by normalized agency name in Python
+            if norm_name not in agency_data_map:
+                # Store the most "standard" name (prefer first one or latest)
+                agency_data_map[norm_name] = {
+                    "display_name": raw_name.strip(), 
+                    "category": category,
+                    "total": 0,
+                    "resolved": 0
+                }
+            
+            # Pick non-other category if available for this specific agency name
+            if category != 'other':
+                agency_data_map[norm_name]['category'] = category
+                
+            agency_data_map[norm_name]['total'] += item['total_feedbacks']
+            agency_data_map[norm_name]['resolved'] += item['resolved_count']
+
+        agency_results = []
+        for norm, data in agency_data_map.items():
+            total = data['total']
+            resolved = data['resolved']
             agency_results.append({
-                "agency": agency_name,
-                "category": category,
-                "total": item['total_feedbacks'],
-                "resolved": item['resolved_count'],
-                "resolve_rate": round(item['resolved_count'] / item['total_feedbacks'] * 100, 1) if item['total_feedbacks'] > 0 else 0
+                "agency": data['display_name'],
+                "category": data['category'],
+                "total": total,
+                "resolved": resolved,
+                "resolve_rate": round(resolved / total * 100, 1) if total > 0 else 0
             })
+            
+        # Re-sort by total
+        agency_results.sort(key=lambda x: x['total'], reverse=True)
             
         return Response({
             "agency_stats": agency_results,
@@ -797,17 +825,6 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         
         return Response(list(uncontributed))
 
-class ConsultationResponseViewSet(viewsets.ModelViewSet):
-    queryset = ConsultationResponse.objects.all()
-    serializer_class = ConsultationResponseSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        doc_id = self.request.query_params.get('document_id')
-        if doc_id:
-            return ConsultationResponse.objects.filter(document_id=doc_id).order_by('-created_at')
-        return super().get_queryset()
-
     @action(detail=False, methods=['get'])
     def custom_report_preview(self, request):
         doc_id = request.query_params.get('document_id')
@@ -818,22 +835,39 @@ class ConsultationResponseViewSet(viewsets.ModelViewSet):
         
         if not doc_id: return Response([])
         
-        feedbacks = Feedback.objects.filter(document_id=doc_id).select_related('node').prefetch_related('explanations', 'user').order_by('node__order_index')
+        feedbacks = Feedback.objects.filter(document_id=doc_id).select_related('node', 'agency').prefetch_related('explanations', 'user').order_by('node__order_index')
         
         if agency and agency != 'all':
-            feedbacks = feedbacks.filter(contributing_agency=agency)
+            import unicodedata
+            norm_target = unicodedata.normalize('NFC', agency).strip().lower()
+            feedbacks = [
+                fb for fb in feedbacks 
+                if (fb.contributing_agency and unicodedata.normalize('NFC', fb.contributing_agency).strip().lower() == norm_target) or
+                (fb.agency and unicodedata.normalize('NFC', fb.agency.name).strip().lower() == norm_target)
+            ]
             
         if status_filter == 'resolved':
-            feedbacks = feedbacks.filter(explanations__isnull=False).distinct()
+            if isinstance(feedbacks, list):
+                feedbacks = [fb for fb in feedbacks if fb.explanations.exists()]
+            else:
+                feedbacks = feedbacks.filter(explanations__isnull=False).distinct()
         elif status_filter == 'unresolved':
-            feedbacks = feedbacks.filter(explanations__isnull=True).distinct()
+            if isinstance(feedbacks, list):
+                feedbacks = [fb for fb in feedbacks if not fb.explanations.exists()]
+            else:
+                feedbacks = feedbacks.filter(explanations__isnull=True).distinct()
 
         if specialist and specialist != 'all':
             if specialist == 'none':
-                # Chua giao (khong co giai trinh hoac giai trinh khong co user)
-                feedbacks = feedbacks.filter(explanations__user__isnull=True)
+                if isinstance(feedbacks, list):
+                    feedbacks = [fb for fb in feedbacks if not any(ex.user for ex in fb.explanations.all())]
+                else:
+                    feedbacks = feedbacks.filter(explanations__user__isnull=True)
             else:
-                feedbacks = feedbacks.filter(explanations__user_id=specialist)
+                if isinstance(feedbacks, list):
+                    feedbacks = [fb for fb in feedbacks if any(str(ex.user_id) == str(specialist) for ex in fb.explanations.all())]
+                else:
+                    feedbacks = feedbacks.filter(explanations__user_id=specialist)
             
         # Lay cau hinh truong tu template
         from reports.models import ReportTemplate
@@ -890,22 +924,34 @@ class ConsultationResponseViewSet(viewsets.ModelViewSet):
             
         try:
             document = Document.objects.get(id=doc_id)
-            feedbacks = Feedback.objects.filter(document_id=doc_id).select_related('node').prefetch_related('explanations').order_by('node__order_index')
+            feedbacks = Feedback.objects.filter(document_id=doc_id).select_related('node', 'agency').prefetch_related('explanations').order_by('node__order_index')
             
             if agency and agency != 'all':
-                feedbacks = feedbacks.filter(contributing_agency=agency)
+                import unicodedata
+                norm_target = unicodedata.normalize('NFC', agency).strip().lower()
+                feedbacks = [
+                    fb for fb in feedbacks 
+                    if (fb.contributing_agency and unicodedata.normalize('NFC', fb.contributing_agency).strip().lower() == norm_target) or
+                    (fb.agency and unicodedata.normalize('NFC', fb.agency.name).strip().lower() == norm_target)
+                ]
                 
             if status_filter == 'resolved':
-                feedbacks = feedbacks.filter(explanations__isnull=False).distinct()
+                if isinstance(feedbacks, list):
+                    feedbacks = [fb for fb in feedbacks if fb.explanations.exists()]
+                else:
+                    feedbacks = feedbacks.filter(explanations__isnull=False).distinct()
             elif status_filter == 'unresolved':
-                feedbacks = feedbacks.filter(explanations__isnull=True).distinct()
+                if isinstance(feedbacks, list):
+                    feedbacks = [fb for fb in feedbacks if not fb.explanations.exists()]
+                else:
+                    feedbacks = feedbacks.filter(explanations__isnull=True).distinct()
             
             if not feedbacks.exists():
                 return Response({"error": "Không có ý kiến góp ý nào thỏa mãn bộ lọc để xuất báo cáo."}, status=404)
             
             # Sử dụng generator V2 với file template Word chuẩn
             # Đọc cấu hình admin từ DB (nếu có)
-                        # Phan nhanh theo loai bao cao (report_type param)
+            # Phan nhanh theo loai bao cao (report_type param)
             report_type = request.query_params.get('report_type', 'mau10')
             
             # Doc cau hinh tu DB cho loai tuong ung
@@ -932,6 +978,10 @@ class ConsultationResponseViewSet(viewsets.ModelViewSet):
                     }
             except Exception as e:
                 print(f"Error loading template config: {e}")
+
+            from .utils.mau10_generator import generate_mau_10
+            from .utils.v2_template_generator import generate_from_v2_template
+            from django.http import FileResponse
 
             # Neu la mau custom -> Dung mau10_generator (vi no ho tro cot dong tot hon)
             # Neu la mau10 -> Dung v2_template_generator (vi no dung file word design san dep hon)
@@ -979,4 +1029,18 @@ class ConsultationResponseViewSet(viewsets.ModelViewSet):
             return Response({"message": "Đã chuyển điều khoản thành công."})
         except DocumentNode.DoesNotExist:
             return Response({"error": "Điều khoản mới không hợp lệ hoặc không thuộc dự thảo này."}, status=404)
+
+class ConsultationResponseViewSet(viewsets.ModelViewSet):
+    queryset = ConsultationResponse.objects.all()
+    serializer_class = ConsultationResponseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        doc_id = self.request.query_params.get('document_id')
+        if doc_id:
+            return ConsultationResponse.objects.filter(document_id=doc_id).order_by('-created_at')
+        return super().get_queryset()
+
+
+
 

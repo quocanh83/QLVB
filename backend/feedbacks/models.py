@@ -43,6 +43,12 @@ class Feedback(models.Model):
     
     explanations = GenericRelation(Explanation, related_query_name='feedback_obj')
 
+    def save(self, *args, **kwargs):
+        # Đồng bộ tên text hiển thị từ đơn vị được chọn trong danh mục
+        if self.agency and (not self.contributing_agency or self.contributing_agency != self.agency.name):
+            self.contributing_agency = self.agency.name
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"Feedback by {self.user.username} on {self.node.node_label}"
 

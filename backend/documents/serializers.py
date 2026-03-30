@@ -54,16 +54,30 @@ class DocumentListSerializer(serializers.ModelSerializer):
     consultation_summary = serializers.SerializerMethodField()
     
     def get_consultation_summary(self, obj):
-        agencies = obj.consulted_agencies.all()
-        # Lấy tất cả phản hồi liên quan đến dự thảo này (giảm thiểu N+1)
+        # 1. Lấy danh sách các đơn vị được mời chính thức
+        invited_agencies = {a.id: a for a in obj.consulted_agencies.all()}
+        
+        # 2. Lấy tất cả phản hồi thực tế liên quan đến dự thảo này
         # Giả định phản hồi mới nhất sẽ ghi đè nếu một cơ quan gửi nhiều lần
-        responses = {r.agency_id: r for r in obj.responses.all().order_by('created_at')}
+        all_responses = obj.responses.all().select_related('agency').order_by('created_at')
+        responses_dict = {r.agency_id: r for r in all_responses}
+        
+        # 3. Thu thập tất cả agency_id xuất hiện (cả mời và tự nguyện góp ý)
+        all_agency_ids = set(invited_agencies.keys()) | set(responses_dict.keys())
         
         summary = []
-        for agency in agencies:
-            resp = responses.get(agency.id)
+        # Duyệt qua tất cả các đơn vị liên quan
+        # Ưu tiên lấy object Agency từ invited_agencies nếu có, không thì lấy từ response
+        for aid in all_agency_ids:
+            resp = responses_dict.get(aid)
+            agency = invited_agencies.get(aid)
+            if not agency and resp:
+                agency = resp.agency
+            
+            if not agency: continue
+
             summary.append({
-                "agency_id": agency.id,
+                "agency_id": aid,
                 "agency_name": agency.name,
                 "has_response": resp is not None,
                 "official_number": resp.official_number if resp else None,
@@ -71,6 +85,9 @@ class DocumentListSerializer(serializers.ModelSerializer):
                 "attached_file": resp.attached_file.url if resp and resp.attached_file else None,
                 "response_id": resp.id if resp else None
             })
+        
+        # Sắp xếp theo tên đơn vị cho dễ nhìn
+        summary.sort(key=lambda x: x['agency_name'])
         return summary
 
     class Meta:

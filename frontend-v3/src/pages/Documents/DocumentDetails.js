@@ -3,9 +3,54 @@ import { useParams, Link } from 'react-router-dom';
 import { Container, Row, Col, Card, CardBody, CardHeader, Input, Button, Spinner, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, Modal, ModalHeader, ModalBody, ModalFooter } from 'reactstrap';
 import axios from 'axios';
 import { getAuthHeader } from '../../helpers/api_helper';
-import { toast } from 'react-toastify';
+import { toast, ToastContainer } from 'react-toastify';
 import SimpleBar from 'simplebar-react';
 import FeatherIcon from 'feather-icons-react';
+import CreatableSelect from 'react-select/creatable';
+import { Label, FormFeedback } from 'reactstrap';
+
+const selectStyles = {
+    control: (base, state) => ({
+        ...base,
+        background: "var(--vz-input-bg)",
+        borderColor: state.isFocused ? "var(--vz-input-focus-border-color)" : "var(--vz-input-border-color)",
+        color: "var(--vz-body-color)",
+    }),
+    singleValue: (base) => ({
+        ...base,
+        color: "var(--vz-body-color)",
+    }),
+    menu: (base) => ({
+        ...base,
+        backgroundColor: "var(--vz-choices-bg, #fff)", 
+        zIndex: 1070,
+        border: "1px solid var(--vz-border-color)",
+        boxShadow: "0 5px 10px rgba(30,32,37,.12)"
+    }),
+    option: (base, state) => ({
+        ...base,
+        backgroundColor: state.isSelected 
+            ? "var(--vz-primary)" 
+            : state.isFocused 
+                ? "var(--vz-light)" 
+                : "var(--vz-choices-bg, #fff)",
+        color: state.isSelected 
+            ? "#fff" 
+            : "var(--vz-body-color)",
+        "&:hover": {
+            backgroundColor: "var(--vz-light)",
+            color: "var(--vz-body-color)"
+        }
+    }),
+    placeholder: (base) => ({
+        ...base,
+        color: "var(--vz-input-placeholder-color)"
+    }),
+    input: (base) => ({
+        ...base,
+        color: "var(--vz-body-color)"
+    })
+};
 
 const DocumentDetails = () => {
     const { id } = useParams();
@@ -30,7 +75,7 @@ const DocumentDetails = () => {
     
     // Manual Feedback Modal States
     const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-    const [newFeedbackData, setNewFeedbackData] = useState({ agency: '', content: '' });
+    const [newFeedbackData, setNewFeedbackData] = useState({ agency: null, content: '' });
     
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
@@ -43,10 +88,30 @@ const DocumentDetails = () => {
     const [targetNodeId, setTargetNodeId] = useState('');
     const [reassigning, setReassigning] = useState(false);
 
+    // Edit Feedback States
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editFeedbackId, setEditFeedbackId] = useState(null);
+    const [editAgencyId, setEditAgencyId] = useState(null);
+    const [editDocNumber, setEditDocNumber] = useState('');
+    const [editContent, setEditContent] = useState('');
+    const [editNodeId, setEditNodeId] = useState('');
+    const [isSavingEdit, setIsSavingEdit] = useState(false);
+    const [agencies, setAgencies] = useState([]);
+    const [validationErrors, setValidationErrors] = useState({});
+
+    // Quick Add Agency Modal State
+    const [agencyModal, setAgencyModal] = useState(false);
+    const [newAgencyName, setNewAgencyName] = useState("");
+    const [newAgencyCategory, setNewAgencyCategory] = useState(null);
+    const [categories, setCategories] = useState([]);
+    const [addingAgency, setAddingAgency] = useState(false);
+
     useEffect(() => {
         if (id) {
             fetchDocumentDetails();
             fetchStructure('all');
+            fetchAgencies();
+            fetchCategories();
         }
     }, [id]);
 
@@ -235,6 +300,110 @@ const DocumentDetails = () => {
         }
     };
 
+    const fetchAgencies = async () => {
+        try {
+            const res = await axios.get('/api/settings/agencies/', getAuthHeader());
+            const data = res.results || res || [];
+            setAgencies(data.map(a => ({ value: a.id, label: a.name })));
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    const fetchCategories = async () => {
+        try {
+            const res = await axios.get('/api/settings/agency-categories/', getAuthHeader());
+            const data = res.results || res || [];
+            setCategories(data.map(c => ({ value: c.id, label: c.name })));
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    const handleEditFeedback = (fb) => {
+        setEditFeedbackId(fb.id);
+        setEditAgencyId(fb.agency ? { value: fb.agency, label: fb.contributing_agency } : { value: null, label: fb.contributing_agency });
+        setEditDocNumber(fb.official_doc_number || '');
+        setEditContent(fb.content || '');
+        setEditNodeId(fb.node || '');
+        setValidationErrors({});
+        setIsEditModalOpen(true);
+        
+        // Load node options if not loaded
+        if (nodeOptions.length === 0) {
+            axios.get(`/api/feedbacks/get_document_nodes/?document_id=${id}`, getAuthHeader())
+                .then(res => setNodeOptions(res.results || res || []))
+                .catch(err => console.error(err));
+        }
+    };
+
+    const saveFeedbackEdit = async () => {
+        if (!editFeedbackId) return;
+        setIsSavingEdit(true);
+        setValidationErrors({});
+        try {
+            await axios.patch(`/api/feedbacks/${editFeedbackId}/`, {
+                agency: editAgencyId?.value || null,
+                official_doc_number: editDocNumber,
+                content: editContent,
+                node: editNodeId
+            }, getAuthHeader());
+            
+            toast.success("Cập nhật góp ý thành công!");
+            setIsEditModalOpen(false);
+            fetchFeedbacks(selectedNode.id);
+            if (editNodeId !== selectedNode.id) {
+                fetchStructure(); // Refresh tree if node changed
+            }
+        } catch (err) {
+            if (err.response && err.response.data) {
+                setValidationErrors(err.response.data);
+                const firstError = Object.values(err.response.data)[0];
+                toast.error(Array.isArray(firstError) ? firstError[0] : "Lỗi dữ liệu đầu vào.");
+            } else {
+                toast.error("Lỗi khi cập nhật góp ý.");
+            }
+        } finally {
+            setIsSavingEdit(false);
+        }
+    };
+
+    const handleQuickAgencySave = async () => {
+        if (!newAgencyName) return;
+        setAddingAgency(true);
+        try {
+            let categoryId = newAgencyCategory?.value;
+            if (newAgencyCategory?.__isNew__) {
+                const catRes = await axios.post(`/api/settings/agency-categories/`, { name: newAgencyCategory.label }, getAuthHeader());
+                categoryId = catRes.id;
+                fetchCategories();
+            }
+
+            const res = await axios.post(`/api/settings/agencies/`, {
+                name: newAgencyName,
+                category: categoryId
+            }, getAuthHeader());
+
+            const newOption = { value: res.id, label: res.name };
+            setAgencies(prev => [newOption, ...prev]);
+            
+            // Assign to whichever modal is active
+            if (showFeedbackModal) {
+                setNewFeedbackData(prev => ({ ...prev, agency: newOption }));
+            } else if (isEditModalOpen) {
+                setEditAgencyId(newOption);
+            }
+            
+            setAgencyModal(false);
+            toast.success("Đã thêm đơn vị mới!");
+            fetchAgencies(); // Refresh the main agencies list
+        } catch (e) {
+            toast.error("Không thể thêm đơn vị.");
+        } finally {
+            setAddingAgency(false);
+        }
+    };
+
     const handleSaveNewFeedback = async () => {
         if (!selectedNode || !newFeedbackData.content) {
             toast.warning("Vui lòng chọn Điều/Khoản và nhập nội dung góp ý.");
@@ -242,17 +411,18 @@ const DocumentDetails = () => {
         }
         
         try {
-            await axios.post('/api/feedbacks/', {
-                document: document.id,
+            await axios.post(`/api/feedbacks/`, {
+                document: id,
                 node: selectedNode.id,
-                contributing_agency: newFeedbackData.agency || "Cơ quan góp ý",
+                agency: newFeedbackData.agency ? newFeedbackData.agency.value : null,
+                contributing_agency: newFeedbackData.agency ? newFeedbackData.agency.label : "Cơ quan góp ý",
                 content: newFeedbackData.content,
                 status: 'pending'
             }, getAuthHeader());
             
             toast.success("Đã thêm góp ý thành công!");
             setShowFeedbackModal(false);
-            setNewFeedbackData({ agency: '', content: '' });
+            setNewFeedbackData({ agency: null, content: '' });
             fetchFeedbacks(selectedNode.id); // Refresh feedbacks for current node
             fetchStructure(); // Refresh counts in tree
         } catch (err) {
@@ -555,15 +725,15 @@ const DocumentDetails = () => {
                                                             {/* Feedback Bubble (The "Question") */}
                                                             <div className="d-flex justify-content-start mb-2">
                                                                 <div className="card border-0 mb-0 shadow-sm overflow-hidden" style={{ maxWidth: '85%', borderRadius: '15px 15px 15px 2px' }}>
-                                                                    <div className="card-header py-1 px-3 bg-primary-subtle border-0">
+                                                                    <div className="card-header py-1 px-3 bg-light-subtle border-0">
                                                                         <div className="d-flex justify-content-between align-items-center">
-                                                                            <span className="fw-bold fs-11 text-uppercase text-primary">{fb.contributing_agency}</span>
+                                                                            <span className="fw-bold fs-11 text-uppercase text-info">{fb.contributing_agency}</span>
                                                                             <span className="fs-10 text-muted ms-2">{new Date(fb.created_at).toLocaleDateString()}</span>
                                                                         </div>
                                                                     </div>
-                                                                    <div className="card-body p-3 bg-white">
+                                                                    <div className="card-body p-3 border-top border-light-subtle">
                                                                         <p className="fs-13 mb-2 text-body">"{fb.content}"</p>
-                                                                        <div className="d-flex gap-2">
+                                                                        <div className="d-flex gap-2 align-items-center">
                                                                             <Button 
                                                                                 color="link" 
                                                                                 size="sm" 
@@ -598,6 +768,14 @@ const DocumentDetails = () => {
                                                                                 onClick={() => handleOpenReassignModal(fb)}
                                                                             >
                                                                                 <i className="ri-drag-move-line me-1"></i> Gắn lại
+                                                                            </Button>
+                                                                            <Button 
+                                                                                color="link" 
+                                                                                size="sm" 
+                                                                                className="p-0 text-decoration-none fs-12 fw-medium text-danger"
+                                                                                onClick={() => handleEditFeedback(fb)}
+                                                                            >
+                                                                                <i className="ri-edit-2-line me-1"></i> Sửa
                                                                             </Button>
                                                                             <span className={`badge ${fb.status === 'approved' ? 'bg-success-subtle text-success' : fb.status === 'reviewed' ? 'bg-info-subtle text-info' : 'bg-warning-subtle text-warning'} ms-auto fs-10`}>
                                                                                 {fb.status === 'approved' ? 'Đã duyệt' : fb.status === 'reviewed' ? 'Đã thẩm định' : 'Chờ xử lý'}
@@ -637,7 +815,7 @@ const DocumentDetails = () => {
                                                             {/* Explanation Bubble (The "Reply") - If exists */}
                                                             {fb.explanation && replyingToId !== fb.id && (
                                                                 <div className="d-flex justify-content-end mt-1">
-                                                                    <div className="card border-0 mb-0 shadow-xs" style={{ maxWidth: '85%', borderRadius: '15px 15px 2px 15px', background: '#f0f3f9' }}>
+                                                                    <div className="card border-0 mb-0 shadow-xs bg-light-subtle rounded-3" style={{ maxWidth: '85%', borderRadius: '15px 15px 2px 15px' }}>
                                                                         <div className="card-body p-3">
                                                                             <div className="d-flex align-items-center mb-1">
                                                                                 <i className="ri-shield-user-line text-info me-1 fs-12"></i>
@@ -667,7 +845,7 @@ const DocumentDetails = () => {
                                                     ))}
                                                 </div>
                                             ) : (
-                                                <div className="text-center text-muted py-5 fs-14 bg-white rounded border-dashed border">
+                                                <div className="text-center text-muted py-5 fs-14 bg-card rounded border-dashed border">
                                                     <i className="ri-chat-off-line fs-24 d-block mb-2 opacity-25"></i>
                                                     Không có ý kiến cho mục này.
                                                 </div>
@@ -698,12 +876,24 @@ const DocumentDetails = () => {
                             ) : null}
                             <div className="mb-3">
                                 <label className="form-label fw-bold small">Cơ quan góp ý</label>
-                                <Input 
-                                    type="text" 
-                                    className="form-control" 
-                                    placeholder="Ví dụ: Bộ Tư pháp, UBND TP. Hà Nội..." 
+                                <CreatableSelect
+                                    isClearable
+                                    options={agencies}
+                                    styles={selectStyles}
                                     value={newFeedbackData.agency}
-                                    onChange={(e) => setNewFeedbackData({ ...newFeedbackData, agency: e.target.value })}
+                                    onChange={(newValue) => {
+                                        if (newValue && newValue.__isNew__) {
+                                            setNewAgencyName(newValue.label);
+                                            setAgencyModal(true);
+                                            // Bridge the choice to newFeedbackData after potential modal save
+                                            // Handle this in handleQuickAgencySave or set it here
+                                            setNewFeedbackData({ ...newFeedbackData, agency: newValue });
+                                        } else {
+                                            setNewFeedbackData({ ...newFeedbackData, agency: newValue });
+                                        }
+                                    }}
+                                    placeholder="Chọn hoặc gõ tên đơn vị mới..."
+                                    formatCreateLabel={(inputValue) => `Thêm nhanh đơn vị: "${inputValue}"`}
                                 />
                             </div>
                             <div className="mb-0">
@@ -753,6 +943,109 @@ const DocumentDetails = () => {
                     <Button color="light" onClick={() => setIsReassignModalOpen(false)}>Hủy</Button>
                     <Button color="warning" onClick={handleReassignFeedback} disabled={reassigning || !targetNodeId}>
                         {reassigning ? <Spinner size="sm"/> : "Xác nhận chuyển"}
+                    </Button>
+                </ModalFooter>
+            </Modal>
+
+            {/* Edit Feedback Modal */}
+            <Modal id="editFeedbackModal" isOpen={isEditModalOpen} toggle={() => setIsEditModalOpen(!isEditModalOpen)} centered size="lg">
+                <ModalHeader className="bg-light p-3" toggle={() => setIsEditModalOpen(!isEditModalOpen)}>
+                    <i className="ri-edit-box-line align-bottom me-1"></i> Chỉnh sửa & Gắn lại Góp ý
+                </ModalHeader>
+                <ModalBody>
+                    <Row className="g-3">
+                        <Col lg={12}>
+                            <Label className="form-label fw-bold small text-muted text-uppercase">Gán lại vào Điều/Khoản:</Label>
+                            <select 
+                                className={`form-select ${validationErrors.node ? 'is-invalid' : ''}`}
+                                value={editNodeId}
+                                onChange={(e) => setEditNodeId(e.target.value)}
+                            >
+                                <option value="">-- Chọn vị trí mới --</option>
+                                {nodeOptions.map(opt => (
+                                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                                ))}
+                            </select>
+                            {validationErrors.node && <FormFeedback>{validationErrors.node[0]}</FormFeedback>}
+                        </Col>
+                        
+                        <Col lg={8}>
+                            <Label className="form-label fw-bold small text-muted text-uppercase">Cơ quan góp ý:</Label>
+                            <CreatableSelect
+                                isClearable
+                                options={agencies}
+                                styles={selectStyles}
+                                value={editAgencyId}
+                                onChange={(newValue) => {
+                                    if (newValue && newValue.__isNew__) {
+                                        setNewAgencyName(newValue.label);
+                                        setAgencyModal(true);
+                                    } else {
+                                        setEditAgencyId(newValue);
+                                    }
+                                }}
+                                placeholder="Chọn hoặc gõ tên đơn vị mới..."
+                                formatCreateLabel={(inputValue) => `Thêm nhanh đơn vị: "${inputValue}"`}
+                            />
+                        </Col>
+                        
+                        <Col lg={4}>
+                            <Label className="form-label fw-bold small text-muted text-uppercase">Số hiệu CV:</Label>
+                            <Input 
+                                type="text" 
+                                className={validationErrors.official_doc_number ? 'is-invalid' : ''}
+                                placeholder="Số hiệu CV..." 
+                                value={editDocNumber}
+                                onChange={(e) => setEditDocNumber(e.target.value)}
+                            />
+                            {validationErrors.official_doc_number && <FormFeedback>{validationErrors.official_doc_number[0]}</FormFeedback>}
+                        </Col>
+                        
+                        <Col lg={12}>
+                            <Label className="form-label fw-bold small text-muted text-uppercase">Nội dung góp ý gốc:</Label>
+                            <Input
+                                type="textarea"
+                                rows={6}
+                                className={validationErrors.content ? 'is-invalid' : ''}
+                                value={editContent}
+                                onChange={(e) => setEditContent(e.target.value)}
+                            />
+                            {validationErrors.content && <FormFeedback>{validationErrors.content[0]}</FormFeedback>}
+                        </Col>
+                    </Row>
+                </ModalBody>
+                <ModalFooter className="bg-light">
+                    <Button color="link" className="link-success fw-medium shadow-none" onClick={() => setIsEditModalOpen(false)}>Hủy bỏ</Button>
+                    <Button color="warning" onClick={saveFeedbackEdit} disabled={isSavingEdit}>
+                        {isSavingEdit ? <Spinner size="sm"/> : <><i className="ri-save-line align-bottom me-1"></i> Lưu thay đổi</>}
+                    </Button>
+                </ModalFooter>
+            </Modal>
+
+            {/* Quick Add Agency Modal */}
+            <Modal isOpen={agencyModal} toggle={() => setAgencyModal(false)} centered>
+                <ModalHeader toggle={() => setAgencyModal(false)}>Thêm nhanh đơn vị mới</ModalHeader>
+                <ModalBody>
+                    <div className="mb-3">
+                        <Label>Tên đơn vị</Label>
+                        <Input value={newAgencyName} onChange={(e) => setNewAgencyName(e.target.value)} />
+                    </div>
+                    <div className="mb-3">
+                        <Label>Phân loại đơn vị</Label>
+                        <CreatableSelect
+                            isClearable
+                            options={categories}
+                            styles={selectStyles}
+                            value={newAgencyCategory}
+                            onChange={(v) => setNewAgencyCategory(v)}
+                            placeholder="Chọn hoặc tạo phân loại..."
+                        />
+                    </div>
+                </ModalBody>
+                <ModalFooter>
+                    <Button color="light" onClick={() => setAgencyModal(false)}>Hủy</Button>
+                    <Button color="primary" onClick={handleQuickAgencySave} disabled={addingAgency || !newAgencyName}>
+                        {addingAgency ? <Spinner size="sm" /> : "Lưu đơn vị"}
                     </Button>
                 </ModalFooter>
             </Modal>

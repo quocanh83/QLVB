@@ -5,6 +5,7 @@ import BreadCrumb from '../../Components/Common/BreadCrumb';
 import axios from 'axios';
 import { getAuthHeader } from '../../helpers/api_helper';
 import Select from 'react-select';
+import CreatableSelect from 'react-select/creatable';
 import { toast } from 'react-toastify';
 
 const selectStyles = {
@@ -20,9 +21,10 @@ const selectStyles = {
     }),
     menu: (base) => ({
         ...base,
-        backgroundColor: "var(--vz-input-bg, #2a2f34)", 
-        zIndex: 5,
-        border: "1px solid var(--vz-border-color)"
+        backgroundColor: "var(--vz-choices-bg, #fff)", 
+        zIndex: 1070,
+        border: "1px solid var(--vz-border-color)",
+        boxShadow: "0 5px 10px rgba(30,32,37,.12)"
     }),
     option: (base, state) => ({
         ...base,
@@ -30,7 +32,7 @@ const selectStyles = {
             ? "var(--vz-primary)" 
             : state.isFocused 
                 ? "var(--vz-light)" 
-                : "var(--vz-input-bg, #2a2f34)",
+                : "var(--vz-choices-bg, #fff)",
         color: state.isSelected 
             ? "#fff" 
             : "var(--vz-body-color)",
@@ -79,12 +81,46 @@ const FeedbackList = () => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editContent, setEditContent] = useState("");
     const [editNodeId, setEditNodeId] = useState(null);
+    const [editAgencyId, setEditAgencyId] = useState(null);
+    const [editDocNumber, setEditDocNumber] = useState("");
     const [docNodes, setDocNodes] = useState([]);
     const [updating, setUpdating] = useState(false);
 
+    // Quick Agency Add state
+    const [agencies, setAgencies] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [agencyModal, setAgencyModal] = useState(false);
+    const [newAgencyName, setNewAgencyName] = useState("");
+    const [newAgencyCategory, setNewAgencyCategory] = useState(null);
+    const [addingAgency, setAddingAgency] = useState(false);
+
+    const toggleAgencyModal = () => setAgencyModal(!agencyModal);
+
     useEffect(() => {
         fetchDocuments();
+        fetchAgenciesOnly();
+        fetchCategories();
     }, []);
+
+    const fetchAgenciesOnly = async () => {
+        try {
+            const res = await axios.get('/api/settings/agencies/', getAuthHeader());
+            const data = res.results || res || [];
+            setAgencies(Array.isArray(data) ? data : []);
+        } catch (e) {
+            console.error("Lỗi khi tải danh sách đơn vị");
+        }
+    };
+
+    const fetchCategories = async () => {
+        try {
+            const res = await axios.get('/api/settings/agency-categories/', getAuthHeader());
+            const data = res.results || res || [];
+            setCategories(Array.isArray(data) ? data : []);
+        } catch (e) {
+            console.error("Lỗi khi tải danh sách phân loại đơn vị");
+        }
+    };
 
     const fetchDocuments = async () => {
         try {
@@ -168,6 +204,8 @@ const FeedbackList = () => {
         setCurrentFeedback(fb);
         setEditContent(fb.content || '');
         setEditNodeId(fb.node_id);
+        setEditAgencyId(fb.agency);
+        setEditDocNumber(fb.official_doc_number || '');
         setIsEditModalOpen(true);
     };
 
@@ -180,16 +218,58 @@ const FeedbackList = () => {
         try {
             await axios.patch(`/api/feedbacks/${currentFeedback.id}/`, {
                 content: editContent,
-                node: editNodeId
+                node: editNodeId,
+                agency: editAgencyId,
+                official_doc_number: editDocNumber
             }, getAuthHeader());
             
             toast.success("Đã cập nhật góp ý thành công.");
             setIsEditModalOpen(false);
             fetchFeedbacks(selectedDoc.id); // Refresh
-        } catch (e) {
-            toast.error("Lỗi khi cập nhật góp ý.");
+        } catch (error) {
+            console.error("Lỗi khi cập nhật góp ý:", error.response?.data);
+            const errorMsg = error.response?.data 
+                ? Object.entries(error.response.data)
+                    .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(", ") : value}`)
+                    .join(" | ")
+                : "Lỗi không xác định khi cập nhật dữ liệu.";
+            toast.error("Lỗi: " + errorMsg);
         } finally {
             setUpdating(false);
+        }
+    };
+
+    const handleQuickAgencySave = async () => {
+        if (!newAgencyName.trim()) {
+            toast.warning("Vui lòng nhập tên đơn vị.");
+            return;
+        }
+        setAddingAgency(true);
+        try {
+            let categoryId = newAgencyCategory?.value;
+            
+            // Create category if new
+            if (newAgencyCategory && newAgencyCategory.__isNew__) {
+                const catRes = await axios.post('/api/settings/agency-categories/', { name: newAgencyCategory.label }, getAuthHeader());
+                categoryId = catRes.data.id;
+                await fetchCategories();
+            }
+
+            const res = await axios.post('/api/settings/agencies/', { 
+                name: newAgencyName,
+                agency_category: categoryId 
+            }, getAuthHeader());
+            
+            toast.success("Thêm đơn vị mới thành công.");
+            await fetchAgenciesOnly();
+            
+            setEditAgencyId(res.data.id); // Set to new agency
+            toggleAgencyModal();
+        } catch (error) {
+            console.error("Lỗi khi thêm đơn vị nhanh:", error.response?.data);
+            toast.error("Lỗi khi thêm đơn vị nhanh.");
+        } finally {
+            setAddingAgency(false);
         }
     };
 
@@ -613,34 +693,102 @@ const FeedbackList = () => {
                         <i className="ri-edit-box-line align-bottom me-1"></i> Chỉnh sửa & Gắn lại Góp ý
                     </ModalHeader>
                     <ModalBody>
-                        <div className="mb-3">
-                            <Label className="form-label fw-bold small text-muted text-uppercase">Gán lại vào Điều/Khoản:</Label>
-                            <Select
-                                value={docNodes.find(n => n.value === editNodeId)}
-                                onChange={(opt) => setEditNodeId(opt ? opt.value : null)}
-                                options={docNodes}
-                                placeholder="Chọn vị trí Điều/Khoản mới..."
-                                isClearable
-                                styles={selectStyles}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <Label className="form-label fw-bold small text-muted text-uppercase">Nội dung góp ý gốc:</Label>
-                            <Input 
-                                type="textarea" 
-                                rows="10" 
-                                className="form-control border-dark-subtle"
-                                style={{ backgroundColor: '#fff', color: '#000', fontSize: '14px' }}
-                                value={editContent}
-                                onChange={(e) => setEditContent(e.target.value)}
-                                placeholder="Chỉnh sửa nội dung góp ý tại đây..."
-                            />
-                        </div>
+                        <Row className="g-3">
+                            <Col lg={12}>
+                                <Label className="form-label fw-bold small text-muted text-uppercase">Gán lại vào Điều/Khoản:</Label>
+                                <Select
+                                    value={docNodes.find(n => n.value === editNodeId)}
+                                    onChange={(opt) => setEditNodeId(opt ? opt.value : null)}
+                                    options={docNodes}
+                                    placeholder="Chọn vị trí Điều/Khoản mới..."
+                                    isClearable
+                                    styles={selectStyles}
+                                />
+                            </Col>
+                            <Col lg={8}>
+                                <Label className="form-label fw-bold small text-muted text-uppercase">Cơ quan góp ý:</Label>
+                                <div className="d-flex gap-2">
+                                    <div className="flex-grow-1">
+                                        <CreatableSelect
+                                            value={agencies.find(a => a.id === editAgencyId) ? { value: editAgencyId, label: agencies.find(a => a.id === editAgencyId).name } : null}
+                                            onChange={(opt) => setEditAgencyId(opt ? opt.value : null)}
+                                            options={agencies.map(a => ({ value: a.id, label: a.name }))}
+                                            placeholder="Chọn hoặc gõ tên đơn vị mới..."
+                                            isClearable
+                                            styles={selectStyles}
+                                            onCreateOption={(name) => {
+                                                setNewAgencyName(name);
+                                                setAgencyModal(true);
+                                            }}
+                                        />
+                                    </div>
+                                    <Button color="success" outline onClick={() => { setNewAgencyName(""); setAgencyModal(true); }} title="Thêm đơn vị mới">
+                                        <i className="ri-add-line"></i>
+                                    </Button>
+                                </div>
+                            </Col>
+                            <Col lg={4}>
+                                <Label className="form-label fw-bold small text-muted text-uppercase">Số hiệu công văn:</Label>
+                                <Input 
+                                    type="text" 
+                                    className="form-control"
+                                    value={editDocNumber}
+                                    onChange={(e) => setEditDocNumber(e.target.value)}
+                                    placeholder="Số hiệu CV..."
+                                />
+                            </Col>
+                            <Col lg={12}>
+                                <Label className="form-label fw-bold small text-muted text-uppercase">Nội dung góp ý gốc:</Label>
+                                <Input 
+                                    type="textarea" 
+                                    rows="10" 
+                                    className="form-control border-dark-subtle"
+                                    style={{ backgroundColor: '#fff', color: '#000', fontSize: '14px' }}
+                                    value={editContent}
+                                    onChange={(e) => setEditContent(e.target.value)}
+                                    placeholder="Chỉnh sửa nội dung góp ý tại đây..."
+                                />
+                            </Col>
+                        </Row>
                     </ModalBody>
                     <ModalFooter className="bg-light">
                         <Button color="link" className="text-muted text-decoration-none shadow-none" onClick={() => setIsEditModalOpen(false)}>Hủy bỏ</Button>
                         <Button color="warning" className="btn-load shadow-md px-4" onClick={saveFeedbackEdit} disabled={updating}>
                             {updating ? <><Spinner size="sm" className="me-2"/> Đang lưu...</> : <><i className="ri-save-3-line align-bottom me-1"></i> Lưu thay đổi</>}
+                        </Button>
+                    </ModalFooter>
+                </Modal>
+                {/* QUICK ADD AGENCY MODAL (Nested) */}
+                <Modal isOpen={agencyModal} toggle={toggleAgencyModal} centered size="md" style={{ zIndex: 1060 }}>
+                    <ModalHeader toggle={toggleAgencyModal} className="bg-success-subtle text-success">
+                        <i className="ri-building-line align-bottom me-1"></i> Thêm nhanh đơn vị mới
+                    </ModalHeader>
+                    <ModalBody>
+                        <div className="mb-3">
+                            <Label className="form-label">Tên đơn vị:</Label>
+                            <Input 
+                                type="text" 
+                                value={newAgencyName} 
+                                onChange={(e) => setNewAgencyName(e.target.value)} 
+                                placeholder="Nhập tên đơn vị đầy đủ..."
+                            />
+                        </div>
+                        <div className="mb-3">
+                            <Label className="form-label">Phân loại đơn vị:</Label>
+                            <CreatableSelect
+                                isClearable
+                                options={categories.map(c => ({ value: c.id, label: c.name }))}
+                                value={newAgencyCategory}
+                                onChange={(opt) => setNewAgencyCategory(opt)}
+                                placeholder="Chọn hoặc gõ phân loại mới..."
+                                styles={selectStyles}
+                            />
+                        </div>
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button color="light" onClick={toggleAgencyModal}>Bỏ qua</Button>
+                        <Button color="success" onClick={handleQuickAgencySave} disabled={addingAgency}>
+                            {addingAgency ? <Spinner size="sm" /> : "Lưu đơn vị"}
                         </Button>
                     </ModalFooter>
                 </Modal>

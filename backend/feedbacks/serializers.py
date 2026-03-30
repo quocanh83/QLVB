@@ -20,6 +20,15 @@ class ConsultationResponseSerializer(serializers.ModelSerializer):
         model = ConsultationResponse
         fields = ['id', 'document', 'agency', 'agency_name', 'official_number', 'official_date', 'attached_file', 'created_at']
 
+    def create(self, validated_data):
+        response = super().create(validated_data)
+        # Tự động thêm đơn vị vào danh sách mời của dự thảo nếu chưa có
+        document = response.document
+        agency = response.agency
+        if not document.consulted_agencies.filter(id=agency.id).exists():
+            document.consulted_agencies.add(agency)
+        return response
+
 class FeedbackSerializer(serializers.ModelSerializer):
     explanations = ExplanationSerializer(many=True, read_only=True)
     logs = ActionLogSerializer(many=True, read_only=True)
