@@ -97,15 +97,23 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
                     index = 0
                     save_nodes_recursive(structure)
-                    
-                    # Tự động tạo node Vấn đề khác ở cuối cùng
-                    DocumentNode.objects.create(
+                
+                # Luôn tạo node "Chung" cho dự thảo
+                DocumentNode.objects.get_or_create(
+                    document=document,
+                    node_type='Vấn đề khác',
+                    node_label='Chung',
+                    defaults={'content': '', 'order_index': -1}
+                )
+
+                # Tự động tạo node Vấn đề khác ở cuối cùng (nếu có file structure)
+                if file_obj:
+                    DocumentNode.objects.get_or_create(
                         document=document,
                         node_type='Vấn đề khác',
                         node_label='Vấn đề khác',
-                        content='',
-                        order_index=9999
-                    )                    
+                        defaults={'content': '', 'order_index': 9999}
+                    )
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         headers = self.get_success_headers(serializer.data)

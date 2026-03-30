@@ -12,9 +12,11 @@ from openai import OpenAI
 from django.http import FileResponse
 from .utils.mau10_generator import generate_mau_10
 from .utils.v2_template_generator import generate_from_v2_template
-from documents.models import Document
 from django.core.files.storage import FileSystemStorage
+from django.conf import settings
 import shutil
+from django.utils.text import get_valid_filename
+import traceback
 
 class FeedbackViewSet(viewsets.ModelViewSet):
     queryset = Feedback.objects.all()
@@ -46,9 +48,10 @@ class FeedbackViewSet(viewsets.ModelViewSet):
         # 2. Lead?
         from documents.models import Document
         try:
+            if not document_id: return False
             doc = Document.objects.get(id=document_id)
             if doc.lead == user: return True
-        except Document.DoesNotExist:
+        except (Document.DoesNotExist, ValueError, TypeError):
             pass
 
         # 3. Chuyên viên Role?
@@ -267,23 +270,32 @@ class FeedbackViewSet(viewsets.ModelViewSet):
         """
         Xử lý OCR cho file Ảnh/PDF, trả về văn bản đã qua AI sửa lỗi và highlight diff.
         """
-        document_id = request.data.get('document_id')
-        if not self._check_permission(request, document_id, 'Chuyên viên Góp ý'):
-            return Response({"error": "Bạn không có quyền Nhập góp ý cho dự thảo này."}, status=403)
-        
-        file_obj = request.FILES.get('file')
-        if not file_obj:
-            return Response({"error": "No file uploaded"}, status=400)
-            
-        # Save temporary file
-        fs = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, 'uploads_ocr'))
-        filename = fs.save(file_obj.name, file_obj)
-        file_path = fs.path(filename)
-        
         try:
+            document_id = request.data.get('document_id')
+            if not self._check_permission(request, document_id, 'Chuyên viên Góp ý'):
+                return Response({"error": "Bạn không có quyền hoặc ID văn bản không hợp lệ."}, status=403)
+            
+            file_obj = request.FILES.get('file')
+            if not file_obj:
+                return Response({"error": "Không tìm thấy tệp tin được tải lên."}, status=400)
+                
+            # Save temporary file
+            fs = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, 'uploads_ocr'))
+            
+            # Làm sạch tên file để tránh lỗi tiếng Việt/ký tự lạ trên Windows
+            safe_name = get_valid_filename(file_obj.name)
+            print(f"--- [OCR API] Đang lưu tệp tin: {safe_name} ---")
+            filename = fs.save(safe_name, file_obj)
+            file_path = fs.path(filename)
+            
             from .utils.ocr_service import OCRService # Lazy load
+            print(f"--- [OCR API] Bắt đầu xử lý AI cho {filename} (đợi nạp bộ não)... ---")
+            
+            selected_pages = request.data.get('selected_pages') # VD: "2, 4" hoặc "1-3, 5"
+            
             service = OCRService()
-            ocr_results = service.process_file(file_path)
+            ocr_results = service.process_file(file_path, target_pages=selected_pages)
+            print(f"--- [OCR API] Bóc tách hoàn tất {len(ocr_results)} trang. ---")
             
             # Clean up raw upload if desired, or keep for audit
             # os.remove(file_path) 
@@ -292,7 +304,100 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                 "pages": ocr_results
             })
         except Exception as e:
+            import traceback
+            with open('error_log_ocr.txt', 'w', encoding='utf-8') as f:
+                traceback.print_exc(file=f)
             return Response({"error": str(e)}, status=500)
+
+    @action(detail=False, methods=['post'])
+    def get_pdf_info(self, request):
+        """
+        Lấy thông tin số trang và tạo thumbnails cho file PDF/Ảnh.
+        """
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response({"error": "No file"}, status=400)
+            
+        fs = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, 'temp_previews'))
+        filename = fs.save(get_valid_filename(file_obj.name), file_obj)
+        file_path = fs.path(filename)
+        ext = os.path.splitext(file_path)[1].lower()
+        
+        previews = []
+        total_pages = 0
+        
+        import fitz
+        try:
+            if ext == '.pdf':
+                doc = fitz.open(file_path)
+                total_pages = len(doc)
+                # Chỉ tạo thumbnail cho tất cả các trang
+                for i in range(total_pages):
+                    page = doc.load_page(i)
+                    # Tạo ảnh nhỏ (thumbnail)
+                    pix = page.get_pixmap(matrix=fitz.Matrix(0.5, 0.5)) 
+                    img_name = f"thumb_{os.urandom(4).hex()}_{i}.jpg"
+                    img_p = os.path.join(fs.location, img_name)
+                    pix.save(img_p)
+                    rel_p = os.path.relpath(img_p, settings.MEDIA_ROOT).replace('\\', '/')
+                    previews.append(settings.MEDIA_URL + rel_p)
+                doc.close()
+            else:
+                total_pages = 1
+                rel_p = os.path.relpath(file_path, settings.MEDIA_ROOT).replace('\\', '/')
+                previews.append(settings.MEDIA_URL + rel_p)
+                
+            return Response({
+                "total_pages": total_pages,
+                "previews": previews,
+                "temp_file_path": filename # Để frontend dùng lại nếu cần (tuy nhiên hiện tại vẫn upload lại ocr_parse cho đơn giản)
+            })
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+        finally:
+            # Lưu ý: Không xóa file ở đây vì preview cần URL. 
+            # Hệ thống nên có job dọn dẹp temp định kỳ.
+            pass
+
+    @action(detail=False, methods=['post'])
+    def ocr_finalize_parse(self, request):
+        """
+        Giai đoạn cuối: biến văn bản sau OCR thành danh sách góp ý có cấu trúc.
+        """
+        document_id = request.data.get('document_id')
+        text = request.data.get('text', '')
+        
+        if not text:
+            return Response({"error": "Văn bản trống"}, status=400)
+            
+        from .utils.ai_parser import AIParser
+        parser = AIParser()
+        raw_feedbacks = parser.parse_text_to_feedbacks(text)
+        
+        if not raw_feedbacks:
+            return Response({"error": "Không thể phân tích văn bản này bằng AI."}, status=500)
+            
+        # Làm sạch và khớp NodeID
+        results = []
+        for i, f in enumerate(raw_feedbacks):
+            node_label = f.get('node_label', 'Chung')
+            content = f.get('content', '')
+            agency = f.get('agency', '')
+            
+            # Sử dụng logic khớp thông minh của hệ thống
+            suggested_node = self._find_best_node_match(document_id, node_label)
+            
+            results.append({
+                "key": f"ocr-finalize-{i}-{os.urandom(4).hex()}",
+                "node_label": suggested_node.node_label if suggested_node else node_label,
+                "node_id": suggested_node.id if suggested_node else None,
+                "contributing_agency": agency or "",
+                "content": content
+            })
+            
+        return Response({
+            "feedbacks": results
+        })
 
     @action(detail=False, methods=['get'])
     def get_document_nodes(self, request):
@@ -337,8 +442,10 @@ class FeedbackViewSet(viewsets.ModelViewSet):
             if metadata.get('total_feedbacks_doc'): doc.total_feedbacks_doc = metadata['total_feedbacks_doc']
             doc.save()
 
-        # Tìm node "Vấn đề khác" làm fallback
-        fallback_node = DocumentNode.objects.filter(document_id=document_id, node_type='Vấn đề khác').first()
+        # Tìm node làm fallback (Ưu tiên nhãn "Chung")
+        fallback_node = DocumentNode.objects.filter(document_id=document_id, node_label='Chung').first()
+        if not fallback_node:
+            fallback_node = DocumentNode.objects.filter(document_id=document_id, node_type='Vấn đề khác').first()
 
         created_count = 0
         for item in feedbacks_data:
@@ -554,7 +661,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                 "content": fb.content,
                 "explanation": explanation_obj.content if explanation_obj else "",
                 "status": fb.status,
-                "created_at": fb.created_at.strftime("%d/%m/%Y %H:%M"),
+                "created_at": fb.created_at.isoformat(),
             })
         return Response(results)
 
@@ -609,12 +716,12 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                     "content": fb.content,
                     "explanation": explanation_obj.content if explanation_obj else "",
                     "status": fb.status, # Use real status from model
-                    "created_at": fb.created_at.strftime("%d/%m/%Y %H:%M"),
+                    "created_at": fb.created_at.isoformat(),
                     "logs": [
                         {
                             "username": log.user.username,
                             "action": log.action,
-                            "time": log.created_at.strftime("%H:%M %d/%m/%Y"),
+                            "time": log.created_at.isoformat(),
                             "details": log.details
                         } for log in fb.logs.all()
                     ]
@@ -832,8 +939,28 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         except Exception as e:
             return Response({"error": f"Lỗi xuất báo cáo: {str(e)}"}, status=500)
 
-
-
-
-
+    @action(detail=True, methods=['post'])
+    def reassign_node(self, request, pk=None):
+        fb = self.get_object()
+        new_node_id = request.data.get('node_id')
+        if not new_node_id:
+            return Response({"error": "node_id is required"}, status=400)
+        
+        try:
+            from documents.models import DocumentNode
+            new_node = DocumentNode.objects.get(id=new_node_id, document_id=fb.document_id)
+            old_label = fb.node.node_label if fb.node else "N/A"
+            fb.node = new_node
+            fb.save()
+            
+            ActionLog.objects.create(
+                user=request.user,
+                feedback=fb,
+                action="Gắn lại điều khoản",
+                details=f"Chuyển từ '{old_label}' sang '{new_node.node_label}'"
+            )
+            
+            return Response({"message": "Đã chuyển điều khoản thành công."})
+        except DocumentNode.DoesNotExist:
+            return Response({"error": "Điều khoản mới không hợp lệ hoặc không thuộc dự thảo này."}, status=404)
 

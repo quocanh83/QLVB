@@ -111,6 +111,9 @@ cat <<EOF > /etc/nginx/sites-available/$PROJECT_NAME
 server {
     listen 80;
     server_name $SERVER_DOMAIN;
+    
+    # Cho phép upload file lớn tới 100MB
+    client_max_body_size 100M;
 
     # Giao diện Frontend (React)
     root $FRONTEND_DIR;

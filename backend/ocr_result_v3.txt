@@ -1,0 +1,6 @@
+--- Page 0 ---
+Type: OCRResult
+Dir: ['clear', 'copy', 'fromkeys', 'get', 'img', 'items', 'json', 'keys', 'pop', 'popitem', 'print', 'save_all', 'save_to_img', 'save_to_json', 'setdefault', 'str', 'update', 'values']
+
+Keys: ['input_path', 'page_index', 'doc_preprocessor_res', 'dt_polys', 'model_settings', 'text_det_params', 'text_type', 'text_rec_score_thresh', 'return_word_box', 'rec_texts', 'rec_scores', 'rec_polys', 'vis_fonts', 'textline_orientation_angles', 'rec_boxes']
+page_res['rec_texts']: ['B XÂY DNG', 'CQNG HOÀ XĂ HI CH NGHA VIT NAM', 'VIN KIN TRÚC QUÓC GIA', 'Đc lp - T do - Hnh phúc', 'S: 185/VKTQG-QLKH', 'Hà Ni, ngày 26 tháng 3 năm 2026', 'V/v góp ý D tho Ngh đnh ca Chính', 'phů quy đnh chi tit mt s ni dung v', 'qun lý cht lưng, thi công xây dng và', 'båo trì công trình xây dng', 'Kính gi: B Xây dng.', 'Căn cú Công văn s 4322/BXD-GD ngày 20 tháng 03 năm 2026 v vic', 'góp ý D tho Ngh đnh ca Chính ph quy đnh chi tit mt s ni dung v', 'qun lý cht lưng, thi công xây dng và bo trì c

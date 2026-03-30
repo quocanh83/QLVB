@@ -1,0 +1,15 @@
+Type of result: <class 'list'>
+Length: 1
+
+--- Page 0 (type=<class 'paddlex.inference.pipelines.ocr.result.OCRResult'>) ---
+  Len: 15
+  [0] type=<class 'str'>, repr='input_path'
+  [1] type=<class 'str'>, repr='page_index'
+  [2] type=<class 'str'>, repr='doc_preprocessor_res'
+  [3] type=<class 'str'>, repr='dt_polys'
+  [4] type=<class 'str'>, repr='model_settings'
+  [5] type=<class 'str'>, repr='text_det_params'
+  [6] type=<class 'str'>, repr='text_type'
+  [7] type=<class 'str'>, repr='text_rec_score_thresh'
+  [8] type=<class 'str'>, repr='return_word_box'
+  [9] type=<class 'str'>, repr='rec_texts'

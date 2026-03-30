@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "C:\Users\Quoc Anh\Desktop\QLVB\backend\feedbacks\views.py", line 297, in ocr_parse
+    ocr_results = service.process_file(file_path, target_pages=selected_pages)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Quoc Anh\Desktop\QLVB\backend\feedbacks\utils\ocr_service.py", line 165, in process_file
+    results.append({
+    ^^^^^^^
+NameError: name 'results' is not defined

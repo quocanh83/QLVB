@@ -11,6 +11,7 @@ import CreatableSelect from 'react-select/creatable';
 import SimpleBar from 'simplebar-react';
 import { useDropzone } from 'react-dropzone';
 import OCRComparisonView from './OCRComparisonView';
+import PageSelector from './PageSelector';
 
 const FeedbackIntake = () => {
     const [documents, setDocuments] = useState([]);
@@ -32,7 +33,9 @@ const FeedbackIntake = () => {
     const [nodeSearch, setNodeSearch] = useState('');
     const [selectedNodeId, setSelectedNodeId] = useState(null);
     
-    // OCR Review State
+    // OCR & Page Selection State
+    const [pdfInfo, setPdfInfo] = useState(null);
+    const [showPageSelector, setShowPageSelector] = useState(false);
     const [ocrResult, setOcrResult] = useState(null);
     const [showOCRReview, setShowOCRReview] = useState(false);
     
@@ -218,7 +221,33 @@ const FeedbackIntake = () => {
         formData.append('document_id', selectedDocId);
 
         try {
-            // New OCR endpoint
+            // Bước 1: Lấy số trang và preview
+            const res = await axios.post('/api/feedbacks/get_pdf_info/', formData, {
+                headers: { ...getAuthHeader().headers, 'Content-Type': 'multipart/form-data' }
+            });
+            
+            const data = (res.results || res.data || res);
+            setPdfInfo(data);
+            setShowPageSelector(true);
+            toast.info(`Phát hiện file có ${data.total_pages} trang. Hãy chọn các trang cần quét.`);
+        } catch (e) {
+            toast.error("Lỗi khi đọc file: " + (e.response?.data?.error || e.message));
+        } finally {
+            setUploading2(false);
+        }
+    };
+
+    const startOCR = async (selectedPages) => {
+        if (!file2) return;
+        
+        setUploading2(true);
+        const formData = new FormData();
+        formData.append('file', file2);
+        formData.append('document_id', selectedDocId);
+        formData.append('selected_pages', selectedPages);
+
+        try {
+            // Bước 2: Thực hiện OCR thực sự
             const res = await axios.post('/api/feedbacks/ocr_parse/', formData, {
                 headers: { ...getAuthHeader().headers, 'Content-Type': 'multipart/form-data' }
             });
@@ -227,9 +256,10 @@ const FeedbackIntake = () => {
             if (data.pages && data.pages.length > 0) {
                 setOcrResult(data.pages);
                 setShowOCRReview(true);
+                setShowPageSelector(false);
                 toast.success("Đã trích xuất & xử lý AI xong. Mời bạn đối soát kết quả.");
             } else {
-                toast.warning("Không tìm thấy văn bản trong tệp tải lên.");
+                toast.warning("Không tìm thấy văn bản trong các trang đã chọn.");
             }
         } catch (e) {
             toast.error("Lỗi khi xử lý OCR & AI: " + (e.response?.data?.error || e.message));
@@ -238,29 +268,37 @@ const FeedbackIntake = () => {
         }
     };
 
-    const handleConfirmOCR = (finalText) => {
-        // Break final text into paragraphs and guess nodes
-        const paragraphs = finalText.split('\n\n').filter(p => p.trim());
-        
-        const defaultAgencyName = metadata.drafting_agency || "";
-        const defaultAgency = agencies.find(a => a.name === defaultAgencyName);
-
-        const enriched = paragraphs.map((content, i) => {
-            const guessedNodeId = guessNodeFromText(content, nodes);
-            return {
-                key: `ocr-${i}-${Date.now()}`,
-                node_id: guessedNodeId || null,
-                node_label: nodes.find(n => n.id === guessedNodeId)?.label || "Vấn đề khác",
-                agency_id: defaultAgency ? defaultAgency.id : null,
-                contributing_agency: defaultAgencyName,
-                content: content.trim()
-            };
-        });
-
-        setFeedbacks([...enriched, ...feedbacks]);
-        setShowOCRReview(false);
-        setOcrResult(null);
-        toast.success(`Đã xác nhận và thêm ${enriched.length} đoạn góp ý vào danh sách chờ.`);
+    const handleConfirmOCR = async (finalText) => {
+        setUploading2(true);
+        try {
+            const res = await axios.post('/api/feedbacks/ocr_finalize_parse/', {
+                document_id: selectedDocId,
+                text: finalText
+            }, getAuthHeader());
+            
+            const data = (res.results || res.data || res);
+            if (data.feedbacks && data.feedbacks.length > 0) {
+                // Đảm bảo agencies được ánh xạ nếu AI tìm thấy tên cơ quan
+                const enriched = data.feedbacks.map(fb => {
+                    const agencyMatch = agencies.find(a => a.name.toLowerCase() === fb.contributing_agency?.toLowerCase());
+                    return {
+                        ...fb,
+                        agency_id: agencyMatch ? agencyMatch.id : null
+                    };
+                });
+                
+                setFeedbacks([...enriched, ...feedbacks]);
+                setShowOCRReview(false);
+                setOcrResult(null);
+                toast.success(`AI đã bóc tách thành công ${enriched.length} đoạn góp ý có cấu trúc.`);
+            } else {
+                toast.warning("AI không thể nhận diện được cấu trúc góp ý từ văn bản này.");
+            }
+        } catch (e) {
+            toast.error("Lỗi khi AI phân tích cấu trúc: " + (e.response?.data?.error || e.message));
+        } finally {
+            setUploading2(false);
+        }
     };
 
     const guessNodeFromText = (text, nodesList) => {
@@ -593,7 +631,21 @@ const FeedbackIntake = () => {
 
                         {/* TAB 3: IMAGE/PDF INTAKE (Cloned from Tab 2) */}
                         <TabPane tabId="3">
-                            {!showOCRReview ? (
+                            {showOCRReview ? (
+                                <OCRComparisonView 
+                                    pages={ocrResult} 
+                                    onConfirm={handleConfirmOCR} 
+                                    onCancel={() => setShowOCRReview(false)} 
+                                    loading={uploading2}
+                                />
+                            ) : showPageSelector ? (
+                                <PageSelector 
+                                    previews={pdfInfo.previews} 
+                                    totalPages={pdfInfo.total_pages} 
+                                    onProcessedSelect={startOCR} 
+                                    loading={uploading2}
+                                />
+                            ) : (
                                 <Row>
                                     <Col lg={4}>
                                         <Card className="border-0 shadow-sm h-100 mb-0">
@@ -648,13 +700,13 @@ const FeedbackIntake = () => {
                                                     disabled={!file2 || uploading2}
                                                 >
                                                     <i className="ri-scan-2-line label-icon align-middle fs-16 me-2"></i> 
-                                                    {uploading2 ? "Đang xử lý bằng AI..." : "Bắt đầu Trích xuất OCR & AI"}
+                                                    {uploading2 ? "Đang đọc file..." : "Xem trước & Chọn trang quét"}
                                                 </Button>
 
                                                 <div className="p-3 bg-info-subtle rounded-3 border border-dashed border-info shadow-none">
                                                     <p className="text-info mb-0 fs-12 lh-base">
                                                         <i className="ri-information-line align-middle me-1"></i>
-                                                        Hệ thống sẽ sử dụng <b>PaddleOCR</b> để nhận diện và <b>AI (GPT-4o)</b> để tự động sửa lỗi chính tả, bù từ mờ dựa trên ngữ cảnh pháp luật. Dữ liệu sẽ hiển thị đối soát song song sau khi xử lý.
+                                                        Hệ thống sử dụng công nghệ <b>Mistral AI OCR</b> mới nhất để nhận diện bảng biểu và cấu trúc pháp luật chính xác 99%. Bạn có thể chọn từng trang để tối ưu chi phí.
                                                     </p>
                                                 </div>
                                             </CardBody>
@@ -738,7 +790,7 @@ const FeedbackIntake = () => {
                                                                                 <i className="ri-camera-lens-line display-3 text-info opacity-25"></i>
                                                                             </div>
                                                                             <h5 className="text-body fw-bold">Chưa có dữ liệu từ Ảnh/PDF</h5>
-                                                                            <p className="fs-14 mb-0">Hệ thống sẽ bóc tách dữ liệu ngay sau khi bạn tải tệp và nhấn nút "Bắt đầu Trích xuất".</p>
+                                                                            <p className="fs-14 mb-0">Hệ thống sẽ bóc tách dữ liệu ngay sau khi bạn tải tệp và nhấn nút "Xem trước & Chọn trang quét".</p>
                                                                         </div>
                                                                     </td>
                                                                 </tr>
@@ -750,12 +802,6 @@ const FeedbackIntake = () => {
                                         </Card>
                                     </Col>
                                 </Row>
-                            ) : (
-                                <OCRComparisonView 
-                                    pages={ocrResult} 
-                                    onConfirm={handleConfirmOCR} 
-                                    onCancel={() => setShowOCRReview(false)} 
-                                />
                             )}
                         </TabPane>
                     </TabContent>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Container, Row, Col, Card, CardBody, CardHeader, Input, Button, Spinner, Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from 'reactstrap';
+import { Container, Row, Col, Card, CardBody, CardHeader, Input, Button, Spinner, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, Modal, ModalHeader, ModalBody, ModalFooter } from 'reactstrap';
 import axios from 'axios';
 import { getAuthHeader } from '../../helpers/api_helper';
 import { toast } from 'react-toastify';
@@ -35,6 +35,13 @@ const DocumentDetails = () => {
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState('all');
+
+    // Reassign Node States
+    const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
+    const [nodeOptions, setNodeOptions] = useState([]);
+    const [feedbackToReassign, setFeedbackToReassign] = useState(null);
+    const [targetNodeId, setTargetNodeId] = useState('');
+    const [reassigning, setReassigning] = useState(false);
 
     useEffect(() => {
         if (id) {
@@ -250,6 +257,39 @@ const DocumentDetails = () => {
             fetchStructure(); // Refresh counts in tree
         } catch (err) {
             toast.error("Lỗi khi thêm góp ý.");
+        }
+    };
+
+    const handleOpenReassignModal = async (fb) => {
+        setFeedbackToReassign(fb);
+        setIsReassignModalOpen(true);
+        if (nodeOptions.length === 0) {
+            try {
+                const res = await axios.get(`/api/feedbacks/get_document_nodes/?document_id=${id}`, getAuthHeader());
+                setNodeOptions(res.results || res || []);
+            } catch (err) {
+                toast.error("Không thể tải danh sách điều khoản.");
+            }
+        }
+        setTargetNodeId(fb.node_id);
+    };
+
+    const handleReassignFeedback = async () => {
+        if (!targetNodeId || !feedbackToReassign) return;
+        setReassigning(true);
+        try {
+            await axios.post(`/api/feedbacks/${feedbackToReassign.id}/reassign_node/`, {
+                node_id: targetNodeId
+            }, getAuthHeader());
+            
+            toast.success("Đã chuyển điều khoản thành công!");
+            setIsReassignModalOpen(false);
+            fetchFeedbacks(selectedNode.id); // Refresh current view
+            fetchStructure(); // Refresh tree counts
+        } catch (err) {
+            toast.error("Lỗi khi chuyển điều khoản.");
+        } finally {
+            setReassigning(false);
         }
     };
 
@@ -548,6 +588,14 @@ const DocumentDetails = () => {
                                                                             >
                                                                                 <i className="ri-magic-line me-1"></i> AI Gợi ý
                                                                             </Button>
+                                                                            <Button 
+                                                                                color="link" 
+                                                                                size="sm" 
+                                                                                className="p-0 text-decoration-none fs-12 fw-medium text-warning"
+                                                                                onClick={() => handleOpenReassignModal(fb)}
+                                                                            >
+                                                                                <i className="ri-drag-move-line me-1"></i> Gắn lại
+                                                                            </Button>
                                                                             <span className={`badge ${fb.status === 'approved' ? 'bg-success-subtle text-success' : fb.status === 'reviewed' ? 'bg-info-subtle text-info' : 'bg-warning-subtle text-warning'} ms-auto fs-10`}>
                                                                                 {fb.status === 'approved' ? 'Đã duyệt' : fb.status === 'reviewed' ? 'Đã thẩm định' : 'Chờ xử lý'}
                                                                             </span>
@@ -674,6 +722,37 @@ const DocumentDetails = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Reassign Node Modal */}
+            <Modal isOpen={isReassignModalOpen} toggle={() => setIsReassignModalOpen(!isReassignModalOpen)} centered>
+                <ModalHeader toggle={() => setIsReassignModalOpen(!isReassignModalOpen)} className="bg-warning-subtle text-warning">
+                    <i className="ri-drag-move-line align-bottom me-1"></i> Chuyển Điều khoản góp ý
+                </ModalHeader>
+                <ModalBody>
+                    <p className="fs-13 text-muted mb-3">
+                        Bạn đang chuyển nội dung góp ý của <strong>{feedbackToReassign?.contributing_agency}</strong> sang một điều khoản khác.
+                    </p>
+                    <div className="mb-3">
+                        <label className="form-label fw-bold small">Chọn Điều/Khoản đích</label>
+                        <select 
+                            className="form-select" 
+                            value={targetNodeId} 
+                            onChange={(e) => setTargetNodeId(e.target.value)}
+                        >
+                            <option value="">-- Chọn Điều/Khoản --</option>
+                            {nodeOptions.map(opt => (
+                                <option key={opt.id} value={opt.id}>{opt.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                </ModalBody>
+                <ModalFooter>
+                    <Button color="light" onClick={() => setIsReassignModalOpen(false)}>Hủy</Button>
+                    <Button color="warning" onClick={handleReassignFeedback} disabled={reassigning || !targetNodeId}>
+                        {reassigning ? <Spinner size="sm"/> : "Xác nhận chuyển"}
+                    </Button>
+                </ModalFooter>
+            </Modal>
         </React.Fragment>
     );
 };
