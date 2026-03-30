@@ -31,6 +31,7 @@ import CreateProject from "../pages/Projects/CreateProject";
 // QLVB - Documents
 import DocumentList from "../pages/Documents";
 import DocumentDetails from "../pages/Documents/DocumentDetails";
+import ConsultationResponses from "../pages/Documents/ConsultationResponses";
 
 // QLVB - Reports
 import Reports from "../pages/Reports";
@@ -41,6 +42,7 @@ import FeedbackList from "../pages/FeedbackList";
 import SystemSettings from "../pages/Settings";
 import DocumentTypeManagement from "../pages/DocumentTypeManagement";
 import UserManagement from "../pages/UserManagement";
+import Agencies from "../pages/Agencies";
 
 //Task
 import TaskDetails from "../pages/Tasks/TaskDetails";
@@ -305,6 +307,7 @@ const authProtectedRoutes = [
   // QLVB - Documents
   { path: "/documents", component: <DocumentList /> },
   { path: "/documents/:id", component: <DocumentDetails /> },
+  { path: "/documents/:id/responses", component: <ConsultationResponses /> },
   
   // QLVB - Reports
   { path: "/reports", component: <Reports /> },
@@ -316,6 +319,7 @@ const authProtectedRoutes = [
   { path: "/settings", component: <SystemSettings /> },
   { path: "/document-types", component: <DocumentTypeManagement /> },
   { path: "/user-management", component: <UserManagement /> },
+  { path: "/agencies", component: <Agencies /> },
 
   //Task
   { path: "/apps-tasks-list-view", component: <TaskList /> },

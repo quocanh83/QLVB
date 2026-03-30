@@ -44,6 +44,35 @@ class AgencyViewSet(viewsets.ModelViewSet):
     serializer_class = AgencySerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    @action(detail=False, methods=['post'])
+    def bulk_import(self, request):
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response({"error": "Không tìm thấy tệp tải lên."}, status=400)
+        
+        try:
+            import pandas as pd
+            df = pd.read_excel(file_obj) if file_obj.name.endswith('.xlsx') else pd.read_csv(file_obj)
+            
+            # expected columns: name, category (optional)
+            created_count = 0
+            for _, row in df.iterrows():
+                name = str(row.get('name', '')).strip()
+                if not name or name == 'nan': continue
+                
+                category = str(row.get('category', 'other')).strip().lower()
+                # matching with choices if needed...
+                
+                Agency.objects.get_or_create(
+                    name=name,
+                    defaults={'category': category}
+                )
+                created_count += 1
+            
+            return Response({"message": f"Đã nhập thành công {created_count} đơn vị."})
+        except Exception as e:
+            return Response({"error": f"Lỗi xử lý tệp: {str(e)}"}, status=500)
+
 import os
 import subprocess
 import threading

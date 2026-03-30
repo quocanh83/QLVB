@@ -521,6 +521,41 @@ class DocumentViewSet(viewsets.ModelViewSet):
             print(traceback.format_exc())
             return Response({"error": f"Lỗi trong quá trình xuất báo cáo: {str(e)}"}, status=500)
 
+    @action(detail=False, methods=['post'])
+    def match_agencies_from_file(self, request):
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response({"error": "Không có tệp tải lên."}, status=400)
+        
+        try:
+            from core.models import Agency
+            all_agencies = Agency.objects.all()
+            text = ""
+            
+            if file_obj.name.endswith('.docx'):
+                doc = docx.Document(file_obj)
+                text = "\n".join([p.text for p in doc.paragraphs])
+                for table in doc.tables:
+                    for row in table.rows:
+                        text += "\n" + " ".join([cell.text for cell in row.cells])
+            elif file_obj.name.endswith('.xlsx') or file_obj.name.endswith('.xls'):
+                import pandas as pd
+                df = pd.read_excel(file_obj)
+                text = df.to_string()
+            else:
+                return Response({"error": "Chỉ hỗ trợ tệp .docx hoặc .xlsx"}, status=400)
+            
+            matched_ids = []
+            for agency in all_agencies:
+                # Search for agency name in text (case-insensitive)
+                # Using regex to ensure word boundary if possible, but simple icontains is safer for long names
+                if agency.name.lower() in text.lower():
+                    matched_ids.append(agency.id)
+            
+            return Response({"matched_ids": matched_ids})
+        except Exception as e:
+            return Response({"error": f"Lỗi xử lý tệp: {str(e)}"}, status=500)
+
 class NodeViewSet(viewsets.ModelViewSet):
     queryset = DocumentNode.objects.all()
     serializer_class = DocumentNodeSerializer

@@ -266,6 +266,12 @@ const useNavData = () => {
           parentId: "settings",
         },
         {
+          id: "agency-management",
+          label: "Quản lý Đơn vị",
+          link: "/agencies",
+          parentId: "settings",
+        },
+        {
           id: "user-management",
           label: "Quản lý Cán bộ",
           link: "/user-management",

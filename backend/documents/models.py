@@ -27,6 +27,12 @@ class Document(models.Model):
     total_feedbacks_doc = models.IntegerField(default=0, help_text="Tổng số ý kiến nhận được")
     lead = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='led_documents')
     document_type = models.ForeignKey(DocumentType, on_delete=models.SET_NULL, null=True, blank=True, related_name='documents')
+    
+    # Fields for consultation issuance
+    issuance_number = models.CharField(max_length=255, blank=True, null=True, verbose_name="Số văn bản phát hành lấy ý kiến")
+    issuance_date = models.DateField(blank=True, null=True, verbose_name="Ngày văn bản phát hành lấy ý kiến")
+    issuance_file = models.FileField(upload_to='documents/issuance/', blank=True, null=True, verbose_name="File văn bản phát hành")
+    consulted_agencies = models.ManyToManyField('core.Agency', blank=True, related_name='consulted_documents', verbose_name="Các đơn vị được lấy ý kiến")
 
     def __str__(self):
         return self.project_name

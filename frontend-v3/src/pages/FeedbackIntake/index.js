@@ -19,6 +19,11 @@ const FeedbackIntake = () => {
     const [nodes, setNodes] = useState([]);
     const [feedbacks, setFeedbacks] = useState([]);
     const [metadata, setMetadata] = useState({});
+    
+    // Global Agency Info for DOCX
+    const [globalAgency, setGlobalAgency] = useState("");
+    const [globalAgencyId, setGlobalAgencyId] = useState(null);
+    const [globalDocNumber, setGlobalDocNumber] = useState("");
     const [agencies, setAgencies] = useState([]);
     
     const [loading, setLoading] = useState(false);
@@ -360,7 +365,12 @@ const FeedbackIntake = () => {
             await axios.post('/api/feedbacks/bulk_create/', {
                 document_id: selectedDocId,
                 feedbacks: feedbacks,
-                metadata: metadata
+                metadata: {
+                    ...metadata,
+                    contributing_agency: globalAgency,
+                    agency_id: globalAgencyId,
+                    official_doc_number: globalDocNumber
+                }
             }, getAuthHeader());
             toast.success("Đã nạp toàn bộ góp ý vào hệ thống!");
             navigate(`/documents/${selectedDocId}`);
@@ -622,6 +632,182 @@ const FeedbackIntake = () => {
                                                         Chưa có góp ý nào được nhập thủ công.
                                                     </div>
                                                 )}
+                                            </div>
+                                        </CardBody>
+                                    </Card>
+                                </Col>
+                            </Row>
+                        </TabPane>
+
+                        {/* TAB 2: DOCX INTAKE */}
+                        <TabPane tabId="2">
+                            <Row>
+                                <Col lg={4}>
+                                    <Card className="border-0 shadow-sm h-100 mb-0">
+                                        <CardHeader className="bg-light-subtle py-3 mt-0 text-center">
+                                            <h6 className="card-title mb-1 fw-bold"><i className="ri-file-word-2-line align-bottom me-1"></i> Tải File (.docx) góp ý</h6>
+                                            <p className="text-muted mb-0 fs-11">Hỗ trợ định dạng Word (.docx)</p>
+                                        </CardHeader>
+                                        <CardBody className="bg-body-tertiary">
+                                            <div 
+                                                {...getRootProps()} 
+                                                className={classnames(
+                                                    "p-5 border rounded-3 text-center mb-4 shadow-sm transition-all",
+                                                    isDragActive ? "border-primary bg-primary-subtle" : "border-dashed bg-card-custom",
+                                                    !selectedDocId ? "opacity-50 grayscale-1" : "cursor-pointer"
+                                                )}
+                                                style={{ borderStyle: 'dashed', borderWidth: '2px', cursor: !selectedDocId ? 'not-allowed' : 'pointer' }}
+                                            >
+                                                <input {...getInputProps()} />
+                                                <div className="mb-3">
+                                                    <i className={classnames(
+                                                        "display-4 opacity-50 d-block",
+                                                        isDragActive ? "ri-download-cloud-2-line text-primary" : "ri-file-word-line text-muted"
+                                                    )}></i>
+                                                </div>
+                                                {!selectedDocId ? (
+                                                    <div className="text-danger fw-medium">
+                                                        <i className="ri-information-line align-middle me-1"></i> 
+                                                        Vui lòng chọn dự thảo ở trên trước
+                                                    </div>
+                                                ) : file ? (
+                                                    <div>
+                                                        <h5 className="text-success fw-bold mb-1">
+                                                            <i className="ri-file-word-2-fill align-bottom me-1"></i> {file.name}
+                                                        </h5>
+                                                        <p className="text-muted small mb-0">{(file.size / 1024).toFixed(2)} KB - Sẵn sàng xử lý</p>
+                                                    </div>
+                                                ) : (
+                                                    <div>
+                                                        <h5 className="fw-bold mb-1">Kéo thả File Word vào đây</h5>
+                                                        <p className="text-muted mb-0">Hoặc nhấp để chọn tệp</p>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <Button 
+                                                color="primary" 
+                                                className="w-100 btn-label waves-effect waves-light shadow-none py-2 mb-3" 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    parseFile();
+                                                }} 
+                                                disabled={!file || uploading}
+                                            >
+                                                <i className="ri-file-word-line label-icon align-middle fs-16 me-2"></i> 
+                                                {uploading ? "Đang xử lý..." : "Phân rã file .docx"}
+                                            </Button>
+
+                                            <div className="p-3 bg-secondary-subtle rounded-3 border border-dashed border-secondary shadow-none">
+                                                <p className="text-secondary mb-0 fs-12 lh-base">
+                                                    <i className="ri-information-line align-middle me-1"></i>
+                                                    Hệ thống sẽ tự động nhận diện cấu trúc văn bản góp ý của bạn dựa trên các từ khóa như "Tại Điều...", "Tại Khoản...", "Sửa đổi..." để map vào đúng phần tử dự thảo.
+                                                </p>
+                                            </div>
+                                        </CardBody>
+                                    </Card>
+                                </Col>
+
+                                <Col lg={8}>
+                                    <Card className="border-0 shadow-sm h-100 mb-0 overflow-hidden">
+                                        <CardHeader className="bg-primary-subtle py-3 border-bottom border-primary border-opacity-10 d-flex justify-content-between align-items-center">
+                                            <h6 className="card-title mb-0 fw-bold">
+                                                <i className="ri-list-settings-line align-bottom me-1 text-primary"></i> 
+                                                Kết quả phân rã ({feedbacks.filter(f => f.key.startsWith('file')).length})
+                                            </h6>
+                                        </CardHeader>
+                                        <CardBody className="p-3">
+                                            {/* Global Agency Info Inputs */}
+                                            {feedbacks.filter(f => f.key.startsWith('file')).length > 0 && (
+                                                <div className="p-3 bg-light border rounded-3 mb-3 shadow-sm">
+                                                    <Row className="g-3">
+                                                        <Col md={7}>
+                                                            <Label className="form-label fw-bold text-uppercase fs-11 text-muted">Cơ quan góp ý (Góp chung cho cả file):</Label>
+                                                            <CreatableSelect
+                                                                isClearable
+                                                                value={agencies.find(a => a.id === globalAgencyId) ? { value: globalAgencyId, label: agencies.find(a => a.id === globalAgencyId).name } : (globalAgency ? {label: globalAgency, value: null} : null)}
+                                                                onChange={(opt) => {
+                                                                    setGlobalAgencyId(opt && !opt.__isNew__ ? opt.value : null);
+                                                                    setGlobalAgency(opt ? opt.label : '');
+                                                                }}
+                                                                options={agencies.map(a => ({ value: a.id, label: a.name }))}
+                                                                placeholder="Chọn hoặc nhập tên cơ quan..."
+                                                                formatCreateLabel={(inputValue) => `Thêm mới: "${inputValue}"`}
+                                                                styles={selectStyles}
+                                                            />
+                                                        </Col>
+                                                        <Col md={5}>
+                                                            <Label className="form-label fw-bold text-uppercase fs-11 text-muted">Số công văn:</Label>
+                                                            <Input 
+                                                                type="text" 
+                                                                placeholder="Ví dụ: 123/BC-BXD..." 
+                                                                value={globalDocNumber}
+                                                                onChange={(e) => setGlobalDocNumber(e.target.value)}
+                                                                className="form-control border-light-subtle"
+                                                            />
+                                                        </Col>
+                                                    </Row>
+                                                </div>
+                                            )}
+
+                                            <div className="table-responsive" style={{ maxHeight: '650px' }}>
+                                                <Table className="align-middle mb-0 table-hover">
+                                                    <thead className="bg-light text-dark fs-13">
+                                                        <tr>
+                                                            <th scope="col" className="fw-bold" style={{ width: '65%' }}>Nội dung góp ý</th>
+                                                            <th scope="col" className="fw-bold" style={{ width: '30%' }}>Điều/Khoản tương ứng</th>
+                                                            <th scope="col" className="text-center" style={{ width: '5%' }}>Xóa</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {feedbacks.filter(f => f.key.startsWith('file')).length > 0 ? feedbacks.filter(f => f.key.startsWith('file')).map((fb) => (
+                                                            <tr key={fb.key}>
+                                                                <td className="p-2">
+                                                                    <Input 
+                                                                        type="textarea" 
+                                                                        rows={4} 
+                                                                        value={fb.content} 
+                                                                        onChange={(e) => updateFeedbackField(fb.key, 'content', e.target.value)}
+                                                                        className="form-control border-light-subtle bg-light-subtle text-body fs-14"
+                                                                        style={{ padding: '12px' }}
+                                                                    />
+                                                                </td>
+                                                                <td className="p-2">
+                                                                    <Select
+                                                                        value={nodes.find(n => n.id === fb.node_id) ? { value: fb.node_id, label: nodes.find(n => n.id === fb.node_id).label } : { value: null, label: 'Chung' }}
+                                                                        onChange={(opt) => updateFeedbackField(fb.key, 'node_id', opt ? opt.value : null)}
+                                                                        options={[
+                                                                            { value: null, label: 'Chung' },
+                                                                            ...nodes.filter(n => n.type !== 'Văn bản').map(n => ({ value: n.id, label: n.label }))
+                                                                        ]}
+                                                                        placeholder="Mức..."
+                                                                        isClearable
+                                                                        menuPortalTarget={document.body}
+                                                                        menuPosition="fixed"
+                                                                        styles={selectStyles}
+                                                                    />
+                                                                </td>
+                                                                <td className="text-center p-2">
+                                                                    <Button color="soft-danger" size="sm" className="btn-icon shadow-none" onClick={() => removeFeedback(fb.key)}>
+                                                                        <i className="ri-delete-bin-line fs-16"></i>
+                                                                    </Button>
+                                                                </td>
+                                                            </tr>
+                                                        )) : (
+                                                            <tr>
+                                                                <td colSpan="3" className="text-center py-5 text-muted bg-body-tertiary">
+                                                                    <div className="py-5">
+                                                                        <div className="mb-4">
+                                                                            <i className="ri-file-word-line display-3 text-primary opacity-25"></i>
+                                                                        </div>
+                                                                        <h5 className="text-body fw-bold">Chưa có dữ liệu từ File Word</h5>
+                                                                        <p className="fs-14 mb-0">Hệ thống sẽ phân rã nội dung ngay sau khi bạn tải tệp .docx và nhấn nút "Phân rã file .docx".</p>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                    </tbody>
+                                                </Table>
                                             </div>
                                         </CardBody>
                                     </Card>

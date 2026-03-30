@@ -20,21 +20,22 @@ const selectStyles = {
     }),
     menu: (base) => ({
         ...base,
-        background: "var(--vz-choices-bg)",
-        zIndex: 5
+        backgroundColor: "var(--vz-input-bg, #2a2f34)", 
+        zIndex: 5,
+        border: "1px solid var(--vz-border-color)"
     }),
     option: (base, state) => ({
         ...base,
-        background: state.isSelected 
+        backgroundColor: state.isSelected 
             ? "var(--vz-primary)" 
             : state.isFocused 
                 ? "var(--vz-light)" 
-                : "transparent",
+                : "var(--vz-input-bg, #2a2f34)",
         color: state.isSelected 
             ? "#fff" 
             : "var(--vz-body-color)",
         "&:hover": {
-            background: "var(--vz-light)",
+            backgroundColor: "var(--vz-light)",
             color: "var(--vz-body-color)"
         }
     }),
@@ -73,6 +74,13 @@ const FeedbackList = () => {
     const [isNodeModalOpen, setIsNodeModalOpen] = useState(false);
     const [selectedNodeData, setSelectedNodeData] = useState(null);
     const [nodeLoading, setNodeLoading] = useState(false);
+    
+    // NEW: Modal state for Editing Feedback
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editContent, setEditContent] = useState("");
+    const [editNodeId, setEditNodeId] = useState(null);
+    const [docNodes, setDocNodes] = useState([]);
+    const [updating, setUpdating] = useState(false);
 
     useEffect(() => {
         fetchDocuments();
@@ -117,6 +125,21 @@ const FeedbackList = () => {
         } finally {
             setLoading(false);
         }
+        
+        // Also pre-fetch nodes for re-assignment
+        fetchDocNodes(docId);
+    };
+
+    const fetchDocNodes = async (docId) => {
+        try {
+            const res = await axios.get(`/api/feedbacks/get_document_nodes/?document_id=${docId}`, getAuthHeader());
+            const data = res.data || res || [];
+            if (Array.isArray(data)) {
+                setDocNodes(data.map(n => ({ value: n.id, label: n.label, type: n.type })));
+            }
+        } catch (e) {
+            console.error("Lỗi khi tải danh sách Điều/Khoản để gắn lại.");
+        }
     };
 
     useEffect(() => {
@@ -139,6 +162,35 @@ const FeedbackList = () => {
         setCurrentFeedback(fb);
         setExplanation(fb.explanation || '');
         setIsModalOpen(true);
+    };
+
+    const handleEditFeedback = (fb) => {
+        setCurrentFeedback(fb);
+        setEditContent(fb.content || '');
+        setEditNodeId(fb.node_id);
+        setIsEditModalOpen(true);
+    };
+
+    const saveFeedbackEdit = async () => {
+        if (!editContent.trim()) {
+            toast.warning("Vui lòng nhập nội dung góp ý.");
+            return;
+        }
+        setUpdating(true);
+        try {
+            await axios.patch(`/api/feedbacks/${currentFeedback.id}/`, {
+                content: editContent,
+                node: editNodeId
+            }, getAuthHeader());
+            
+            toast.success("Đã cập nhật góp ý thành công.");
+            setIsEditModalOpen(false);
+            fetchFeedbacks(selectedDoc.id); // Refresh
+        } catch (e) {
+            toast.error("Lỗi khi cập nhật góp ý.");
+        } finally {
+            setUpdating(false);
+        }
     };
 
     const saveExplanation = async () => {
@@ -376,7 +428,16 @@ const FeedbackList = () => {
                                                                 )}
                                                             </td>
                                                             <td>
-                                                                <div className="d-flex gap-1">
+                                                                <div className="d-flex gap-1 justify-content-center">
+                                                                    <Button 
+                                                                        color="warning" 
+                                                                        size="sm" 
+                                                                        className="btn-soft-warning btn-icon" 
+                                                                        onClick={() => handleEditFeedback(fb)}
+                                                                        title="Sửa nội dung & Gán lại"
+                                                                    >
+                                                                        <i className="ri-edit-line"></i>
+                                                                    </Button>
                                                                     {!fb.explanation ? (
                                                                         <Button 
                                                                             color="success" 
@@ -542,6 +603,44 @@ const FeedbackList = () => {
                     <ModalFooter className="bg-light p-3">
                         <Button color="secondary" onClick={() => setIsNodeModalOpen(false)} className="px-4 btn-soft-secondary">
                             Đóng cửa sổ
+                        </Button>
+                    </ModalFooter>
+                </Modal>
+
+                {/* EDIT FEEDBACK MODAL */}
+                <Modal isOpen={isEditModalOpen} toggle={() => setIsEditModalOpen(!isEditModalOpen)} centered size="lg" contentClassName="border-0 shadow-lg">
+                    <ModalHeader toggle={() => setIsEditModalOpen(!isEditModalOpen)} className="bg-warning-subtle text-warning">
+                        <i className="ri-edit-box-line align-bottom me-1"></i> Chỉnh sửa & Gắn lại Góp ý
+                    </ModalHeader>
+                    <ModalBody>
+                        <div className="mb-3">
+                            <Label className="form-label fw-bold small text-muted text-uppercase">Gán lại vào Điều/Khoản:</Label>
+                            <Select
+                                value={docNodes.find(n => n.value === editNodeId)}
+                                onChange={(opt) => setEditNodeId(opt ? opt.value : null)}
+                                options={docNodes}
+                                placeholder="Chọn vị trí Điều/Khoản mới..."
+                                isClearable
+                                styles={selectStyles}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <Label className="form-label fw-bold small text-muted text-uppercase">Nội dung góp ý gốc:</Label>
+                            <Input 
+                                type="textarea" 
+                                rows="10" 
+                                className="form-control border-dark-subtle"
+                                style={{ backgroundColor: '#fff', color: '#000', fontSize: '14px' }}
+                                value={editContent}
+                                onChange={(e) => setEditContent(e.target.value)}
+                                placeholder="Chỉnh sửa nội dung góp ý tại đây..."
+                            />
+                        </div>
+                    </ModalBody>
+                    <ModalFooter className="bg-light">
+                        <Button color="link" className="text-muted text-decoration-none shadow-none" onClick={() => setIsEditModalOpen(false)}>Hủy bỏ</Button>
+                        <Button color="warning" className="btn-load shadow-md px-4" onClick={saveFeedbackEdit} disabled={updating}>
+                            {updating ? <><Spinner size="sm" className="me-2"/> Đang lưu...</> : <><i className="ri-save-3-line align-bottom me-1"></i> Lưu thay đổi</>}
                         </Button>
                     </ModalFooter>
                 </Modal>

@@ -1,10 +1,10 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from .models import Feedback, Explanation, ActionLog
+from .models import Feedback, Explanation, ActionLog, ConsultationResponse
 from documents.models import DocumentNode
 from django.contrib.contenttypes.models import ContentType
-from .serializers import FeedbackSerializer
+from .serializers import FeedbackSerializer, ConsultationResponseSerializer
 import docx
 import re
 import os
@@ -464,13 +464,18 @@ class FeedbackViewSet(viewsets.ModelViewSet):
             target_node = node or fallback_node
             
             if target_node:
-                agency_id = item.get('agency_id')
+                # Ưu tiên lấy cơ quan góp ý và số công văn từ metadata (chung cho cả lần nhập)
+                global_agency = metadata.get('contributing_agency')
+                global_agency_id = metadata.get('agency_id')
+                global_doc_number = metadata.get('official_doc_number')
+
                 Feedback.objects.create(
                     document_id=document_id,
                     node=target_node,
                     user=request.user,
-                    contributing_agency=item.get('contributing_agency', ''),
-                    agency_id=agency_id,
+                    contributing_agency=global_agency or item.get('contributing_agency', ''),
+                    agency_id=global_agency_id or item.get('agency_id'),
+                    official_doc_number=global_doc_number or item.get('official_doc_number', ''),
                     content=item.get('content', '')
                 )
                 created_count += 1
@@ -791,6 +796,17 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         uncontributed = Agency.objects.exclude(id__in=contributed_agency_ids).values('id', 'name', 'category')
         
         return Response(list(uncontributed))
+
+class ConsultationResponseViewSet(viewsets.ModelViewSet):
+    queryset = ConsultationResponse.objects.all()
+    serializer_class = ConsultationResponseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        doc_id = self.request.query_params.get('document_id')
+        if doc_id:
+            return ConsultationResponse.objects.filter(document_id=doc_id).order_by('-created_at')
+        return super().get_queryset()
 
     @action(detail=False, methods=['get'])
     def custom_report_preview(self, request):

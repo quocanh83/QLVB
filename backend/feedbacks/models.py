@@ -28,6 +28,7 @@ class Feedback(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='feedbacks')
     contributing_agency = models.CharField(max_length=500, blank=True, null=True, help_text="Tên text tự nhập (Legacy)")
     agency = models.ForeignKey('core.Agency', on_delete=models.SET_NULL, null=True, blank=True, related_name='feedbacks', help_text="Cơ quan góp ý chuẩn hóa")
+    official_doc_number = models.CharField(max_length=255, blank=True, null=True, help_text="Số công văn của cơ quan góp ý")
     content = models.TextField()
     attached_file_path = models.FileField(upload_to='feedbacks/files/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -44,6 +45,17 @@ class Feedback(models.Model):
 
     def __str__(self):
         return f"Feedback by {self.user.username} on {self.node.node_label}"
+
+class ConsultationResponse(models.Model):
+    document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='responses', verbose_name="Dự thảo liên quan")
+    agency = models.ForeignKey('core.Agency', on_delete=models.CASCADE, related_name='consultation_responses', verbose_name="Đơn vị góp ý")
+    official_number = models.CharField(max_length=255, verbose_name="Số hiệu công văn")
+    official_date = models.DateField(verbose_name="Ngày công văn")
+    attached_file = models.FileField(upload_to='consultation_responses/', verbose_name="File đính kèm công văn")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.official_number} - {self.agency.name}"
 
 class ActionLog(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='action_logs')

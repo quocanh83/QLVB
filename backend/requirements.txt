@@ -40,3 +40,5 @@ pymupdf
 opencv-python-headless
 diff-match-patch
 numpy
+pandas
+openpyxl
