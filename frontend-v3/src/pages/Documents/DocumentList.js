@@ -17,7 +17,7 @@ const DocumentList = () => {
     const [documents, setDocuments] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
-    const [filterType, setFilterType] = useState("All"); 
+    const [filterType, setFilterType] = useState("All");
     const [typeStats, setTypeStats] = useState([]); // State cho bảng phân loại bên trái
 
     // Modals
@@ -210,8 +210,8 @@ const DocumentList = () => {
                                         <Table className="table-hover mb-0">
                                             <tbody>
                                                 {typeStats.map((item) => (
-                                                    <tr 
-                                                        key={item.id} 
+                                                    <tr
+                                                        key={item.id}
                                                         onClick={() => setFilterType(item.name === "Tất cả" ? "All" : item.name)}
                                                         className={`cursor-pointer ${((filterType === "All" && item.name === "Tất cả") || filterType === item.name) ? 'table-active fw-bold' : ''}`}
                                                     >
@@ -248,9 +248,9 @@ const DocumentList = () => {
                                 </Col>
                                 <Col sm={4} className="ms-auto">
                                     <div className="search-box">
-                                        <Input 
-                                            type="text" 
-                                            placeholder="Tìm kiếm dự thảo..." 
+                                        <Input
+                                            type="text"
+                                            placeholder="Tìm kiếm dự thảo..."
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
                                         />
@@ -277,7 +277,7 @@ const DocumentList = () => {
                                                     <th>Tên dự thảo / Dự án</th>
                                                     <th>Cơ quan chủ trì</th>
                                                     <th>Tiến độ giải trình</th>
-                                                    <th style={{ width: '100px' }}>Thao tác</th>
+                                                    <th style={{ width: '180px' }}>Thao tác</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -288,8 +288,8 @@ const DocumentList = () => {
                                                         </td>
                                                     </tr>
                                                 ) : filteredDocs.map((item, index) => {
-                                                    const rate = item.total_feedbacks > 0 
-                                                        ? Math.round((item.resolved_feedbacks / item.total_feedbacks) * 100) 
+                                                    const rate = item.total_feedbacks > 0
+                                                        ? Math.round((item.resolved_feedbacks / item.total_feedbacks) * 100)
                                                         : 0;
                                                     return (
                                                         <tr key={item.id}>
@@ -318,7 +318,7 @@ const DocumentList = () => {
                                                                 <ul className="list-inline hstack gap-1 justify-content-center mb-0">
                                                                     <li className="list-inline-item" title="Xem chi tiết">
                                                                         <Button color="soft-info" size="sm" className="btn-icon p-1" onClick={() => navigate(`/documents/${item.id}`)}>
-                                                                            <i className="ri-eye-fill align-bottom"></i>
+                                                                            <i className="ri-eye-fill align-bottom">Xem chi tiết</i>
                                                                         </Button>
                                                                     </li>
                                                                     <li className="list-inline-item" title="Quản lý VB góp ý">
@@ -336,24 +336,20 @@ const DocumentList = () => {
                                                                             <i className="ri-pencil-fill align-bottom"></i>
                                                                         </Button>
                                                                     </li>
-                                                                    <li className="list-inline-item">
-                                                                        <UncontrolledDropdown direction='start'>
-                                                                            <DropdownToggle tag="button" className="btn btn-sm btn-soft-secondary btn-icon p-1">
-                                                                                <i className="ri-more-fill align-bottom"></i>
-                                                                            </DropdownToggle>
-                                                                            <DropdownMenu className="dropdown-menu-end">
-                                                                                <DropdownItem onClick={() => { setSelectedDoc(item); setIsLeadModal(true); }}>
-                                                                                    <i className="ri-user-star-line align-bottom me-2 text-muted"></i> Phân công PT
-                                                                                </DropdownItem>
-                                                                                <DropdownItem onClick={() => { setSelectedDoc(item); setIsIssuanceModal(true); }}>
-                                                                                    <i className="ri-send-plane-fill align-bottom me-2 text-muted"></i> Phát hành văn bản
-                                                                                </DropdownItem>
-                                                                                <div className="dropdown-divider"></div>
-                                                                                <DropdownItem onClick={() => onClickDelete(item)} className="text-danger">
-                                                                                    <i className="ri-delete-bin-fill align-bottom me-2 text-danger"></i> Xóa vĩnh viễn
-                                                                                </DropdownItem>
-                                                                            </DropdownMenu>
-                                                                        </UncontrolledDropdown>
+                                                                    <li className="list-inline-item" title="Phân công PT">
+                                                                        <Button color="soft-secondary" size="sm" className="btn-icon p-1" onClick={() => { setSelectedDoc(item); setIsLeadModal(true); }}>
+                                                                            <i className="ri-user-star-line align-bottom"></i>
+                                                                        </Button>
+                                                                    </li>
+                                                                    <li className="list-inline-item" title="Phát hành văn bản">
+                                                                        <Button color="soft-dark" size="sm" className="btn-icon p-1" onClick={() => { setSelectedDoc(item); setIsIssuanceModal(true); }}>
+                                                                            <i className="ri-send-plane-fill align-bottom"></i>
+                                                                        </Button>
+                                                                    </li>
+                                                                    <li className="list-inline-item" title="Xóa vĩnh viễn">
+                                                                        <Button color="soft-danger" size="sm" className="btn-icon p-1" onClick={() => onClickDelete(item)}>
+                                                                            <i className="ri-delete-bin-fill align-bottom"></i>
+                                                                        </Button>
                                                                     </li>
                                                                 </ul>
                                                             </td>
@@ -370,21 +366,21 @@ const DocumentList = () => {
                 </Container>
             </div>
 
-            <IssuanceModal 
-                isOpen={isIssuanceModal} 
-                toggle={() => setIsIssuanceModal(!isIssuanceModal)} 
+            <IssuanceModal
+                isOpen={isIssuanceModal}
+                toggle={() => setIsIssuanceModal(!isIssuanceModal)}
                 doc={selectedDoc}
                 onSuccess={fetchDocuments}
             />
 
-            <LeadModal 
-                show={isLeadModal} 
+            <LeadModal
+                show={isLeadModal}
                 onCloseClick={() => setIsLeadModal(false)}
                 documentId={selectedDoc?.id}
                 currentLead={selectedDoc?.lead}
                 onSuccess={fetchDocuments}
             />
-            
+
             <EditModal
                 isOpen={isEditModal}
                 toggle={() => setIsEditModal(!isEditModal)}
