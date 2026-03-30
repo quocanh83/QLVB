@@ -42,9 +42,6 @@ const DocumentDetails = () => {
     const [feedbackToReassign, setFeedbackToReassign] = useState(null);
     const [targetNodeId, setTargetNodeId] = useState('');
     const [reassigning, setReassigning] = useState(false);
-    
-    // Consultation Summary Modal
-    const [isConsultationModalOpen, setIsConsultationModalOpen] = useState(false);
 
     useEffect(() => {
         if (id) {
@@ -367,9 +364,9 @@ const DocumentDetails = () => {
                                 <span className="badge bg-primary-subtle text-primary">{document?.status}</span>
                             </div>
                             <div className="d-flex gap-2">
-                                <Button color="info" className="btn-sm" onClick={() => setIsConsultationModalOpen(true)}>
+                                <Link to={`/documents/${id}/classification`} className="btn btn-sm btn-info d-flex align-items-center">
                                     <i className="ri-table-line align-bottom me-1"></i> Bảng theo dõi góp ý
-                                </Button>
+                                </Link>
                                 <Button color="success" className="btn-sm" onClick={handleExportMau10}>
                                     <i className="ri-file-word-2-line align-bottom me-1"></i> Xuất Mẫu 10
                                 </Button>
@@ -759,86 +756,11 @@ const DocumentDetails = () => {
                     </Button>
                 </ModalFooter>
             </Modal>
-
-            {/* Modal Bảng phân loại dự thảo / Theo dõi góp ý */}
-            <Modal isOpen={isConsultationModalOpen} toggle={() => setIsConsultationModalOpen(!isConsultationModalOpen)} centered size="xl">
-                <ModalHeader toggle={() => setIsConsultationModalOpen(!isConsultationModalOpen)} className="bg-light p-3">
-                    Bảng phân loại dự thảo (Theo dõi lấy ý kiến các cơ quan)
-                </ModalHeader>
-                <ModalBody className="p-0">
-                    <div className="p-3 bg-light-subtle border-bottom">
-                         <div className="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 className="mb-1 fw-bold">{document?.project_name}</h6>
-                                <p className="text-muted mb-0 fs-12">Tổng số cơ quan được lấy ý kiến: <span className="text-primary fw-medium">{document?.consultation_summary?.length || 0}</span></p>
-                            </div>
-                            <div className="d-flex gap-2">
-                                <Link to={`/documents/${id}/responses`} className="btn btn-sm btn-soft-primary">
-                                    <i className="ri-external-link-line align-bottom me-1"></i> Quản lý văn bản góp ý
-                                </Link>
-                            </div>
-                         </div>
-                    </div>
-                    <div className="table-responsive">
-                        <table className="table table-bordered table-hover align-middle mb-0">
-                            <thead className="table-light">
-                                <tr>
-                                    <th className="text-center" style={{ width: '50px' }}>STT</th>
-                                    <th>Cơ quan được lấy ý kiến</th>
-                                    <th>Số hiệu văn bản góp ý</th>
-                                    <th>Ngày ban hành</th>
-                                    <th className="text-center">Tệp đính kèm</th>
-                                    <th className="text-center">Trạng thái</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {document?.consultation_summary && document.consultation_summary.length > 0 ? (
-                                    document.consultation_summary.map((item, index) => (
-                                        <tr key={index}>
-                                            <td className="text-center">{index + 1}</td>
-                                            <td className="fw-medium">{item.agency_name}</td>
-                                            <td>
-                                                {item.has_response ? (
-                                                    <span className="text-primary fw-medium">{item.official_number}</span>
-                                                ) : (
-                                                    <span className="text-danger">Chưa có ý kiến</span>
-                                                )}
-                                            </td>
-                                            <td>{item.official_date || '-'}</td>
-                                            <td className="text-center">
-                                                {item.attached_file ? (
-                                                    <a href={item.attached_file} target="_blank" rel="noreferrer" className="btn btn-sm btn-soft-primary px-2 py-1">
-                                                        <i className="ri-download-2-line fs-14"></i>
-                                                    </a>
-                                                ) : '-'}
-                                            </td>
-                                            <td className="text-center">
-                                                {item.has_response ? (
-                                                    <span className="badge bg-success-subtle text-success">Đã góp ý</span>
-                                                ) : (
-                                                    <span className="badge bg-warning-subtle text-warning">Đang chờ</span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan="6" className="text-center py-5">
-                                            <div className="text-muted">
-                                                <i className="ri-information-line fs-24 mb-2 d-block"></i>
-                                                Chưa chọn cơ quan nào để lấy ý kiến cho dự thảo này.
-                                            </div>
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </ModalBody>
-                <ModalFooter>
-                    <Button color="light" onClick={() => setIsConsultationModalOpen(false)}>Đóng</Button>
-                </ModalFooter>
-            </Modal>
+            <DeleteModal
+                show={isDeleteModal}
+                onDeleteClick={handleDeleteAgency}
+                onCloseClick={() => setIsDeleteModal(false)}
+            />
         </React.Fragment>
     );
 };

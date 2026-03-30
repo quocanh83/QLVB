@@ -32,6 +32,7 @@ import CreateProject from "../pages/Projects/CreateProject";
 import DocumentList from "../pages/Documents";
 import DocumentDetails from "../pages/Documents/DocumentDetails";
 import ConsultationResponses from "../pages/Documents/ConsultationResponses";
+import DraftClassification from "../pages/Documents/DraftClassification";
 
 // QLVB - Reports
 import Reports from "../pages/Reports";
@@ -308,6 +309,7 @@ const authProtectedRoutes = [
   { path: "/documents", component: <DocumentList /> },
   { path: "/documents/:id", component: <DocumentDetails /> },
   { path: "/documents/:id/responses", component: <ConsultationResponses /> },
+  { path: "/documents/:id/classification", component: <DraftClassification /> },
   
   // QLVB - Reports
   { path: "/reports", component: <Reports /> },
