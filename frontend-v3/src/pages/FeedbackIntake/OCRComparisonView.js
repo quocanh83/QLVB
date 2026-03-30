@@ -15,10 +15,8 @@ const OCRComparisonView = ({ pages, onConfirm, onCancel, loading }) => {
     const getImageUrl = (url) => {
         if (!url) return '';
         if (url.startsWith('http')) return url;
-        if (process.env.NODE_ENV === 'development') {
-            return `http://localhost:8000${url}`;
-        }
-        return url;
+        const baseUrl = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:8000' : '');
+        return baseUrl + url;
     };
 
     return (

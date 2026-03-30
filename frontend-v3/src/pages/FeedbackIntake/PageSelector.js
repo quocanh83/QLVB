@@ -105,7 +105,7 @@ const PageSelector = ({ previews, totalPages, onProcessedSelect, loading }) => {
                                                 </div>
                                             </div>
                                             <img 
-                                                src={url.startsWith('http') ? url : (process.env.NODE_ENV === 'development' ? `http://localhost:8000${url}` : url)} 
+                                                src={url.startsWith('http') ? url : (process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:8000' : '')) + url} 
                                                 alt={`Trang ${pageNum}`}
                                                 className="img-fluid rounded shadow-sm d-block mx-auto mb-2"
                                                 style={{ height: '180px', objectFit: 'contain' }}
