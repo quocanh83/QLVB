@@ -34,7 +34,7 @@ SECRET_KEY = 'django-insecure-d1*f5olv@ikur#!!ux#yot&(qfhjbh((6d(^%50x6$++90j@=e
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
 
 # Application definition
 
@@ -144,14 +144,22 @@ MEDIA_ROOT = str(BASE_DIR / 'media')
 DATA_UPLOAD_MAX_MEMORY_SIZE = 104857600
 FILE_UPLOAD_MAX_MEMORY_SIZE = 104857600
 
-# Production Security
+# CORS & CSRF
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://duthao.giadinhvit.com',
+    'https://duthao.giadinhvit.com',
+]
+
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost',
     'http://localhost:3000',
     'http://127.0.0.1',
     'http://duthao.giadinhvit.com',
     'https://duthao.giadinhvit.com',
-] # User can add their domain/IP here later
+]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
