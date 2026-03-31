@@ -268,10 +268,17 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                 
                 if not raw_content or raw_content.lower() in ['nan', 'none']: continue
                 
-                # MỚI: Nếu ND và GT đều là OK thì bỏ qua không hiển thị lên bảng
-                # ND là cột Nội dung, GT là cột Giải trình
-                if raw_content.strip().upper() == "OK":
-                    if not raw_explanation or raw_explanation.strip().upper() == "OK":
+                # MỚI: Nếu ND và GT đều là OK (hoặc ND là OK và GT trống) thì bỏ qua
+                def is_ok_or_empty(val):
+                    v = str(val).strip().upper()
+                    return v == "OK" or v in ["", "NAN", "NONE"]
+
+                content_val = str(row.get(col_map['content'], '')).strip().upper()
+                exp_val = str(row.get(col_map.get('explanation'), '')).strip().upper()
+
+                if content_val == "OK":
+                    # Nếu nội dung đã OK, và (giải trình cũng OK hoặc không có giải trình) thì skip
+                    if exp_val in ["OK", "", "NAN", "NONE"]:
                         continue
                 
                 # Logic trùng lặp (vẫn dùng full_content để so khớp với dữ liệu cũ nếu cần, 
@@ -500,15 +507,15 @@ class FeedbackViewSet(viewsets.ModelViewSet):
         
         # MỚI: Lưu lại đường link vào Dự thảo nếu được yêu cầu
         save_gs_flag = request.data.get('save_gs_url')
-        if gs_url and (save_gs_flag is True or str(save_gs_flag).lower() in ['true', 'on', '1']) and document_id:
+        print(f"DEBUG: gs_url={gs_url}, save_gs_flag={save_gs_flag}, doc_id={document_id}")
+        
+        if gs_url and str(save_gs_flag).lower() in ['true', 'on', '1', 'yes'] and document_id:
             try:
                 from documents.models import Document
-                doc = Document.objects.filter(id=document_id).first()
-                if doc:
-                    doc.google_sheets_url = gs_url
-                    doc.save()
-                    print(f"✅ Đã lưu link Google Sheets vào Dự thảo: {document_id}")
+                Document.objects.filter(id=document_id).update(google_sheets_url=gs_url)
+                print(f"✅ Đã cập nhật link Google Sheets vào Dự thảo: {document_id}")
             except Exception as e:
+                print(f"❌ Lỗi khi cập nhật link GS vào Dự thảo: {str(e)}")
                 print(f"❌ Lỗi khi lưu link GS vào Dự thảo: {str(e)}")
 
         if gs_url and rows:
