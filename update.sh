@@ -23,11 +23,13 @@ echo "=> 🔑 Cấp quyền sở hữu thư mục cho qlvb..."
 sudo chown -R qlvb:qlvb $PROJECT_DIR
 sudo chmod 755 /home/qlvb
 
-# 2. Cập nhật và Build Frontend V3 (Velzon)
-echo "=> 🚧 Đang xây dựng lại Frontend V3..."
+# 2. Sử dụng Frontend V3 (Dùng bản Build đẩy lên từ máy cá nhân)
+echo "=> 🚧 Đang cập nhật quyền cho Frontend V3 Build..."
 cd $PROJECT_DIR/frontend-v3
-sudo -u qlvb npm install --legacy-peer-deps
-sudo -u qlvb GENERATE_SOURCEMAP=false NODE_OPTIONS="--max-old-space-size=1536" npm run build
+# Không chạy build trên server để tránh lỗi RAM (Out of Memory)
+# sudo -u qlvb npm install --legacy-peer-deps
+# sudo -u qlvb GENERATE_SOURCEMAP=false NODE_OPTIONS="--max-old-space-size=1536" npm run build
+sudo chmod -R 755 build
 
 # 3. Cập nhật Backend (Chạy dưới tư cách user qlvb)
 echo "=> 🐍 Đang cập nhật Backend và Migrate Database..."

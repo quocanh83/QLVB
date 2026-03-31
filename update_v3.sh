@@ -28,11 +28,13 @@ if [ -f "$PROJECT_DIR/backend/google_keys.json" ] && [ ! -f "$PROJECT_DIR/backen
     mv "$PROJECT_DIR/backend/google_keys.json" "$PROJECT_DIR/backend/keys.json"
 fi
 
-# 4. Build Frontend V3 (Giới hạn RAM để tránh treo server khi build)
-echo "=> 🚧 Đang xây dựng lại (Build) Frontend V3..."
+# 4. Sử dụng Frontend V3 đã Build sẵn (Được đẩy lên từ máy cá nhân)
+echo "=> 🚧 Đang cập nhật quyền cho thư mục Frontend Build..."
 cd $PROJECT_DIR/frontend-v3
-sudo -u $USER_NAME npm install --legacy-peer-deps
-sudo -u $USER_NAME GENERATE_SOURCEMAP=false NODE_OPTIONS="--max-old-space-size=1536" npm run build
+# Không chạy build trên server để tránh lỗi RAM (Out of Memory)
+# sudo -u $USER_NAME npm install --legacy-peer-deps
+# sudo -u $USER_NAME GENERATE_SOURCEMAP=false NODE_OPTIONS="--max-old-space-size=1536" npm run build
+sudo chmod -R 755 build
 
 # 5. Cập nhật Backend
 echo "=> 🐍 Đang cập nhật Python Packages & Database..."
