@@ -500,7 +500,7 @@ const FeedbackIntake = () => {
 
             const res = await axios.post(endpoint, payload, getAuthHeader());
             toast.success(res.data.message || "Đã nạp toàn bộ góp ý vào hệ thống!");
-            navigate(`/documents/${selectedDocId}`);
+            navigate(`/feedbacks`);
         } catch (e) {
             toast.error("Lỗi khi lưu góp ý.");
         } finally {

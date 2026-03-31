@@ -503,6 +503,20 @@ class FeedbackViewSet(viewsets.ModelViewSet):
             "consultations": consultation_count
         })
 
+    @action(detail=False, methods=['post'])
+    def delete_all(self, request):
+        document_id = request.data.get('document_id')
+        if not document_id:
+            return Response({"error": "Chưa chọn dự thảo để xóa."}, status=400)
+            
+        if not self._check_permission(request, document_id, 'Chuyên viên Góp ý'):
+            return Response({"error": "Bạn không có quyền xóa toàn bộ góp ý của dự thảo này."}, status=403)
+            
+        count = Feedback.objects.filter(document_id=document_id).count()
+        Feedback.objects.filter(document_id=document_id).delete()
+        
+        return Response({"message": f"Đã xóa thành công toàn bộ {count} nội dung góp ý của dự thảo."}, status=200)
+
     def _update_google_sheet_status(self, gs_url, rows):
         try:
             import gspread
@@ -566,7 +580,9 @@ class FeedbackViewSet(viewsets.ModelViewSet):
             
             if cells_to_update:
                 worksheet.update_cells(cells_to_update)
-                print(f"✅ Đã cập nhật xong {len(cells_to_update)} trạng thái vào Google Sheets")
+                print(f"✅ Đã cập nhật xong {len(cells_to_update)} trạng thái vào Google Sheets: {gs_url}")
+            else:
+                print("⚠️ Không có dòng nào cần cập nhật trạng thái vào Google Sheets.")
                 
         except Exception as e:
             print(f"❌ Lỗi khi cập nhật Google Sheets: {str(e)}")

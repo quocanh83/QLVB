@@ -91,6 +91,10 @@ const FeedbackList = () => {
     const [feedbackToDelete, setFeedbackToDelete] = useState(null);
     const [deleting, setDeleting] = useState(false);
 
+    // Full Delete state
+    const [fullDeleteModal, setFullDeleteModal] = useState(false);
+    const [fullDeleting, setFullDeleting] = useState(false);
+
     // Quick Agency Add state
     const [agencies, setAgencies] = useState([]);
     const [categories, setCategories] = useState([]);
@@ -342,6 +346,23 @@ const FeedbackList = () => {
         }
     };
 
+    const confirmDeleteAll = async () => {
+        if (!selectedDoc) return;
+        setFullDeleting(true);
+        try {
+            await axios.post('/api/feedbacks/delete_all/', {
+                document_id: selectedDoc.id
+            }, getAuthHeader());
+            toast.success(`Đã xóa toàn bộ nội dung góp ý của dự thảo: ${selectedDoc.project_name}`);
+            setFullDeleteModal(false);
+            fetchFeedbacks(selectedDoc.id);
+        } catch (e) {
+            toast.error("Lỗi khi xóa toàn bộ dữ liệu.");
+        } finally {
+            setFullDeleting(false);
+        }
+    };
+
     const handleViewNode = async (nodeId, label) => {
         setIsNodeModalOpen(true);
         setNodeLoading(true);
@@ -444,6 +465,16 @@ const FeedbackList = () => {
                                             />
                                             <i className="ri-search-line search-icon"></i>
                                         </div>
+                                        <Button 
+                                            color="danger" 
+                                            outline 
+                                            className="btn-icon" 
+                                            onClick={() => setFullDeleteModal(true)} 
+                                            disabled={loading || feedbacks.length === 0}
+                                            title="Xóa toàn bộ góp ý của dự thảo này"
+                                        >
+                                            <i className="ri-delete-bin-4-line"></i>
+                                        </Button>
                                     </div>
                                 </CardHeader>
                                 <CardBody>
@@ -723,6 +754,26 @@ const FeedbackList = () => {
                             Đóng cửa sổ
                         </Button>
                     </ModalFooter>
+                </Modal>
+
+                {/* FULL DELETE MODAL */}
+                <Modal isOpen={fullDeleteModal} toggle={() => setFullDeleteModal(!fullDeleteModal)} centered size="sm">
+                    <ModalHeader className="bg-danger-subtle text-danger py-2">
+                        <i className="ri-error-warning-line align-bottom me-1"></i> Xác nhận xóa sạch
+                    </ModalHeader>
+                    <ModalBody className="text-center p-4">
+                        <div className="text-danger mb-3">
+                            <i className="ri-delete-bin-fill display-5"></i>
+                        </div>
+                        <h5 className="fw-bold">Xóa TOÀN BỘ góp ý?</h5>
+                        <p className="text-muted">Bạn có chắc chắn muốn xóa sạch toàn bộ <b>{feedbacks.length}</b> nội dung góp ý của dự thảo này không? Hành động này không thể hoàn tác.</p>
+                        <div className="d-flex gap-2 justify-content-center mt-4">
+                            <Button color="light" onClick={() => setFullDeleteModal(false)} disabled={fullDeleting}>Hủy</Button>
+                            <Button color="danger" onClick={confirmDeleteAll} disabled={fullDeleting}>
+                                {fullDeleting ? <Spinner size="sm" /> : "Đúng, xóa tất cả"}
+                            </Button>
+                        </div>
+                    </ModalBody>
                 </Modal>
 
                 {/* EDIT FEEDBACK MODAL */}
