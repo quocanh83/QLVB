@@ -154,6 +154,8 @@ CORS_ALLOWED_ORIGINS = [
     'https://duthao.giadinhvit.com',
 ]
 
+CORS_ALLOW_PRIVATE_NETWORK = True
+
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost',
     'http://localhost:3000',
