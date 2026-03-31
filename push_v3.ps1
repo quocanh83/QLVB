@@ -21,7 +21,7 @@ if (Test-Path "build") {
 
 # Thiết lập môi trường build tối ưu
 $env:GENERATE_SOURCEMAP="false"
-$env:REACT_APP_API_URL=""
+# REACT_APP_API_URL is now managed automatically by .env.production
 # Tăng memory cho node nếu cần
 $env:NODE_OPTIONS="--max-old-space-size=4096"
 
