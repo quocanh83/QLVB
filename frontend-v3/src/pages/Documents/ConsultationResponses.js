@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, CardBody, CardHeader, Button, Table, Modal, ModalHeader, ModalBody, ModalFooter, Form, FormGroup, Label, Input, Spinner } from 'reactstrap';
 import axios from 'axios';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getAuthHeader } from '../../helpers/api_helper';
 import { ToastContainer, toast } from 'react-toastify';
 import BreadCrumb from '../../Components/Common/BreadCrumb';
@@ -10,9 +10,12 @@ import Select from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 
 const ConsultationResponses = () => {
-    const { id } = useParams(); // Document ID
+    const { id } = useParams(); // Document ID (optional)
+    const history = useNavigate();
     document.title = "Quản lý Văn bản góp ý | QLVB V3.0";
 
+    const [allDocuments, setAllDocuments] = useState([]);
+    const [selectedDocId, setSelectedDocId] = useState(id || "");
     const [documentInfo, setDocumentInfo] = useState(null);
     const [responses, setResponses] = useState([]);
     const [agencies, setAgencies] = useState([]);
@@ -45,31 +48,61 @@ const ConsultationResponses = () => {
     };
 
     useEffect(() => {
-        fetchDocumentInfo();
-        fetchResponses();
+        fetchDocuments();
         fetchAgencies();
         fetchCategories();
+    }, []);
+
+    useEffect(() => {
+        if (id) {
+            setSelectedDocId(id);
+            fetchDocumentInfo(id);
+            fetchResponses(id);
+        } else {
+            setDocumentInfo(null);
+            setResponses([]);
+        }
     }, [id]);
 
-    const fetchDocumentInfo = async () => {
+    const fetchDocuments = async () => {
         try {
-            const res = await axios.get(`/api/documents/${id}/`, getAuthHeader());
-            setDocumentInfo(res);
+            const res = await axios.get('/api/documents/', getAuthHeader());
+            const data = res.results || res;
+            setAllDocuments(Array.isArray(data) ? data : []);
         } catch (e) {
-            toast.error("Lỗi khi tải thông tin dự thảo.");
+            toast.error("Lỗi khi tải danh sách dự thảo.");
         }
     };
 
-    const fetchResponses = async () => {
+    const fetchDocumentInfo = async (docId) => {
+        try {
+            const res = await axios.get(`/api/documents/${docId}/`, getAuthHeader());
+            setDocumentInfo(res);
+        } catch (e) {
+            console.error("Lỗi khi tải thông tin dự thảo.");
+        }
+    };
+
+    const fetchResponses = async (docId) => {
         setLoading(true);
         try {
-            const res = await axios.get(`/api/feedbacks/responses/?document_id=${id}`, getAuthHeader());
+            const res = await axios.get(`/api/feedbacks/responses/?document_id=${docId}`, getAuthHeader());
             const data = res.results || res;
             setResponses(Array.isArray(data) ? data : []);
         } catch (e) {
             toast.error("Lỗi khi tải danh sách văn bản góp ý.");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDocumentChange = (selectedOption) => {
+        const docId = selectedOption ? selectedOption.value : "";
+        setSelectedDocId(docId);
+        if (docId) {
+            history(`/consultation-responses/${docId}`);
+        } else {
+            history(`/consultation-responses`);
         }
     };
 
@@ -166,19 +199,15 @@ const ConsultationResponses = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        // Log dữ liệu để kiểm tra trước khi gửi
-        console.log("Submitting Consultation Response:", {
-            document: id,
-            agency: currentResponse.agency,
-            official_number: currentResponse.official_number,
-            official_date: currentResponse.official_date,
-            isEdit
-        });
+        const docId = id; // use the id from URL
+        if (!docId) {
+            toast.warning("Vui lòng chọn dự thảo trước.");
+            return;
+        }
 
         const formData = new FormData();
-        formData.append('document', id);
+        formData.append('document', docId);
         
-        // Chỉ append nếu agency có giá trị hợp lệ
         if (currentResponse.agency) {
             formData.append('agency', currentResponse.agency);
         }
@@ -198,7 +227,7 @@ const ConsultationResponses = () => {
                 await axios.post('/api/feedbacks/responses/', formData, getAuthHeader());
                 toast.success("Thêm văn bản góp ý thành công.");
             }
-            fetchResponses();
+            fetchResponses(docId);
             toggle();
         } catch (error) {
             console.error("Lỗi khi lưu dữ liệu:", error.response?.data);
@@ -215,83 +244,116 @@ const ConsultationResponses = () => {
         <React.Fragment>
             <div className="page-content">
                 <Container fluid>
-                    <BreadCrumb title={`Văn bản góp ý: ${documentInfo?.project_name || '...'}`} pageTitle="Dự thảo" />
+                    <BreadCrumb title="Quản lý Văn bản góp ý" pageTitle="Dự thảo" />
                     <ToastContainer closeButton={false} />
 
-                    <div className="mb-3">
-                        <Link to="/documents" className="btn btn-soft-secondary btn-sm">
-                            <i className="ri-arrow-left-line align-bottom me-1"></i> Quay lại danh sách
-                        </Link>
-                    </div>
-
-                    <Row className="g-4 mb-3">
-                        <Col sm="auto">
-                            <Button color="success" onClick={toggle}>
-                                <i className="ri-add-line align-bottom me-1"></i> Thêm văn bản góp ý
-                            </Button>
+                    <Row className="mb-4">
+                        <Col lg={6}>
+                            <Card className="mb-0">
+                                <CardBody className="p-3">
+                                    <Label className="form-label fw-bold">Chọn Dự thảo để quản lý văn bản góp ý:</Label>
+                                    <Select
+                                        placeholder="Tìm kiếm dự thảo..."
+                                        options={allDocuments.map(doc => ({
+                                            value: doc.id,
+                                            label: `${doc.project_name} (${doc.document_type_name || 'Văn bản'})`
+                                        }))}
+                                        value={id ? { 
+                                            value: id, 
+                                            label: documentInfo ? `${documentInfo.project_name} (${documentInfo.document_type_name || 'Văn bản'})` : "Đang tải..." 
+                                        } : null}
+                                        onChange={handleDocumentChange}
+                                        isClearable
+                                    />
+                                </CardBody>
+                            </Card>
+                        </Col>
+                        <Col lg={6} className="d-flex align-items-end justify-content-end">
+                            <div className="d-flex gap-2">
+                                <Link to="/documents" className="btn btn-soft-secondary">
+                                    <i className="ri-arrow-left-line align-bottom me-1"></i> Danh sách Dự thảo
+                                </Link>
+                                <Button color="success" onClick={toggle} disabled={!id}>
+                                    <i className="ri-add-line align-bottom me-1"></i> Thêm văn bản góp ý
+                                </Button>
+                            </div>
                         </Col>
                     </Row>
 
                     <Row>
                         <Col lg={12}>
                             <Card>
-                                <CardHeader>
-                                    <h5 className="card-title mb-0">Danh mục Công văn / Bản ý kiến phản hồi</h5>
+                                <CardHeader className="d-flex align-items-center">
+                                    <h5 className="card-title mb-0 flex-grow-1">
+                                        {documentInfo ? `Danh mục Công văn / Bản ý kiến phản hồi: ${documentInfo.project_name}` : "Vui lòng chọn dự thảo"}
+                                    </h5>
                                 </CardHeader>
                                 <CardBody>
-                                    <div className="table-responsive">
-                                        <Table className="table-hover table-bordered align-middle">
-                                            <thead className="table-light">
-                                                <tr>
-                                                    <th style={{ width: '50px' }}>STT</th>
-                                                    <th>Đơn vị góp ý</th>
-                                                    <th>Số hiệu công văn</th>
-                                                    <th>Ngày ban hành</th>
-                                                    <th>File đính kèm</th>
-                                                    <th style={{ width: '120px' }}>Thao tác</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {loading ? (
+                                    {!id ? (
+                                        <div className="text-center py-5">
+                                            <div className="avatar-lg mx-auto mb-4">
+                                                <div className="avatar-title bg-light text-primary rounded-circle display-4">
+                                                    <i className="ri-file-search-line"></i>
+                                                </div>
+                                            </div>
+                                            <h5>Chưa chọn dự thảo</h5>
+                                            <p className="text-muted">Vui lòng chọn một dự thảo từ danh sách phía trên để bắt đầu quản lý các văn bản góp ý.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="table-responsive">
+                                            <Table className="table-hover table-bordered align-middle">
+                                                <thead className="table-light">
                                                     <tr>
-                                                        <td colSpan="6" className="text-center py-5">
-                                                            <Spinner color="primary" />
-                                                        </td>
+                                                        <th style={{ width: '50px' }}>STT</th>
+                                                        <th>Đơn vị góp ý</th>
+                                                        <th>Số hiệu công văn</th>
+                                                        <th>Ngày ban hành</th>
+                                                        <th>File đính kèm</th>
+                                                        <th style={{ width: '120px' }}>Thao tác</th>
                                                     </tr>
-                                                ) : responses.length > 0 ? responses.map((resp, index) => (
-                                                    <tr key={resp.id}>
-                                                        <td className="text-center">{index + 1}</td>
-                                                        <td className="fw-bold">{resp.agency_name}</td>
-                                                        <td>{resp.official_number}</td>
-                                                        <td>{resp.official_date}</td>
-                                                        <td>
-                                                            {resp.attached_file ? (
-                                                                <a href={resp.attached_file} target="_blank" rel="noreferrer" className="btn btn-soft-primary btn-sm">
-                                                                    <i className="ri-download-2-line align-bottom"></i> Tải về
-                                                                </a>
-                                                            ) : <span className="text-muted small">Không có file</span>}
-                                                        </td>
-                                                        <td>
-                                                            <div className="d-flex gap-2 justify-content-center">
-                                                                <Button color="soft-primary" size="sm" onClick={() => handleEdit(resp)}>
-                                                                    <i className="ri-pencil-fill"></i>
-                                                                </Button>
-                                                                <Button color="soft-danger" size="sm" onClick={() => handleDeleteClick(resp)}>
-                                                                    <i className="ri-delete-bin-fill"></i>
-                                                                </Button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                )) : (
-                                                    <tr>
-                                                        <td colSpan="6" className="text-center py-4 text-muted small">
-                                                            Chưa có văn bản góp ý nào được tải lên.
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                            </tbody>
-                                        </Table>
-                                    </div>
+                                                </thead>
+                                                <tbody>
+                                                    {loading ? (
+                                                        <tr>
+                                                            <td colSpan="6" className="text-center py-5">
+                                                                <Spinner color="primary" />
+                                                            </td>
+                                                        </tr>
+                                                    ) : responses.length > 0 ? responses.map((resp, index) => (
+                                                        <tr key={resp.id}>
+                                                            <td className="text-center">{index + 1}</td>
+                                                            <td className="fw-bold">{resp.agency_name}</td>
+                                                            <td>{resp.official_number}</td>
+                                                            <td>{resp.official_date}</td>
+                                                            <td>
+                                                                {resp.attached_file ? (
+                                                                    <a href={resp.attached_file} target="_blank" rel="noreferrer" className="btn btn-soft-primary btn-sm">
+                                                                        <i className="ri-download-2-line align-bottom"></i> Tải về
+                                                                    </a>
+                                                                ) : <span className="text-muted small">Không có file</span>}
+                                                            </td>
+                                                            <td>
+                                                                <div className="d-flex gap-2 justify-content-center">
+                                                                    <Button color="soft-primary" size="sm" onClick={() => handleEdit(resp)}>
+                                                                        <i className="ri-pencil-fill"></i>
+                                                                    </Button>
+                                                                    <Button color="soft-danger" size="sm" onClick={() => handleDeleteClick(resp)}>
+                                                                        <i className="ri-delete-bin-fill"></i>
+                                                                    </Button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    )) : (
+                                                        <tr>
+                                                            <td colSpan="6" className="text-center py-4 text-muted small">
+                                                                Chưa có văn bản góp ý nào được tải lên cho dự thảo này.
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </tbody>
+                                            </Table>
+                                        </div>
+                                    )}
                                 </CardBody>
                             </Card>
                         </Col>

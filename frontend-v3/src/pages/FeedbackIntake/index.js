@@ -33,6 +33,10 @@ const FeedbackIntake = () => {
     const [uploading2, setUploading2] = useState(false); // For Tab 3
     const [saving, setSaving] = useState(false);
     
+    // Google Sheets Link State
+    const [gsUrl, setGsUrl] = useState("");
+    const [analyzingGs, setAnalyzingGs] = useState(false);
+    
     // Tab State
     const [activeTab, setActiveTab] = useState('1');
     const [nodeSearch, setNodeSearch] = useState('');
@@ -46,9 +50,12 @@ const FeedbackIntake = () => {
     
     // Manual Input State
     const [manualEntry, setManualEntry] = useState({
-        agency_id: null,
+        node_id: null,
         contributing_agency: '',
-        content: ''
+        agency_id: null,
+        content: '',
+        reason: '',
+        note: ''
     });
 
     // Quick Add Agency Modal State
@@ -265,36 +272,48 @@ const FeedbackIntake = () => {
         formData.append('document_id', selectedDocId);
 
         try {
-            const res = await axios.post('/api/feedbacks/parse_file/', formData, {
+            const res = await axios.post('/api/feedbacks/analyze_import/', formData, {
                 headers: { ...getAuthHeader().headers, 'Content-Type': 'multipart/form-data' }
             });
             
-            const parseData = res.results || res.data || res;
-            const meta = parseData.metadata || {};
-            
-            // Try to find a default agency from metadata if current is empty
-            const defaultAgencyName = meta.drafting_agency || "";
-            const defaultAgency = agencies.find(a => a.name === defaultAgencyName);
-
-            const enriched = (parseData.feedbacks || []).map((f, i) => {
-                const guessedNodeId = guessNodeFromText(f.content, nodes);
-                return {
-                    ...f,
-                    key: `file-${i}-${Date.now()}`,
-                    node_id: f.node_id || guessedNodeId || null,
-                    // If backend didn't provide agency, use metadata's drafting agency as a guess
-                    agency_id: f.agency_id || (defaultAgency ? defaultAgency.id : null),
-                    contributing_agency: f.contributing_agency || defaultAgencyName
-                };
-            });
-            
-            setFeedbacks(enriched);
-            setMetadata(meta);
-            toast.success(`Đã phân rã được ${enriched.length} đoạn góp ý từ file.`);
+            const data = (res.results || res.data || res);
+            if (data.rows) {
+                setFeedbacks(data.rows);
+                toast.success(`Đã phân tích xong ${data.rows.length} dòng dữ liệu.`);
+            }
         } catch (e) {
             toast.error("Lỗi khi phân rã file góp ý.");
         } finally {
             setUploading(false);
+        }
+    };
+
+    const handleAnalyzeGsUrl = async () => {
+        if (!gsUrl.trim()) {
+            toast.warning("Vui lòng nhập đường dẫn Google Sheets.");
+            return;
+        }
+        if (!selectedDocId) {
+            toast.warning("Vui lòng chọn Dự thảo văn bản trước!");
+            return;
+        }
+
+        setAnalyzingGs(true);
+        try {
+            const res = await axios.post('/api/feedbacks/analyze_import/', {
+                document_id: selectedDocId,
+                google_sheets_url: gsUrl
+            }, getAuthHeader());
+            
+            const data = (res.results || res.data || res);
+            if (data.rows) {
+                setFeedbacks(data.rows);
+                toast.success(`Đã tải thành công ${data.rows.length} dòng từ Google Sheets.`);
+            }
+        } catch (e) {
+            toast.error("Lỗi khi tải dữ liệu từ Google Sheets. Hãy kiểm tra quyền truy cập của sheet.");
+        } finally {
+            setAnalyzingGs(false);
         }
     };
 
@@ -407,21 +426,26 @@ const FeedbackIntake = () => {
     };
 
     const handleAddManualToSession = () => {
-        if (!selectedNodeId) return toast.warning("Vui lòng chọn Điều/Khoản trước!");
-        if (!manualEntry.content) return toast.warning("Vui lòng nhập nội dung góp ý!");
+        if (!selectedNodeId) return;
         
-        const node = nodes.find(n => n.id === selectedNodeId);
-        const newFb = {
+        // selectedNodeId ở Tab 1 (sidebar) có thể là node-ID hoặc app-ID tùy theo logic hiển thị
+        const nodeItem = nodes.find(n => n.unique_id === selectedNodeId || n.id === selectedNodeId);
+        if (!nodeItem) return;
+
+        const isAppendix = nodeItem.unique_id?.startsWith('app-') || nodeItem.type === 'Appendix';
+        
+        const newFeedback = {
+            ...manualEntry,
             key: `manual-${Date.now()}`,
-            node_label: node ? node.label : '',
-            node_id: selectedNodeId,
-            contributing_agency: manualEntry.contributing_agency,
-            agency_id: manualEntry.agency_id,
-            content: manualEntry.content
+            node_id: isAppendix ? null : nodeItem.id,
+            appendix_id: isAppendix ? nodeItem.id : null,
+            node_label: nodeItem.label,
+            import_mode: 'add_new',
+            explanation_status: 'none'
         };
         
-        setFeedbacks([newFb, ...feedbacks]);
-        setManualEntry({ ...manualEntry, content: '' }); // Clear content only to keep agency
+        setFeedbacks([newFeedback, ...feedbacks]);
+        setManualEntry({ ...manualEntry, content: '', reason: '', note: '' });
         toast.success("Đã thêm góp ý vào danh sách chờ.");
     };
 
@@ -438,6 +462,16 @@ const FeedbackIntake = () => {
     };
 
     const updateFeedbackField = (key, field, value) => {
+        if (field === 'node_id' && typeof value === 'string' && (value.startsWith('node-') || value.startsWith('app-'))) {
+            const isApp = value.startsWith('app-');
+            const realId = parseInt(value.split('-')[1]);
+            setFeedbacks(feedbacks.map(f => f.key === key ? { 
+                ...f, 
+                node_id: isApp ? null : realId,
+                appendix_id: isApp ? realId : null
+            } : f));
+            return;
+        }
         setFeedbacks(feedbacks.map(f => f.key === key ? { ...f, [field]: value } : f));
     };
 
@@ -447,7 +481,13 @@ const FeedbackIntake = () => {
 
         setSaving(true);
         try {
-            await axios.post('/api/feedbacks/bulk_create/', {
+            const endpoint = activeTab === '4' || activeTab === '2' ? '/api/feedbacks/confirm_import/' : '/api/feedbacks/bulk_create/';
+            
+            const payload = endpoint === '/api/feedbacks/confirm_import/' ? {
+                document_id: selectedDocId,
+                rows: feedbacks,
+                gs_url: gsUrl || null
+            } : {
                 document_id: selectedDocId,
                 feedbacks: feedbacks,
                 metadata: {
@@ -456,8 +496,10 @@ const FeedbackIntake = () => {
                     agency_id: globalAgencyId,
                     official_doc_number: globalDocNumber
                 }
-            }, getAuthHeader());
-            toast.success("Đã nạp toàn bộ góp ý vào hệ thống!");
+            };
+
+            const res = await axios.post(endpoint, payload, getAuthHeader());
+            toast.success(res.data.message || "Đã nạp toàn bộ góp ý vào hệ thống!");
             navigate(`/documents/${selectedDocId}`);
         } catch (e) {
             toast.error("Lỗi khi lưu góp ý.");
@@ -582,6 +624,15 @@ const FeedbackIntake = () => {
                                 <i className="ri-image-line align-bottom me-1"></i> 3. Nhập từ ảnh và PDF
                             </NavLink>
                         </NavItem>
+                        <NavItem>
+                            <NavLink
+                                className={classnames({ active: activeTab === '4' })}
+                                onClick={() => toggleTab('4')}
+                                style={{ cursor: 'pointer', fontWeight: activeTab === '4' ? '700' : '500', borderRadius: '30px', padding: '10px 25px' }}
+                            >
+                                <i className="ri-google-line align-bottom me-1"></i> 4. Nhập từ GG sheet
+                            </NavLink>
+                        </NavItem>
                     </Nav>
 
                     <TabContent activeTab={activeTab}>
@@ -617,10 +668,10 @@ const FeedbackIntake = () => {
                                                                 className={classnames("list-group-item list-group-item-action border-0 mb-1 rounded-1 py-1 px-2 d-flex flex-column", {
                                                                     "active bg-primary-subtle text-primary": selectedNodeId === n.id
                                                                 })}
-                                                                onClick={() => setSelectedNodeId(n.id)}
+                                                                onClick={() => setSelectedNodeId(n.unique_id || n.id)}
                                                             >
                                                                 <div className="d-flex justify-content-between align-items-start w-100">
-                                                                    <span className="fw-bold fs-13 text-truncate">{n.label}</span>
+                                                                    <span className={classnames("fs-13 text-truncate", { "fw-bold text-primary": n.type === 'Appendix', "fw-medium": n.type !== 'Appendix' })}>{n.label}</span>
                                                                 </div>
                                                             </button>
                                                         ))}
@@ -676,7 +727,7 @@ const FeedbackIntake = () => {
                                                     <Label className="fs-13 fw-bold text-muted text-uppercase mb-1">Nội dung góp ý</Label>
                                                     <Input 
                                                         type="textarea" 
-                                                        rows={6} 
+                                                        rows={4} 
                                                         className="form-control border-light-subtle bg-light-subtle text-body fs-14" 
                                                         placeholder="Nhập nội dung góp ý chi tiết tại đây..."
                                                         value={manualEntry.content}
@@ -684,6 +735,34 @@ const FeedbackIntake = () => {
                                                         disabled={!selectedNodeId}
                                                     />
                                                 </FormGroup>
+                                                <Row>
+                                                    <Col md={6}>
+                                                        <FormGroup className="mb-3">
+                                                            <Label className="fs-13 fw-bold text-muted text-uppercase mb-1">Lý do / Cơ sở</Label>
+                                                            <Input 
+                                                                type="text" 
+                                                                className="form-control border-light-subtle bg-light-subtle text-body fs-13" 
+                                                                placeholder="Nhập lý do..."
+                                                                value={manualEntry.reason}
+                                                                onChange={(e) => setManualEntry({ ...manualEntry, reason: e.target.value })}
+                                                                disabled={!selectedNodeId}
+                                                            />
+                                                        </FormGroup>
+                                                    </Col>
+                                                    <Col md={6}>
+                                                        <FormGroup className="mb-3">
+                                                            <Label className="fs-13 fw-bold text-muted text-uppercase mb-1">Ghi chú</Label>
+                                                            <Input 
+                                                                type="text" 
+                                                                className="form-control border-light-subtle bg-light-subtle text-body fs-13" 
+                                                                placeholder="Nhập ghi chú..."
+                                                                value={manualEntry.note}
+                                                                onChange={(e) => setManualEntry({ ...manualEntry, note: e.target.value })}
+                                                                disabled={!selectedNodeId}
+                                                            />
+                                                        </FormGroup>
+                                                    </Col>
+                                                </Row>
                                                 <div className="text-end">
                                                     <Button color="success" className="px-4 shadow-none" onClick={handleAddManualToSession} disabled={!selectedNodeId || !manualEntry.content}>
                                                         <i className="ri-add-line align-middle me-1"></i> Thêm vào danh sách chờ
@@ -1084,6 +1163,193 @@ const FeedbackIntake = () => {
                                     </Col>
                                 </Row>
                             )}
+                        </TabPane>
+                        {/* TAB 4: GOOGLE SHEETS IMPORT */}
+                        <TabPane tabId="4">
+                            <Card className="border-0 shadow-sm mb-4">
+                                <CardHeader className="bg-light-subtle d-flex align-items-center justify-content-between">
+                                    <h6 className="card-title mb-0 fw-bold"><i className="ri-google-line align-bottom me-1 text-success"></i> Nhập trực tiếp từ Google Sheets</h6>
+                                    <Badge color="info" className="fs-10">Anyone with link can view</Badge>
+                                </CardHeader>
+                                <CardBody className="bg-body-tertiary">
+                                    <div className="p-4 bg-card-custom rounded border border-light-subtle shadow-sm mb-4">
+                                        <Row className="align-items-end">
+                                            <Col md={9}>
+                                                <Label className="form-label fw-bold small text-muted text-uppercase mb-2">Đường dẫn Google Sheets</Label>
+                                                <Input 
+                                                    type="text" 
+                                                    placeholder="https://docs.google.com/spreadsheets/d/.../edit#gid=..." 
+                                                    value={gsUrl}
+                                                    onChange={(e) => setGsUrl(e.target.value)}
+                                                    className="form-control-lg border-2"
+                                                />
+                                            </Col>
+                                            <Col md={3}>
+                                                <Button 
+                                                    color="success" 
+                                                    size="lg" 
+                                                    className="w-100 shadow-none" 
+                                                    onClick={handleAnalyzeGsUrl}
+                                                    disabled={analyzingGs || !selectedDocId}
+                                                >
+                                                    {analyzingGs ? <Spinner size="sm" /> : <><i className="ri-refresh-line align-bottom me-2"></i> Tải dữ liệu</>}
+                                                </Button>
+                                            </Col>
+                                        </Row>
+                                    </div>
+
+                                    <style>{`
+                                        .corner-badge {
+                                            position: absolute;
+                                            top: 2px;
+                                            right: 2px;
+                                            z-index: 10;
+                                            font-size: 9px !important;
+                                            padding: 2px 4px !important;
+                                            pointer-events: none;
+                                            border-radius: 4px;
+                                            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                                            background-color: rgba(255, 190, 84, 0.9) !important;
+                                            color: #835201 !important;
+                                        }
+                                        .rel-wrapper {
+                                            position: relative;
+                                            width: 100%;
+                                            height: 100%;
+                                        }
+                                        .is-dup-cell {
+                                            background-color: rgba(255, 190, 84, 0.05) !important;
+                                        }
+                                    `}</style>
+
+                                    {(activeTab === '4' || activeTab === '2') && feedbacks.length > 0 && (
+                                        <div className="table-responsive bg-white rounded border">
+                                            <Table className="table-hover mb-0 align-middle">
+                                                <thead className="table-light fs-11 text-uppercase fw-bold">
+                                                    <tr>
+                                                        <th style={{ width: '10%' }}>Điều/Khoản</th>
+                                                        <th style={{ width: '12%' }}>Đơn vị</th>
+                                                        <th style={{ width: '20%' }}>Nội dung</th>
+                                                        <th style={{ width: '15%' }}>Lý do</th>
+                                                        <th style={{ width: '10%' }}>Ghi chú</th>
+                                                        <th style={{ width: '25%' }}>Xử lý Giải trình</th>
+                                                        <th style={{ width: '8%' }}>Lưu?</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="fs-13">
+                                                    {feedbacks.map((fb, idx) => (
+                                                        <tr key={fb.key} className={fb.is_duplicate ? "table-light opacity-75" : ""}>
+                                                            <td className="fw-medium">
+                                                                <Select
+                                                                    value={nodes.find(n => (n.unique_id === `node-${fb.node_id}` || n.unique_id === `app-${fb.appendix_id}`)) ? { 
+                                                                        value: fb.appendix_id ? `app-${fb.appendix_id}` : `node-${fb.node_id}`, 
+                                                                        label: nodes.find(n => (n.unique_id === `node-${fb.node_id}` || n.unique_id === `app-${fb.appendix_id}`))?.label 
+                                                                    } : null}
+                                                                    onChange={(opt) => updateFeedbackField(fb.key, 'node_id', opt ? opt.value : null)}
+                                                                    options={nodes.map(n => ({ value: n.unique_id || `node-${n.id}`, label: n.label }))}
+                                                                    placeholder="Chọn..."
+                                                                    styles={selectStyles}
+                                                                    menuPortalTarget={document.body}
+                                                                />
+                                                            </td>
+                                                            <td>
+                                                                <CreatableSelect
+                                                                    isClearable
+                                                                    value={agencies.find(a => a.id === fb.agency_id) ? { value: fb.agency_id, label: fb.agency_id ? agencies.find(a => a.id === fb.agency_id).name : fb.agency_name } : (fb.agency_name ? {label: fb.agency_name, value: null} : null)}
+                                                                    onChange={(opt) => updateFeedbackField(fb.key, 'agency_id', opt ? opt.value : null)}
+                                                                    options={agencies.map(a => ({ value: a.id, label: a.name }))}
+                                                                    styles={selectStyles}
+                                                                    menuPortalTarget={document.body}
+                                                                />
+                                                                {fb.official_number && <div className="mt-1"><Badge color="light" className="text-secondary border fs-10">{fb.official_number} - {fb.official_date}</Badge></div>}
+                                                            </td>
+                                                            <td>
+                                                                <div className="rel-wrapper">
+                                                                    <Input 
+                                                                        type="textarea" 
+                                                                        rows={2} 
+                                                                        className={`form-control form-control-sm fs-12 px-1 py-0 scrollbar-hide border-0 bg-transparent text-truncate-2-lines ${fb.is_duplicate ? 'is-dup-cell' : ''}`} 
+                                                                        value={fb.content}
+                                                                        onChange={(e) => updateFeedbackField(fb.key, 'content', e.target.value)}
+                                                                    />
+                                                                    {fb.is_duplicate && <Badge className="corner-badge">Đã có</Badge>}
+                                                                </div>
+                                                                {fb.is_duplicate && <div className="mt-1"><Badge color="soft-warning" className="fs-10">Trùng lặp hoàn toàn</Badge></div>}
+                                                            </td>
+                                                            <td>
+                                                                <div className="rel-wrapper">
+                                                                    <Input 
+                                                                        type="textarea" 
+                                                                        rows={1} 
+                                                                        className={`form-control form-control-sm fs-11 px-1 py-0 border-0 bg-transparent ${fb.is_duplicate ? 'is-dup-cell' : ''}`} 
+                                                                        value={fb.reason}
+                                                                        placeholder="..."
+                                                                        onChange={(e) => updateFeedbackField(fb.key, 'reason', e.target.value)}
+                                                                    />
+                                                                    {fb.is_duplicate && <Badge className="corner-badge">Đã có</Badge>}
+                                                                </div>
+                                                            </td>
+                                                            <td>
+                                                                <div className="rel-wrapper">
+                                                                    <Input 
+                                                                        type="text" 
+                                                                        className={`form-control form-control-sm fs-11 px-1 py-0 border-0 bg-transparent ${fb.is_duplicate ? 'is-dup-cell' : ''}`} 
+                                                                        value={fb.note}
+                                                                        placeholder="..."
+                                                                        onChange={(e) => updateFeedbackField(fb.key, 'note', e.target.value)}
+                                                                    />
+                                                                    {fb.is_duplicate && <Badge className="corner-badge">Đã có</Badge>}
+                                                                </div>
+                                                            </td>
+                                                            <td>
+                                                                {fb.explanation_status === 'none' ? (
+                                                                    <span className="text-muted italic fs-11">Không có giải trình</span>
+                                                                ) : fb.explanation_status === 'identical' ? (
+                                                                    <Badge color="soft-success" className="fs-10">Trùng - Bỏ qua</Badge>
+                                                                ) : (
+                                                                    <div className="d-flex flex-column gap-1 bg-light p-1 rounded">
+                                                                        <div className="d-flex align-items-center gap-1">
+                                                                            <Badge color={fb.explanation_status === 'conflict' ? "soft-danger" : "soft-primary"} className="fs-9">
+                                                                                {fb.explanation_status === 'conflict' ? "Sửa" : "Mới"}
+                                                                            </Badge>
+                                                                            <select 
+                                                                                className="form-select form-select-sm py-0 h-auto fs-10 border-0 bg-transparent text-primary fw-bold"
+                                                                                value={fb.explanation_import_mode}
+                                                                                onChange={(e) => updateFeedbackField(fb.key, 'explanation_import_mode', e.target.value)}
+                                                                            >
+                                                                                <option value="overwrite">Ghi đè</option>
+                                                                                <option value="skip">Bỏ qua</option>
+                                                                            </select>
+                                                                        </div>
+                                                                        <div className="text-muted fs-10 text-truncate-2-lines bg-white p-1 rounded" title={fb.explanation_content}>
+                                                                            {fb.explanation_content}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                            <td className="text-center">
+                                                                <Input 
+                                                                    type="select" 
+                                                                    size="sm"
+                                                                    value={fb.import_mode}
+                                                                    onChange={(e) => updateFeedbackField(fb.key, 'import_mode', e.target.value)}
+                                                                    className={fb.import_mode === 'skip' ? 'bg-light' : 'border-primary'}
+                                                                >
+                                                                    <option value="add_new">Lưu mới toàn bộ</option>
+                                                                    <option value="add_if_diff">Lưu nội dung có khác</option>
+                                                                    <option value="explanation_only">Chỉ nhập giải trình</option>
+                                                                    <option value="overwrite">Ghi đè bản ghi cũ</option>
+                                                                    <option value="skip">Bỏ qua</option>
+                                                                </Input>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </Table>
+                                        </div>
+                                    )}
+                                </CardBody>
+                            </Card>
                         </TabPane>
                     </TabContent>
                 </Container>

@@ -301,10 +301,13 @@ const DocumentList = () => {
                                                                 <div className="d-flex gap-2 mt-1">
                                                                     <Badge color="soft-primary" className="text-primary">{item.document_type_name || 'Khác'}</Badge>
                                                                     {item.lead_name && (
-                                                                        <span className="text-muted fs-12">
+                                                                        <span className="text-muted fs-12 ms-2">
                                                                             <i className="ri-user-line align-bottom me-1"></i> PT: {item.lead_name}
                                                                         </span>
                                                                     )}
+                                                                    <span className="text-muted fs-12 ms-2">
+                                                                        <i className="ri-attachment-line align-bottom me-1"></i> {item.appendices?.length || 0} Phụ lục
+                                                                    </span>
                                                                 </div>
                                                             </td>
                                                             <td>{item.drafting_agency || '-'}</td>
@@ -323,7 +326,7 @@ const DocumentList = () => {
                                                                         </Button>
                                                                     </li>
                                                                     <li className="list-inline-item" title="Quản lý VB góp ý">
-                                                                        <Button color="soft-primary" size="sm" className="btn-icon p-1" onClick={() => navigate(`/documents/${item.id}/responses`)}>
+                                                                        <Button color="soft-primary" size="sm" className="btn-icon p-1" onClick={() => navigate(`/consultation-responses/${item.id}`)}>
                                                                             <i className="ri-file-list-3-fill align-bottom"></i>
                                                                         </Button>
                                                                     </li>
@@ -342,8 +345,8 @@ const DocumentList = () => {
                                                                             <i className="ri-user-star-line align-bottom"></i>
                                                                         </Button>
                                                                     </li>
-                                                                    <li className="list-inline-item" title="Phát hành văn bản">
-                                                                        <Button color="soft-dark" size="sm" className="btn-icon p-1" onClick={() => { setSelectedDoc(item); setIsIssuanceModal(true); }}>
+                                                                    <li className="list-inline-item" title="Lấy ý kiến dự thảo">
+                                                                        <Button color="soft-dark" size="sm" className="btn-icon p-1" onClick={() => navigate(`/draft-consultation/${item.id}`)}>
                                                                             <i className="ri-send-plane-fill align-bottom"></i>
                                                                         </Button>
                                                                     </li>

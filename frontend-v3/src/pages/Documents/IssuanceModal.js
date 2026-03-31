@@ -83,11 +83,11 @@ const IssuanceModal = ({ isOpen, toggle, doc, onSuccess }) => {
         try {
             // Using PATCH for partial update
             await axios.patch(`/api/documents/${doc.id}/`, data, getAuthHeader());
-            toast.success("Cập nhật thông tin phát hành thành công.");
+            toast.success("Cập nhật thông tin lấy ý kiến dự thảo thành công.");
             onSuccess();
             toggle();
         } catch (error) {
-            toast.error("Lỗi khi cập nhật thông tin phát hành.");
+            toast.error("Lỗi khi cập nhật thông tin lấy ý kiến dự thảo.");
         } finally {
             setLoading(false);
         }
@@ -133,14 +133,14 @@ const IssuanceModal = ({ isOpen, toggle, doc, onSuccess }) => {
     return (
         <Modal isOpen={isOpen} toggle={toggle} centered size="lg">
             <ModalHeader toggle={toggle} className="bg-light p-3">
-                Phát hành văn bản lấy ý kiến
+                Lấy ý kiến dự thảo
             </ModalHeader>
             <Form onSubmit={handleSubmit}>
                 <ModalBody>
                     <Row>
                         <Col lg={6}>
                             <FormGroup>
-                                <Label className="form-label">Số văn bản <span className="text-danger">*</span></Label>
+                                <Label className="form-label">Số văn bản lấy ý kiến <span className="text-danger">*</span></Label>
                                 <Input 
                                     type="text" 
                                     placeholder="Ví dụ: 123/BXD-VP" 
@@ -152,7 +152,7 @@ const IssuanceModal = ({ isOpen, toggle, doc, onSuccess }) => {
                         </Col>
                         <Col lg={6}>
                             <FormGroup>
-                                <Label className="form-label">Ngày ban hành <span className="text-danger">*</span></Label>
+                                <Label className="form-label">Ngày lấy ý kiến <span className="text-danger">*</span></Label>
                                 <Input 
                                     type="date" 
                                     value={formData.issuance_date}
@@ -164,7 +164,7 @@ const IssuanceModal = ({ isOpen, toggle, doc, onSuccess }) => {
                         
                         <Col lg={12}>
                             <FormGroup>
-                                <Label className="form-label">Đính kèm văn bản phát hành (PDF/Scan)</Label>
+                                <Label className="form-label">Đính kèm văn bản lấy ý kiến (PDF/Scan)</Label>
                                 <Input 
                                     type="file" 
                                     onChange={(e) => setIssuanceFile(e.target.files[0])}
@@ -212,7 +212,7 @@ const IssuanceModal = ({ isOpen, toggle, doc, onSuccess }) => {
                 <ModalFooter>
                     <Button color="light" onClick={toggle}>Đóng</Button>
                     <Button color="primary" type="submit" disabled={loading || matching}>
-                        {loading ? "Đang lưu..." : "Xác nhận phát hành"}
+                        {loading ? "Đang lưu..." : "Xác nhận lấy ý kiến"}
                     </Button>
                 </ModalFooter>
             </Form>

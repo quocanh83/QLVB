@@ -33,6 +33,10 @@ const Agencies = () => {
     const [importing, setImporting] = useState(false);
     const [importResult, setImportResult] = useState(null);
     const [isResultModal, setIsResultModal] = useState(false);
+    
+    // New Import Analysis state
+    const [analysisResult, setAnalysisResult] = useState(null);
+    const [duplicatesMode, setDuplicatesMode] = useState('overwrite'); // 'overwrite' or 'skip'
 
     useEffect(() => {
         fetchAgencies();
@@ -80,7 +84,11 @@ const Agencies = () => {
 
     const toggleImport = () => {
         setIsImportModal(!isImportModal);
-        setImportFile(null);
+        if (!isImportModal) {
+            setImportFile(null);
+            setAnalysisResult(null);
+            setDuplicatesMode('overwrite');
+        }
     };
 
     const toggleResultModal = () => {
@@ -169,7 +177,7 @@ const Agencies = () => {
         }
     };
 
-    const handleImport = async () => {
+    const handleAnalyze = async () => {
         if (!importFile) {
             toast.warning("Vui lòng chọn tệp tin (.xlsx hoặc .csv)");
             return;
@@ -180,13 +188,31 @@ const Agencies = () => {
 
         setImporting(true);
         try {
+            const res = await axios.post('/api/settings/agencies/analyze_import/', formData, getAuthHeader());
+            setAnalysisResult(res.data || res);
+        } catch (e) {
+            toast.error(e.response?.data?.error || "Lỗi khi kiểm tra tệp.");
+        } finally {
+            setImporting(false);
+        }
+    };
+
+    const handleImport = async () => {
+        if (!importFile) return;
+
+        const formData = new FormData();
+        formData.append("file", importFile);
+        formData.append("duplicates_mode", duplicatesMode);
+
+        setImporting(true);
+        try {
             const res = await axios.post('/api/settings/agencies/bulk_import/', formData, getAuthHeader());
             const data = res.data || res;
             setImportResult(data);
-            toggleImport();
+            setIsImportModal(false); // Close parent
             setIsResultModal(true);
         } catch (e) {
-            toast.error(e.response?.data?.error || "Lỗi khi nhập dữ liệu từ tệp.");
+            toast.error(e.response?.data?.error || "Lỗi khi nhập dữ liệu.");
         } finally {
             setImporting(false);
         }
@@ -340,29 +366,114 @@ const Agencies = () => {
             </Modal>
             
             {/* Modal Import */}
-            <Modal isOpen={isImportModal} toggle={toggleImport} centered>
+            <Modal isOpen={isImportModal} toggle={toggleImport} centered size={analysisResult ? "lg" : "md"}>
                 <ModalHeader toggle={toggleImport} className="bg-light p-3">
                     Nhập đơn vị từ tệp tin
                 </ModalHeader>
                 <ModalBody>
-                    <div className="mb-3">
-                        <Label className="form-label">Chọn tệp tin (.xlsx, .xls, .csv)</Label>
-                        <Input 
-                            type="file" 
-                            accept=".xlsx, .xls, .csv" 
-                            onChange={(e) => setImportFile(e.target.files[0])}
-                        />
-                    </div>
-                    <div className="alert alert-info py-2 small mb-0">
-                        <i className="ri-information-line me-1 align-bottom"></i>
-                        Tệp tin cần có cột <b>name</b> (tên đơn vị) và cột <b>category</b> (tên phân loại hoặc: ministry, local...).
-                    </div>
+                    {!analysisResult ? (
+                        <>
+                            <div className="mb-3">
+                                <Label className="form-label">Chọn tệp tin (.xlsx, .xls, .csv)</Label>
+                                <Input 
+                                    type="file" 
+                                    accept=".xlsx, .xls, .csv" 
+                                    onChange={(e) => setImportFile(e.target.files[0])}
+                                />
+                            </div>
+                            <div className="alert alert-info py-2 small mb-0">
+                                <i className="ri-information-line me-1 align-bottom"></i>
+                                Tệp tin cần có cột <b>name</b> (tên đơn vị) và cột <b>category</b>.
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="d-flex mb-4 gap-3 text-center">
+                                <div className="p-3 border rounded border-success border-dashed flex-grow-1">
+                                    <h6 className="text-success mb-1">Đơn vị mới</h6>
+                                    <span className="fw-bold fs-20">{analysisResult.new_count}</span>
+                                </div>
+                                <div className="p-3 border rounded border-warning border-dashed flex-grow-1">
+                                    <h6 className="text-warning mb-1">Đơn vị đã tồn tại</h6>
+                                    <span className="fw-bold fs-20">{analysisResult.duplicate_count}</span>
+                                </div>
+                            </div>
+
+                            {analysisResult.duplicate_count > 0 && (
+                                <div className="mb-4">
+                                    <Label className="form-label fw-semibold">Xử lý các đơn vị đã tồn tại:</Label>
+                                    <div className="d-flex gap-4 mt-1">
+                                        <div className="form-check">
+                                            <Input 
+                                                className="form-check-input" 
+                                                type="radio" 
+                                                name="dupMode" 
+                                                id="dupSkip" 
+                                                checked={duplicatesMode === 'skip'}
+                                                onChange={() => setDuplicatesMode('skip')}
+                                            />
+                                            <Label className="form-check-label" htmlFor="dupSkip font-weight-normal">
+                                                Bỏ qua (Chỉ thêm các đơn vị mới)
+                                            </Label>
+                                        </div>
+                                        <div className="form-check">
+                                            <Input 
+                                                className="form-check-input" 
+                                                type="radio" 
+                                                name="dupMode" 
+                                                id="dupOverwrite" 
+                                                checked={duplicatesMode === 'overwrite'}
+                                                onChange={() => setDuplicatesMode('overwrite')}
+                                            />
+                                            <Label className="form-check-label" htmlFor="dupOverwrite">
+                                                Ghi đè (Cập nhật thông tin mới nhất)
+                                            </Label>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="table-responsive" style={{maxHeight: '250px'}}>
+                                <Table className="table-sm table-nowrap align-middle mb-0">
+                                    <thead className="table-light sticky-top">
+                                        <tr>
+                                            <th>Tên Đơn vị (Trùng khớp)</th>
+                                            <th>Phân loại</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {analysisResult.duplicates.length > 0 ? analysisResult.duplicates.map((item, idx) => (
+                                            <tr key={idx}>
+                                                <td className="fs-13">{item.name}</td>
+                                                <td className="fs-13 text-muted">{item.category}</td>
+                                            </tr>
+                                        )) : (
+                                            <tr>
+                                                <td colSpan="2" className="text-center text-muted small py-3">Không có đơn vị nào bị trùng.</td>
+                                            </tr>
+                                        )}
+                                        {analysisResult.has_more_duplicates && (
+                                            <tr>
+                                                <td colSpan="2" className="text-center text-muted xsmall italics py-2">... và {analysisResult.duplicate_count - 100} đơn vị khác ...</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </Table>
+                            </div>
+                        </>
+                    )}
                 </ModalBody>
                 <ModalFooter>
-                    <Button color="light" onClick={toggleImport}>Đóng</Button>
-                    <Button color="primary" onClick={handleImport} disabled={importing}>
-                        {importing ? <Spinner size="sm" /> : "Bắt đầu nhập"}
-                    </Button>
+                    <Button color="light" onClick={toggleImport}>Hủy bỏ</Button>
+                    {!analysisResult ? (
+                        <Button color="primary" onClick={handleAnalyze} disabled={importing || !importFile}>
+                            {importing ? <Spinner size="sm" /> : "Kiểm tra dữ liệu"}
+                        </Button>
+                    ) : (
+                        <Button color="success" onClick={handleImport} disabled={importing}>
+                            {importing ? <Spinner size="sm" /> : "Xác nhận nhập dữ liệu"}
+                        </Button>
+                    )}
                 </ModalFooter>
             </Modal>
 

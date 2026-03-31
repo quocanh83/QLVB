@@ -127,3 +127,6 @@ frontend-v3/dist/
 # Ignore bulk templates & archives
 templates/
 QLVB.rar
+
+# Secrets
+*keys.json

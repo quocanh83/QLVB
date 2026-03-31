@@ -219,6 +219,18 @@ const useNavData = () => {
       link: "/documents",
     },
     {
+      id: "draft-consultation",
+      label: "Lấy ý kiến dự thảo",
+      icon: "ri-send-plane-2-line",
+      link: "/draft-consultation",
+    },
+    {
+      id: "consultation-responses",
+      label: "Văn bản góp ý",
+      icon: "ri-file-copy-2-line",
+      link: "/consultation-responses",
+    },
+    {
       id: "draft-classification",
       label: "Tiến độ góp ý",
       icon: "ri-folders-line",

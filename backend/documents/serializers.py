@@ -1,10 +1,16 @@
 from rest_framework import serializers
-from .models import Document, DocumentNode, NodeAssignment, DocumentType
+from .models import Document, DocumentNode, NodeAssignment, DocumentType, DocumentAppendix
 
 class DocumentTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = DocumentType
         fields = ['id', 'name', 'description', 'created_at']
+
+
+class DocumentAppendixSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DocumentAppendix
+        fields = ['id', 'document', 'name', 'content', 'file', 'created_at', 'updated_at']
 
 
 class NodeAssignmentSerializer(serializers.ModelSerializer):
@@ -51,6 +57,7 @@ class DocumentListSerializer(serializers.ModelSerializer):
         allow_null=True
     )
 
+    appendices = DocumentAppendixSerializer(many=True, read_only=True)
     consultation_summary = serializers.SerializerMethodField()
     
     def get_consultation_summary(self, obj):
@@ -92,7 +99,7 @@ class DocumentListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Document
-        fields = ['id', 'description', 'project_name', 'drafting_agency', 'agency_location', 'status', 'lead', 'lead_name', 'document_type_id', 'document_type_name', 'created_at', 'total_nodes', 'total_dieu', 'total_khoan', 'total_diem', 'total_phu_luc', 'total_feedbacks', 'resolved_feedbacks', 'total_consulted_doc', 'total_feedbacks_doc', 'issuance_number', 'issuance_date', 'issuance_file', 'consulted_agencies', 'consultation_summary']
+        fields = ['id', 'description', 'project_name', 'drafting_agency', 'agency_location', 'status', 'lead', 'lead_name', 'document_type_id', 'document_type_name', 'created_at', 'total_nodes', 'total_dieu', 'total_khoan', 'total_diem', 'total_phu_luc', 'total_feedbacks', 'resolved_feedbacks', 'total_consulted_doc', 'total_feedbacks_doc', 'issuance_number', 'issuance_date', 'issuance_file', 'consulted_agencies', 'consultation_summary', 'appendices']
 
     def get_lead_name(self, obj):
         if obj.lead:

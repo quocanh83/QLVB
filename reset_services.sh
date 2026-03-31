@@ -38,7 +38,7 @@ After=network.target
 User=qlvb
 Group=www-data
 WorkingDirectory=/home/qlvb/backend
-ExecStart=/home/qlvb/backend/venv/bin/gunicorn --access-logfile - --workers 3 --bind unix:/home/qlvb/backend/gunicorn.sock config.wsgi:application
+ExecStart=/home/qlvb/backend/venv/bin/gunicorn --access-logfile - --workers 3 --bind 127.0.0.1:8000 config.wsgi:application
 
 [Install]
 WantedBy=multi-user.target
@@ -49,13 +49,18 @@ echo "3. Khởi tạo lại Dịch vụ Celery Chuẩn (celery_qlvb)..."
 cat <<EOF > /etc/systemd/system/celery_qlvb.service
 [Unit]
 Description=Celery Worker for QLVB
-After=network.target
+After=network.target redis-server.service
 
 [Service]
+Type=simple
 User=qlvb
 Group=www-data
 WorkingDirectory=/home/qlvb/backend
+Environment="PATH=/home/qlvb/backend/venv/bin"
 ExecStart=/home/qlvb/backend/venv/bin/celery -A config worker -l info
+
+Restart=always
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target

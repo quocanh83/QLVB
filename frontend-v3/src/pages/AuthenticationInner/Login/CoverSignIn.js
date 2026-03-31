@@ -1,16 +1,16 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Card, Col, Container, Input, Label, Row ,Button} from 'reactstrap';
+import { Card, Col, Container, Input, Label, Row, Button } from 'reactstrap';
 import AuthSlider from '../authCarousel';
 
 const CoverSignIn = () => {
-    document.title="Cover SignIn | Velzon - React Admin & Dashboard Template";
+    document.title = "Cover SignIn | Velzon - React Admin & Dashboard Template";
     return (
         <React.Fragment>
             <div className="auth-page-wrapper auth-bg-cover py-5 d-flex justify-content-center align-items-center min-vh-100">
                 <div className="bg-overlay"></div>
 
-                <div className="auth-page-content overflow-hidden pt-lg-5">                    
+                <div className="auth-page-content overflow-hidden pt-lg-5">
                     <Container>
                         <Row>
                             <Col lg={12}>
@@ -30,7 +30,7 @@ const CoverSignIn = () => {
 
                                                         <div className="mb-3">
                                                             <Label htmlFor="username" className="form-label">Username</Label>
-                                                            <Input type="text" className="form-control" id="username" placeholder="Enter username" required/>
+                                                            <Input type="text" className="form-control" id="username" placeholder="Enter username" required />
                                                         </div>
 
                                                         <div className="mb-3">
@@ -39,7 +39,7 @@ const CoverSignIn = () => {
                                                             </div>
                                                             <Label className="form-label" htmlFor="password-input">Password</Label>
                                                             <div className="position-relative auth-pass-inputgroup mb-3">
-                                                                <Input type="password" className="form-control pe-5 password-input" placeholder="Enter password" id="password-input" required/>
+                                                                <Input type="password" className="form-control pe-5 password-input" placeholder="Enter password" id="password-input" required />
                                                                 <button className="btn btn-link position-absolute end-0 top-0 text-decoration-none text-muted password-addon" type="button" id="password-addon"><i className="ri-eye-fill align-middle"></i></button>
                                                             </div>
                                                         </div>
@@ -86,7 +86,7 @@ const CoverSignIn = () => {
                         <Row>
                             <Col lg={12}>
                                 <div className="text-center">
-                                    <p className="mb-0">&copy; {new Date().getFullYear()} Velzon. Crafted with <i className="mdi mdi-heart text-danger"></i> by Themesbrand</p>
+                                    <p className="mb-0">&copy; {new Date().getFullYear()} DuckMan. Crafted with <i className="mdi mdi-heart text-danger"></i> by DuckMan</p>
                                 </div>
                             </Col>
                         </Row>

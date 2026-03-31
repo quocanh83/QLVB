@@ -3,8 +3,11 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.db.models import Count, Q
 from django.db import transaction
-from .models import Document, DocumentNode, NodeAssignment, DocumentType
-from .serializers import DocumentListSerializer, DocumentUploadSerializer, DocumentNodeSerializer, DocumentTypeSerializer
+from .models import Document, DocumentNode, NodeAssignment, DocumentType, DocumentAppendix
+from .serializers import (
+    DocumentListSerializer, DocumentUploadSerializer, DocumentNodeSerializer, 
+    DocumentTypeSerializer, DocumentAppendixSerializer
+)
 
 from accounts.models import User
 import docx
@@ -15,6 +18,7 @@ from django.http import FileResponse, HttpResponse
 from docxtpl import DocxTemplate
 import os
 from .utils.parser_engine import ParserEngine
+from .utils.appendix_parser import AppendixParser
 
 def clean_text(text):
     """Giữ lại các ký tự hợp lệ cho XML 1.0, loại bỏ ký tự điều khiển và escape các ký tự đặc biệt."""
@@ -205,6 +209,33 @@ class DocumentViewSet(viewsets.ModelViewSet):
                 
         serializer = DocumentNodeSerializer(root_nodes, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def add_node(self, request, pk=None):
+        """Thêm một Điều/Khoản/Phụ lục vào cấu trúc của Dự thảo"""
+        document = self.get_object()
+        node_type = request.data.get('node_type')
+        node_label = request.data.get('node_label')
+        content = request.data.get('content', '')
+        parent_id = request.data.get('parent_id')
+        
+        # Xác định order_index (chèn vào cuối level hiện tại)
+        last_node = DocumentNode.objects.filter(
+            document=document, 
+            parent_id=parent_id
+        ).order_by('-order_index').first()
+        
+        order_index = (last_node.order_index + 1) if last_node else 0
+        
+        node = DocumentNode.objects.create(
+            document=document,
+            parent_id=parent_id,
+            node_type=node_type,
+            node_label=node_label,
+            content=content,
+            order_index=order_index
+        )
+        return Response(DocumentNodeSerializer(node).data)
 
     @action(detail=True, methods=['post'])
     def assign_nodes(self, request, pk=None):
@@ -611,3 +642,55 @@ class DocumentTypeViewSet(viewsets.ModelViewSet):
     queryset = DocumentType.objects.all().order_by('-created_at')
     serializer_class = DocumentTypeSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+class DocumentAppendixViewSet(viewsets.ModelViewSet):
+    queryset = DocumentAppendix.objects.all().order_by('-created_at')
+    serializer_class = DocumentAppendixSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        doc_id = self.request.query_params.get('document_id')
+        if doc_id:
+            return self.queryset.filter(document_id=doc_id)
+        return self.queryset
+
+    @action(detail=False, methods=['post'])
+    def preview_parse(self, request):
+        """Trích xuất danh sách phụ lục từ file docx trước khi lưu"""
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response({"error": "No file uploaded"}, status=400)
+            
+        try:
+            parser = AppendixParser(file_obj)
+            data = parser.parse()
+            
+            # Nếu không tìm thấy cấu trúc "Phụ lục", lấy toàn bộ text làm 1 bản ghi
+            if not data:
+                full_text = "\n".join([p.text for p in parser.doc.paragraphs])
+                data = [{'name': file_obj.name, 'content': full_text}]
+                
+            return Response(data)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+    @action(detail=False, methods=['post'])
+    def bulk_create(self, request):
+        """Lưu một danh sách nhiều phụ lục vào cơ sở dữ liệu"""
+        appendices_data = request.data.get('appendices', [])
+        document_id = request.data.get('document_id')
+        
+        if not document_id:
+            return Response({"error": "document_id is required"}, status=400)
+
+        created_results = []
+        with transaction.atomic():
+            for item in appendices_data:
+                app = DocumentAppendix.objects.create(
+                    document_id=document_id,
+                    name=item.get('name', 'Phụ lục không tên'),
+                    content=item.get('content', '')
+                )
+                created_results.append(DocumentAppendixSerializer(app).data)
+            
+        return Response(created_results, status=201)

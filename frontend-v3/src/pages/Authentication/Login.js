@@ -60,7 +60,7 @@ const Login = (props) => {
         },
         validationSchema: Yup.object({
             username: Yup.string().required("Vui lòng nhập tên đăng nhập"),
-            password: Yup.string().required("Please Enter Your Password"),
+            password: Yup.string().required("Vui lòng nhập mật khẩu"),
         }),
         onSubmit: (values) => {
             dispatch(loginUser(values, props.router.navigate));
@@ -102,7 +102,7 @@ const Login = (props) => {
                                             <img src={logoLight} alt="" height="20" />
                                         </Link>
                                     </div>
-                                    <p className="mt-3 fs-15 fw-medium">Premium Admin & Dashboard Template</p>
+                                    <p className="mt-3 fs-15 fw-medium">Hệ thống Quản lý Văn bản V3.0</p>
                                 </div>
                             </Col>
                         </Row>
@@ -146,16 +146,16 @@ const Login = (props) => {
 
                                                 <div className="mb-3">
                                                     <div className="float-end">
-                                                        <Link to="/forgot-password" className="text-muted">Forgot password?</Link>
+                                                        <Link to="/forgot-password" university-link="true" className="text-muted">Quên mật khẩu?</Link>
                                                     </div>
-                                                    <Label className="form-label" htmlFor="password-input">Password</Label>
+                                                    <Label className="form-label" htmlFor="password-input">Mật khẩu</Label>
                                                     <div className="position-relative auth-pass-inputgroup mb-3">
                                                         <Input
                                                             name="password"
                                                             value={validation.values.password || ""}
                                                             type={passwordShow ? "text" : "password"}
                                                             className="form-control pe-5"
-                                                            placeholder="Enter Password"
+                                                            placeholder="Nhập mật khẩu"
                                                             onChange={validation.handleChange}
                                                             onBlur={validation.handleBlur}
                                                             invalid={
@@ -171,7 +171,7 @@ const Login = (props) => {
 
                                                 <div className="form-check">
                                                     <Input className="form-check-input" type="checkbox" value="" id="auth-remember-check" />
-                                                    <Label className="form-check-label" htmlFor="auth-remember-check">Remember me</Label>
+                                                    <Label className="form-check-label" htmlFor="auth-remember-check">Ghi nhớ đăng nhập</Label>
                                                 </div>
 
                                                 <div className="mt-4">
@@ -183,7 +183,7 @@ const Login = (props) => {
 
                                                 <div className="mt-4 text-center">
                                                     <div className="signin-other-title">
-                                                        <h5 className="fs-13 mb-4 title">Sign In with</h5>
+                                                        <h5 className="fs-13 mb-4 title">Đăng nhập bằng</h5>
                                                     </div>
                                                     <div>
                                                     <Link
@@ -216,7 +216,7 @@ const Login = (props) => {
                                 </Card>
 
                                 <div className="mt-4 text-center">
-                                    <p className="mb-0">Don't have an account ? <Link to="/register" className="fw-semibold text-primary text-decoration-underline"> Signup </Link> </p>
+                                    <p className="mb-0">Chưa có tài khoản? <Link to="/register" university-link="true" className="fw-semibold text-primary text-decoration-underline"> Đăng ký </Link> </p>
                                 </div>
 
                             </Col>

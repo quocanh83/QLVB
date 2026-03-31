@@ -57,81 +57,120 @@ class AgencyViewSet(viewsets.ModelViewSet):
     serializer_class = AgencySerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def _parse_agency_import_file(self, file_obj):
+        try:
+            import pandas as pd
+        except ImportError:
+            raise Exception("Máy chủ thiếu thư viện 'pandas' và 'openpyxl'.")
+
+        if file_obj.name.endswith('.xlsx') or file_obj.name.endswith('.xls'):
+            df = pd.read_excel(file_obj)
+        else:
+            encodings = ['utf-8-sig', 'utf-8', 'latin-1', 'cp1252', 'utf-16']
+            df = None
+            for enc in encodings:
+                try:
+                    file_obj.seek(0)
+                    df = pd.read_csv(file_obj, encoding=enc)
+                    break
+                except:
+                    continue
+            if df is None:
+                raise Exception("Không thể đọc tệp CSV. Vui lòng đảm bảo tệp đúng định dạng.")
+        
+        col_map = {}
+        name_keywords = ['name', 'tên', 'don vi', 'đơn vị', 'co quan', 'cơ quan']
+        cat_keywords = ['category', 'phân loại', 'phan loai', 'loại', 'loai']
+        
+        for col in df.columns:
+            c_low = str(col).lower().strip()
+            if not col_map.get('name') and c_low in name_keywords:
+                col_map['name'] = col
+            if not col_map.get('category') and c_low in cat_keywords:
+                col_map['category'] = col
+        
+        if 'name' not in col_map:
+            raise Exception("Không tìm thấy cột 'Tên' hoặc 'Đơn vị' trong tệp tin.")
+            
+        return df, col_map
+
     @action(detail=False, methods=['post'])
-    def bulk_import(self, request):
+    def analyze_import(self, request):
         file_obj = request.FILES.get('file')
         if not file_obj:
             return Response({"error": "Không tìm thấy tệp tải lên."}, status=400)
         
         try:
-            import pandas as pd
-        except ImportError:
-            return Response({"error": "Máy chủ thiếu thư viện 'pandas' và 'openpyxl'. Vui lòng chạy './venv/bin/pip install pandas openpyxl' trên Server."}, status=500)
-
-        try:
-            # Đọc tệp tin dựa trên định dạng
-            if file_obj.name.endswith('.xlsx') or file_obj.name.endswith('.xls'):
-                df = pd.read_excel(file_obj)
-            else:
-                # Thử nhiều bản mã cho CSV
-                encodings = ['utf-8-sig', 'utf-8', 'latin-1', 'cp1252', 'utf-16']
-                df = None
-                for enc in encodings:
-                    try:
-                        file_obj.seek(0)
-                        df = pd.read_csv(file_obj, encoding=enc)
-                        break
-                    except:
-                        continue
-                if df is None:
-                    raise Exception("Không thể đọc tệp CSV. Vui lòng đảm bảo tệp đúng định dạng.")
-
-            # --- Tự động nhận diện cột ---
-            col_map = {}
-            # Tìm cột Tên
-            name_keywords = ['name', 'tên', 'don vi', 'đơn vị', 'co quan', 'cơ quan']
-            for col in df.columns:
-                if str(col).lower().strip() in name_keywords:
-                    col_map['name'] = col
-                    break
+            df, col_map = self._parse_agency_import_file(file_obj)
             
-            # Tìm cột Phân loại
-            cat_keywords = ['category', 'phân loại', 'phan loai', 'loại', 'loai']
-            for col in df.columns:
-                if str(col).lower().strip() in cat_keywords:
-                    col_map['category'] = col
-                    break
-
-            if 'name' not in col_map:
-                return Response({"error": "Không tìm thấy cột 'Tên' hoặc 'Đơn vị' trong tệp tin của bạn. Vui lòng kiểm tra lại tiêu đề cột."}, status=400)
-
-            # Tải mapping danh mục hiện có
-            categories = {cat.name.lower().strip(): cat for cat in AgencyCategory.objects.all()}
+            existing_names = set(Agency.objects.values_list('name', flat=True))
             
-            created_count = 0
-            updated_count = 0
-            import_details = []
+            duplicates = []
+            new_items = []
             
             for _, row in df.iterrows():
                 name_val = str(row.get(col_map['name'], '')).strip()
                 if not name_val or name_val.lower() == 'nan': continue
                 
-                # Xử lý danh mục
+                cat_name = str(row.get(col_map.get('category'), 'Khác')).strip()
+                
+                item = {"name": name_val, "category": cat_name}
+                if name_val in existing_names:
+                    duplicates.append(item)
+                else:
+                    new_items.append(item)
+            
+            return Response({
+                "total": len(duplicates) + len(new_items),
+                "duplicate_count": len(duplicates),
+                "new_count": len(new_items),
+                "duplicates": duplicates[:100], # Gửi tối đa 100 cái để preview
+                "has_more_duplicates": len(duplicates) > 100
+            })
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+    @action(detail=False, methods=['post'])
+    def bulk_import(self, request):
+        file_obj = request.FILES.get('file')
+        duplicates_mode = request.data.get('duplicates_mode', 'overwrite') # 'overwrite' or 'skip'
+        
+        if not file_obj:
+            return Response({"error": "Không tìm thấy tệp tải lên."}, status=400)
+        
+        try:
+            df, col_map = self._parse_agency_import_file(file_obj)
+            categories = {cat.name.lower().strip(): cat for cat in AgencyCategory.objects.all()}
+            existing_names = set(Agency.objects.values_list('name', flat=True))
+            
+            created_count = 0
+            updated_count = 0
+            skipped_count = 0
+            import_details = []
+            
+            legacy_map = {
+                'ministry': 'Bộ, cơ quan ngang Bộ',
+                'local': 'Địa phương (UBND tỉnh/thành phố)',
+                'organization': 'Sở, Ban, Ngành, Tổ chức, Đoàn thể',
+                'citizen': 'Công dân, Doanh nghiệp',
+                'other': 'Khác'
+            }
+
+            for _, row in df.iterrows():
+                name_val = str(row.get(col_map['name'], '')).strip()
+                if not name_val or name_val.lower() == 'nan': continue
+                
+                is_duplicate = name_val in existing_names
+                
+                if is_duplicate and duplicates_mode == 'skip':
+                    skipped_count += 1
+                    import_details.append({"name": name_val, "status": "Bỏ qua (Trùng)"})
+                    continue
+
                 cat_name_input = str(row.get(col_map.get('category'), 'Khác')).strip()
-                if not cat_name_input or cat_name_input.lower() == 'nan':
-                    cat_name_input = 'Khác'
+                if not cat_name_input or cat_name_input.lower() == 'nan': cat_name_input = 'Khác'
                 
-                # Legacy mapping
-                legacy_map = {
-                    'ministry': 'Bộ, cơ quan ngang Bộ',
-                    'local': 'Địa phương (UBND tỉnh/thành phố)',
-                    'organization': 'Sở, Ban, Ngành, Tổ chức, Đoàn thể',
-                    'citizen': 'Công dân, Doanh nghiệp',
-                    'other': 'Khác'
-                }
                 actual_cat_name = legacy_map.get(cat_name_input.lower(), cat_name_input)
-                
-                # Tìm hoặc tạo danh mục tự động
                 target_cat = categories.get(actual_cat_name.lower().strip())
                 if not target_cat:
                     target_cat, _ = AgencyCategory.objects.get_or_create(name=actual_cat_name)
@@ -161,6 +200,7 @@ class AgencyViewSet(viewsets.ModelViewSet):
                 "message": f"Đã xử lý xong {len(import_details)} đơn vị.",
                 "created": created_count,
                 "updated": updated_count,
+                "skipped": skipped_count,
                 "details": import_details
             })
         except Exception as e:

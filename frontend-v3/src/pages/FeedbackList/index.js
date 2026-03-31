@@ -86,6 +86,11 @@ const FeedbackList = () => {
     const [docNodes, setDocNodes] = useState([]);
     const [updating, setUpdating] = useState(false);
 
+    // Delete confirmation modal state
+    const [deleteModal, setDeleteModal] = useState(false);
+    const [feedbackToDelete, setFeedbackToDelete] = useState(null);
+    const [deleting, setDeleting] = useState(false);
+
     // Quick Agency Add state
     const [agencies, setAgencies] = useState([]);
     const [categories, setCategories] = useState([]);
@@ -314,6 +319,29 @@ const FeedbackList = () => {
         }
     };
 
+    const handleDeleteFeedback = (fb) => {
+        setFeedbackToDelete(fb);
+        setDeleteModal(true);
+    };
+
+    const confirmDeleteFeedback = async () => {
+        if (!feedbackToDelete) return;
+        setDeleting(true);
+        try {
+            await axios.delete(`/api/feedbacks/${feedbackToDelete.id}/`, getAuthHeader());
+            toast.success("Đã xóa nội dung góp ý.");
+            setDeleteModal(false);
+            setFeedbackToDelete(null);
+            fetchFeedbacks(selectedDoc.id);
+        } catch (e) {
+            const errMsg = e?.response?.data?.detail || e?.response?.data?.error || e?.message || "Lỗi không xác định";
+            console.error("[DeleteFeedback] Error:", e?.response?.status, errMsg);
+            toast.error(`Lỗi khi xóa góp ý: ${errMsg}`);
+        } finally {
+            setDeleting(false);
+        }
+    };
+
     const handleViewNode = async (nodeId, label) => {
         setIsNodeModalOpen(true);
         setNodeLoading(true);
@@ -519,6 +547,15 @@ const FeedbackList = () => {
                                                                     >
                                                                         <i className="ri-edit-line"></i>
                                                                     </Button>
+                                                                    <Button
+                                                                        color="danger"
+                                                                        size="sm"
+                                                                        className="btn-soft-danger btn-icon"
+                                                                        onClick={() => handleDeleteFeedback(fb)}
+                                                                        title="Xóa góp ý"
+                                                                    >
+                                                                        <i className="ri-delete-bin-line"></i>
+                                                                    </Button>
                                                                     {!fb.explanation ? (
                                                                         <Button
                                                                             color="success"
@@ -547,7 +584,7 @@ const FeedbackList = () => {
                                                                                 onClick={() => handleDeleteExplanation(fb)}
                                                                                 title="Xóa giải trình"
                                                                             >
-                                                                                <i className="ri-delete-bin-line"></i>
+                                                                                <i className="ri-close-line"></i>
                                                                             </Button>
                                                                         </>
                                                                     )}
@@ -790,6 +827,27 @@ const FeedbackList = () => {
                         <Button color="light" onClick={toggleAgencyModal}>Bỏ qua</Button>
                         <Button color="success" onClick={handleQuickAgencySave} disabled={addingAgency}>
                             {addingAgency ? <Spinner size="sm" /> : "Lưu đơn vị"}
+                        </Button>
+                    </ModalFooter>
+                </Modal>
+                {/* DELETE CONFIRMATION MODAL */}
+                <Modal isOpen={deleteModal} toggle={() => setDeleteModal(!deleteModal)} centered size="sm">
+                    <ModalHeader toggle={() => setDeleteModal(!deleteModal)} className="bg-danger-subtle text-danger">
+                        <i className="ri-delete-bin-line align-bottom me-1"></i> Xác nhận xóa
+                    </ModalHeader>
+                    <ModalBody className="text-center p-4">
+                        <div className="text-danger mb-4">
+                            <i className="ri-error-warning-line display-4"></i>
+                        </div>
+                        <h4 className="mb-2">Bạn có chắc chắn?</h4>
+                        <p className="text-muted fs-14 mb-0">
+                            Bạn đang chuẩn bị xóa nội dung góp ý này. Hành động này không thể hoàn tác.
+                        </p>
+                    </ModalBody>
+                    <ModalFooter className="bg-light p-3">
+                        <Button color="link" className="text-muted text-decoration-none shadow-none" onClick={() => setDeleteModal(false)} disabled={deleting}>Hủy bỏ</Button>
+                        <Button color="danger" className="px-4" onClick={confirmDeleteFeedback} disabled={deleting}>
+                            {deleting ? <><Spinner size="sm" className="me-2" /> Đang xóa...</> : "Xác nhận xóa"}
                         </Button>
                     </ModalFooter>
                 </Modal>

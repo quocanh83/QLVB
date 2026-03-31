@@ -148,6 +148,7 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 104857600
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
+    'http://localhost:3001',
     'http://127.0.0.1:3000',
     'http://duthao.giadinhvit.com',
     'https://duthao.giadinhvit.com',
@@ -156,6 +157,7 @@ CORS_ALLOWED_ORIGINS = [
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost',
     'http://localhost:3000',
+    'http://localhost:3001',
     'http://127.0.0.1',
     'http://duthao.giadinhvit.com',
     'https://duthao.giadinhvit.com',

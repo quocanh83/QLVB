@@ -67,3 +67,19 @@ class NodeAssignment(models.Model):
     
     class Meta:
         unique_together = ('node', 'user')
+
+class DocumentAppendix(models.Model):
+    document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='appendices')
+    name = models.CharField(max_length=500, verbose_name="Tên phụ lục")
+    content = models.TextField(blank=True, null=True, verbose_name="Nội dung văn bản")
+    file = models.FileField(upload_to='documents/appendices/', blank=True, null=True, verbose_name="Tệp đính kèm")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.name} - {self.document.project_name}"
+
+    class Meta:
+        verbose_name = "Phụ lục văn bản"
+        verbose_name_plural = "Phụ lục văn bản"
+        ordering = ['created_at']

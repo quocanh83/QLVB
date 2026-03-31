@@ -32,6 +32,8 @@ class ConsultationResponseSerializer(serializers.ModelSerializer):
 class FeedbackSerializer(serializers.ModelSerializer):
     explanations = ExplanationSerializer(many=True, read_only=True)
     logs = ActionLogSerializer(many=True, read_only=True)
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
     class Meta:
         model = Feedback
         fields = '__all__'
+        read_only_fields = ['user']

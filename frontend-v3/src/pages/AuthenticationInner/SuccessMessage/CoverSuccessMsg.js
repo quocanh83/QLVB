@@ -5,9 +5,9 @@ import { Card, Col, Container, Row } from 'reactstrap';
 import AuthSlider from '../authCarousel';
 
 const CoverSuccessMsg = () => {
-    document.title="Success Message | Velzon - React Admin & Dashboard Template";
+    document.title = "Success Message | Velzon - React Admin & Dashboard Template";
     return (
-        <React.Fragment>            
+        <React.Fragment>
             <div className="auth-page-wrapper auth-bg-cover py-5 d-flex justify-content-center align-items-center min-vh-100">
                 <div className="bg-overlay"></div>
                 <div className="auth-page-content overflow-hidden pt-lg-5">
@@ -46,7 +46,7 @@ const CoverSuccessMsg = () => {
                         <Row>
                             <Col lg={12}>
                                 <div className="text-center">
-                                    <p className="mb-0">&copy; {new Date().getFullYear()} Velzon. Crafted with <i className="mdi mdi-heart text-danger"></i> by Themesbrand</p>
+                                    <p className="mb-0">&copy; {new Date().getFullYear()} DuckMan. Crafted with <i className="mdi mdi-heart text-danger"></i> by DuckMan</p>
                                 </div>
                             </Col>
                         </Row>
