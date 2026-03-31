@@ -499,7 +499,8 @@ class FeedbackViewSet(viewsets.ModelViewSet):
         gs_url = request.data.get('gs_url')
         
         # MỚI: Lưu lại đường link vào Dự thảo nếu được yêu cầu
-        if gs_url and request.data.get('save_gs_url') and document_id:
+        save_gs_flag = request.data.get('save_gs_url')
+        if gs_url and (save_gs_flag is True or str(save_gs_flag).lower() in ['true', 'on', '1']) and document_id:
             try:
                 from documents.models import Document
                 doc = Document.objects.filter(id=document_id).first()

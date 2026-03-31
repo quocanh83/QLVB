@@ -510,6 +510,8 @@ const FeedbackIntake = () => {
 
             const res = await axios.post(endpoint, payload, getAuthHeader());
             toast.success(res.data.message || "Đã nạp toàn bộ góp ý vào hệ thống!");
+            // Tải lại dữ liệu dự thảo để cập nhật link GS mới lưu
+            fetchInitialData(); 
             navigate(`/feedbacks`);
         } catch (e) {
             toast.error("Lỗi khi lưu góp ý.");
