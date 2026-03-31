@@ -268,6 +268,12 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                 
                 if not raw_content or raw_content.lower() in ['nan', 'none']: continue
                 
+                # MỚI: Nếu ND và GT đều là OK thì bỏ qua không hiển thị lên bảng
+                # ND là cột Nội dung, GT là cột Giải trình
+                if raw_content.strip().upper() == "OK":
+                    if not raw_explanation or raw_explanation.strip().upper() == "OK":
+                        continue
+                
                 # Logic trùng lặp (vẫn dùng full_content để so khớp với dữ liệu cũ nếu cần, 
                 # hoặc chuyển sang so khớp từng trường)
                 full_content_for_dup_check = raw_content
@@ -491,6 +497,19 @@ class FeedbackViewSet(viewsets.ModelViewSet):
 
         # MỚI: Cập nhật Google Sheets nếu có link
         gs_url = request.data.get('gs_url')
+        
+        # MỚI: Lưu lại đường link vào Dự thảo nếu được yêu cầu
+        if gs_url and request.data.get('save_gs_url') and document_id:
+            try:
+                from documents.models import Document
+                doc = Document.objects.filter(id=document_id).first()
+                if doc:
+                    doc.google_sheets_url = gs_url
+                    doc.save()
+                    print(f"✅ Đã lưu link Google Sheets vào Dự thảo: {document_id}")
+            except Exception as e:
+                print(f"❌ Lỗi khi lưu link GS vào Dự thảo: {str(e)}")
+
         if gs_url and rows:
             self._update_google_sheet_status(gs_url, rows)
 

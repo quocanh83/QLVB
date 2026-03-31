@@ -36,6 +36,7 @@ const FeedbackIntake = () => {
     // Google Sheets Link State
     const [gsUrl, setGsUrl] = useState("");
     const [analyzingGs, setAnalyzingGs] = useState(false);
+    const [saveGsUrl, setSaveGsUrl] = useState(true);
     
     // Tab State
     const [activeTab, setActiveTab] = useState('1');
@@ -159,8 +160,16 @@ const FeedbackIntake = () => {
     }, [location]);
 
     useEffect(() => {
-        if (selectedDocId) fetchNodes(selectedDocId);
-    }, [selectedDocId]);
+        if (selectedDocId) {
+            fetchNodes(selectedDocId);
+            const doc = documents.find(d => d.id === selectedDocId);
+            if (doc && doc.google_sheets_url) {
+                setGsUrl(doc.google_sheets_url);
+            } else {
+                setGsUrl(""); // Clear if no link
+            }
+        }
+    }, [selectedDocId, documents]);
 
     const fetchAgenciesOnly = async () => {
         try {
@@ -486,7 +495,8 @@ const FeedbackIntake = () => {
             const payload = endpoint === '/api/feedbacks/confirm_import/' ? {
                 document_id: selectedDocId,
                 rows: feedbacks,
-                gs_url: gsUrl || null
+                gs_url: gsUrl || null,
+                save_gs_url: saveGsUrl
             } : {
                 document_id: selectedDocId,
                 feedbacks: feedbacks,
@@ -1173,8 +1183,8 @@ const FeedbackIntake = () => {
                                 </CardHeader>
                                 <CardBody className="bg-body-tertiary">
                                     <div className="p-4 bg-card-custom rounded border border-light-subtle shadow-sm mb-4">
-                                        <Row className="align-items-end">
-                                            <Col md={9}>
+                                        <Row className="align-items-center">
+                                            <Col md={7}>
                                                 <Label className="form-label fw-bold small text-muted text-uppercase mb-2">Đường dẫn Google Sheets</Label>
                                                 <Input 
                                                     type="text" 
@@ -1185,6 +1195,20 @@ const FeedbackIntake = () => {
                                                 />
                                             </Col>
                                             <Col md={3}>
+                                                <div className="form-check form-switch form-switch-md">
+                                                    <Input 
+                                                        className="form-check-input" 
+                                                        type="checkbox" 
+                                                        id="saveGsUrlSwitch" 
+                                                        checked={saveGsUrl}
+                                                        onChange={(e) => setSaveGsUrl(e.target.checked)}
+                                                    />
+                                                    <Label className="form-check-label text-muted fs-12" htmlFor="saveGsUrlSwitch">
+                                                        Lưu lại đường dẫn này cho dự thảo
+                                                    </Label>
+                                                </div>
+                                            </Col>
+                                            <Col md={2}>
                                                 <Button 
                                                     color="success" 
                                                     size="lg" 
@@ -1192,7 +1216,7 @@ const FeedbackIntake = () => {
                                                     onClick={handleAnalyzeGsUrl}
                                                     disabled={analyzingGs || !selectedDocId}
                                                 >
-                                                    {analyzingGs ? <Spinner size="sm" /> : <><i className="ri-refresh-line align-bottom me-2"></i> Tải dữ liệu</>}
+                                                    {analyzingGs ? <Spinner size="sm" /> : <><i className="ri-refresh-line align-bottom me-2"></i> Tải</>}
                                                 </Button>
                                             </Col>
                                         </Row>

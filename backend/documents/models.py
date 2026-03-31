@@ -27,6 +27,7 @@ class Document(models.Model):
     total_feedbacks_doc = models.IntegerField(default=0, help_text="Tổng số ý kiến nhận được")
     lead = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='led_documents')
     document_type = models.ForeignKey(DocumentType, on_delete=models.SET_NULL, null=True, blank=True, related_name='documents')
+    google_sheets_url = models.URLField(max_length=1000, blank=True, null=True, help_text="Link Google Sheets của dự thảo")
     
     # Fields for consultation issuance
     issuance_number = models.CharField(max_length=255, blank=True, null=True, verbose_name="Số văn bản phát hành lấy ý kiến")
