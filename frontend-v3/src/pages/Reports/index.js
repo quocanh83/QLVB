@@ -3,7 +3,7 @@ import { Container, Row, Col, Card, CardBody, CardHeader, Nav, NavItem, NavLink,
 import classnames from 'classnames';
 import BreadCrumb from '../../Components/Common/BreadCrumb';
 import axios from 'axios';
-import { getAuthHeader } from '../../helpers/api_header';
+import { getAuthHeader } from '../../helpers/api_helper';
 import { api } from '../../config';
 import { toast } from 'react-toastify';
 import FeatherIcon from 'feather-icons-react';
