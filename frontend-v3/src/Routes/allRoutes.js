@@ -41,6 +41,7 @@ import Reports from "../pages/Reports";
 import FeedbackIntake from "../pages/FeedbackIntake";
 import DraftExplanation from "../pages/DraftExplanation";
 import FeedbackList from "../pages/FeedbackList";
+import GSheetSync from "../pages/GSheetSync";
 
 import SystemSettings from "../pages/Settings";
 import DocumentTypeManagement from "../pages/DocumentTypeManagement";
@@ -321,6 +322,7 @@ const authProtectedRoutes = [
   { path: "/feedback-intake", component: <FeedbackIntake /> },
   { path: "/draft-explanation", component: <DraftExplanation /> },
   { path: "/feedbacks", component: <FeedbackList /> },
+  { path: "/gsheet-sync", component: <GSheetSync /> },
 
   // QLVB - Settings
   { path: "/settings", component: <SystemSettings /> },

@@ -37,6 +37,7 @@ const FeedbackIntake = () => {
     const [gsUrl, setGsUrl] = useState("");
     const [analyzingGs, setAnalyzingGs] = useState(false);
     const [saveGsUrl, setSaveGsUrl] = useState(true);
+    const [showIgnored, setShowIgnored] = useState(false);
     
     // Tab State
     const [activeTab, setActiveTab] = useState('1');
@@ -486,7 +487,8 @@ const FeedbackIntake = () => {
 
     const handleSave = async () => {
         if (!selectedDocId) return toast.warning("Chưa chọn dự thảo!");
-        if (feedbacks.length === 0) return toast.warning("Danh sách góp ý trống!");
+        const activeFeedbacks = feedbacks.filter(f => showIgnored || f.import_mode !== 'skip');
+        if (activeFeedbacks.length === 0) return toast.warning("Danh sách góp ý trống!");
 
         setSaving(true);
         try {
@@ -494,12 +496,12 @@ const FeedbackIntake = () => {
             
             const payload = endpoint === '/api/feedbacks/confirm_import/' ? {
                 document_id: selectedDocId,
-                rows: feedbacks,
+                rows: activeFeedbacks,
                 gs_url: gsUrl || null,
                 save_gs_url: saveGsUrl
             } : {
                 document_id: selectedDocId,
-                feedbacks: feedbacks,
+                feedbacks: activeFeedbacks,
                 metadata: {
                     ...metadata,
                     contributing_agency: globalAgency,
@@ -598,10 +600,10 @@ const FeedbackIntake = () => {
                                         color="primary" 
                                         className="btn-label waves-effect waves-light shadow-none px-4" 
                                         onClick={handleSave} 
-                                        disabled={saving || feedbacks.length === 0 || !selectedDocId}
+                                        disabled={saving || feedbacks.filter(f => showIgnored || f.import_mode !== 'skip').length === 0 || !selectedDocId}
                                     >
                                         <i className="ri-save-3-line label-icon align-middle fs-16 me-2"></i> 
-                                        {saving ? "Đang lưu..." : `Lưu ${feedbacks.length} góp ý vào hệ thống`}
+                                        {saving ? "Đang lưu..." : `Lưu ${feedbacks.filter(f => showIgnored || f.import_mode !== 'skip').length} góp ý vào hệ thống`}
                                     </Button>
                                 </Col>
                             </Row>
@@ -1249,9 +1251,19 @@ const FeedbackIntake = () => {
                                     `}</style>
 
                                     {(activeTab === '4' || activeTab === '2') && feedbacks.length > 0 && (
-                                        <div className="table-responsive bg-white rounded border">
-                                            <Table className="table-hover mb-0 align-middle">
-                                                <thead className="table-light fs-11 text-uppercase fw-bold">
+                                        <>
+                                            <div className="d-flex justify-content-between align-items-center mb-2 px-1">
+                                                <div className="text-muted fs-12">
+                                                    Hiển thị <b>{feedbacks.filter(f => showIgnored || f.import_mode !== 'skip').length}</b> / {feedbacks.length} dòng dữ liệu.
+                                                </div>
+                                                <div className="form-check form-switch form-switch-right form-switch-md">
+                                                    <Input className="form-check-input code-switcher" type="checkbox" id="show-ignored-switch" checked={showIgnored} onChange={(e) => setShowIgnored(e.target.checked)} />
+                                                    <Label className="form-check-label text-muted fs-12" htmlFor="show-ignored-switch">Hiện các bản ghi đã ẩn</Label>
+                                                </div>
+                                            </div>
+                                            <div className="table-responsive bg-white rounded border">
+                                                <Table className="table-hover mb-0 align-middle">
+                                                    <thead className="table-light fs-11 text-uppercase fw-bold">
                                                     <tr>
                                                         <th style={{ width: '10%' }}>Điều/Khoản</th>
                                                         <th style={{ width: '12%' }}>Đơn vị</th>
@@ -1263,7 +1275,7 @@ const FeedbackIntake = () => {
                                                     </tr>
                                                 </thead>
                                                 <tbody className="fs-13">
-                                                    {feedbacks.map((fb, idx) => (
+                                                    {feedbacks.filter(f => showIgnored || f.import_mode !== 'skip').map((fb, idx) => (
                                                         <tr key={fb.key} className={fb.is_duplicate ? "table-light opacity-75" : ""}>
                                                             <td className="fw-medium">
                                                                 <Select
@@ -1373,6 +1385,7 @@ const FeedbackIntake = () => {
                                                 </tbody>
                                             </Table>
                                         </div>
+                                        </>
                                     )}
                                 </CardBody>
                             </Card>

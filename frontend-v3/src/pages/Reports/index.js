@@ -3,7 +3,8 @@ import { Container, Row, Col, Card, CardBody, CardHeader, Nav, NavItem, NavLink,
 import classnames from 'classnames';
 import BreadCrumb from '../../Components/Common/BreadCrumb';
 import axios from 'axios';
-import { getAuthHeader } from '../../helpers/api_helper';
+import { getAuthHeader } from '../../helpers/api_header';
+import { api } from '../../config';
 import { toast } from 'react-toastify';
 import FeatherIcon from 'feather-icons-react';
 import ReactApexChart from "react-apexcharts";
@@ -120,25 +121,43 @@ const Reports = () => {
     const handleExportCustomWord = async () => {
         if (!selectedDocId) return;
         try {
-            let url = `/api/feedbacks/export_mau_10/?document_id=${selectedDocId}&status=${customStatus}`;
+            // FIX LẦN 3: Dùng fetch trực tiếp của trình duyệt (Bỏ qua Axios Interceptor)
+            const typeParam = reportMode === 'mau10' ? 'mau_10' : 'custom';
+            const baseUrl = api.API_URL || '';
+            let url = `${baseUrl}/api/feedbacks/export_mau_10/?document_id=${selectedDocId}&status=${customStatus}`;
             if (customAgency && customAgency !== 'all') url += `&agency=${encodeURIComponent(customAgency)}`;
             if (customSpecialist && customSpecialist !== 'all') url += `&specialist=${customSpecialist}`;
-            url += `&report_type=${reportMode}`;
-            
-            const response = await axios.get(url, {
-                ...getAuthHeader(),
-                responseType: 'blob',
+            url += `&report_type=${typeParam}`;
+
+            const auth = getAuthHeader();
+            const fetchResponse = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    ...auth.headers,
+                }
             });
 
-            const blobUrl = window.URL.createObjectURL(new Blob([response.data]));
+            if (!fetchResponse.ok) {
+                const errData = await fetchResponse.json().catch(() => ({}));
+                throw new Error(errData.error || "Lỗi tải báo cáo từ máy chủ.");
+            }
+
+            const blob = await fetchResponse.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = blobUrl;
-            const filename = `Bao_cao_${reportMode === 'mau10' ? 'Mau_10' : 'Tuy_chinh'}_${selectedDocId}.docx`;
+            
+            const filename = `Bao_cao_${typeParam === 'mau_10' ? 'Mau_10' : 'Tuy_chinh'}_${selectedDocId}.docx`;
             link.setAttribute('download', filename);
             document.body.appendChild(link);
             link.click();
-            link.remove();
-            window.URL.revokeObjectURL(blobUrl);
+            
+            // Xóa link sau 10 giây để đảm bảo trình duyệt đã kích hoạt tải xong
+            setTimeout(() => {
+                if (document.body.contains(link)) document.body.removeChild(link);
+                window.URL.revokeObjectURL(blobUrl);
+            }, 10000);
+
             toast.success("Xuất báo cáo thành công!");
         } catch (e) {
             toast.error("Lỗi khi tải báo cáo.");
@@ -192,7 +211,7 @@ const Reports = () => {
                                 <CardHeader className="align-items-center d-flex">
                                     <h4 className="card-title mb-0 flex-grow-1">Báo cáo & Thống kê Ý kiến</h4>
                                     <div className="flex-shrink-0">
-                                        <Nav justify className="nav-tabs-custom rounded card-header-tabs" role="tablist">
+                                        <Nav justify="true" className="nav-tabs-custom rounded card-header-tabs" role="tablist">
                                             <NavItem>
                                                 <NavLink
                                                     className={classnames({ active: activeTab === '1' })}

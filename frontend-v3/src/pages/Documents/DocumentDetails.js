@@ -477,12 +477,41 @@ const DocumentDetails = () => {
     const handleExportMau10 = async () => {
         if (!document) return;
         try {
-            const token = localStorage.getItem('access_token');
             const baseUrl = process.env.REACT_APP_API_URL || '';
-            const url = `${baseUrl}/api/feedbacks/export_mau_10/?document_id=${document.id}&token=${token}`;
-            window.open(url, "_blank");
+            const url = `${baseUrl}/api/feedbacks/export_mau_10/?document_id=${document.id}&report_type=mau_10`;
+            
+            const auth = getAuthHeader();
+            const fetchResponse = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    ...auth.headers,
+                }
+            });
+
+            if (!fetchResponse.ok) {
+                const errData = await fetchResponse.json().catch(() => ({}));
+                throw new Error(errData.error || "Lỗi tải báo cáo từ máy chủ.");
+            }
+
+            const blob = await fetchResponse.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            
+            const filename = `Bao_cao_Mau_10_${document.id}.docx`;
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            
+            setTimeout(() => {
+                if (document.body.contains(link)) document.body.removeChild(link);
+                window.URL.revokeObjectURL(blobUrl);
+            }, 10000);
+
+            toast.success("Xuất báo cáo thành công!");
         } catch (err) {
-            toast.error("Lỗi khi xuất báo cáo.");
+            console.error("Lỗi xuất word:", err);
+            toast.error(err.message || "Lỗi khi xuất báo cáo.");
         }
     };
 

@@ -255,6 +255,12 @@ const useNavData = () => {
       link: "/feedback-intake",
     },
     {
+      id: "gsheet-sync",
+      label: "Cập nhật lên GG sheet",
+      icon: "ri-google-fill",
+      link: "/gsheet-sync",
+    },
+    {
       id: "reports",
       label: "Báo cáo tổng hợp",
       icon: "ri-bar-chart-2-line",
