@@ -280,14 +280,49 @@ const Reports = () => {
                                                             {isStatsLoading ? (
                                                                 <div className="text-center py-5"><div className="spinner-border text-primary" role="status"></div></div>
                                                             ) : (invitedSeries.reduce((a, b) => a + b, 0) > 0 || respondedSeries.reduce((a, b) => a + b, 0) > 0) ? (
-                                                                <Row className="align-items-center">
-                                                                    <Col md={6}>
-                                                                        <ReactApexChart series={invitedSeries} options={invitedOptions} type="donut" height={320} />
-                                                                    </Col>
-                                                                    <Col md={6}>
-                                                                        <ReactApexChart series={respondedSeries} options={respondedOptions} type="donut" height={320} />
-                                                                    </Col>
-                                                                </Row>
+                                                                <>
+                                                                    <Row className="align-items-center">
+                                                                        <Col md={6}>
+                                                                            <ReactApexChart series={invitedSeries} options={invitedOptions} type="donut" height={320} />
+                                                                        </Col>
+                                                                        <Col md={6}>
+                                                                            <ReactApexChart series={respondedSeries} options={respondedOptions} type="donut" height={320} />
+                                                                        </Col>
+                                                                    </Row>
+                                                                    <Row className="mt-4 g-3">
+                                                                        <Col md={6}>
+                                                                            <div className="p-3 border border-primary-subtle rounded bg-primary-subtle d-flex align-items-center">
+                                                                                <div className="flex-shrink-0 avatar-sm me-3">
+                                                                                    <div className="avatar-title bg-primary rounded-circle fs-18">
+                                                                                        <i className="ri-team-line"></i>
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div className="flex-grow-1">
+                                                                                    <h6 className="mb-1 fw-bold text-primary">Tổng số cơ quan đã góp ý</h6>
+                                                                                    <h4 className="mb-0 text-primary">{Object.values(statsData?.category_stats || {}).reduce((a, b) => a + b, 0)} cơ quan</h4>
+                                                                                </div>
+                                                                            </div>
+                                                                        </Col>
+                                                                        <Col md={6}>
+                                                                            <div className="p-3 border border-success-subtle rounded bg-success-subtle d-flex align-items-center">
+                                                                                <div className="flex-shrink-0 avatar-sm me-3">
+                                                                                    <div className="avatar-title bg-success rounded-circle fs-18">
+                                                                                        <i className="ri-mail-send-line"></i>
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div className="flex-grow-1">
+                                                                                    <h6 className="mb-1 fw-bold text-success">Tổng số cơ quan được mời (Đã lọc)</h6>
+                                                                                    <h4 className="mb-0 text-success">
+                                                                                        {Object.entries(statsData?.invited_category_stats || {})
+                                                                                            .filter(([label, _]) => label !== 'Sở QL công trình xây dựng chuyên ngành')
+                                                                                            .reduce((acc, [_, count]) => acc + count, 0)} cơ quan
+                                                                                    </h4>
+                                                                                    <small className="text-muted-50 italics">*(Không bao gồm Sở QLCT xây dựng chuyên ngành)</small>
+                                                                                </div>
+                                                                            </div>
+                                                                        </Col>
+                                                                    </Row>
+                                                                </>
                                                             ) : (
                                                                 <div className="text-center text-muted py-5">
                                                                     <i className="ri-database-2-line display-4 text-light"></i>
@@ -299,14 +334,14 @@ const Reports = () => {
                                                 </Col>
                                             </Row>
 
-                                            {/* Chi tiết theo Phân loại (ĐÃ CẬP NHẬT DYNAMIC) */}
                                             <Row className="mb-4">
-                                                <Col lg={12}>
-                                                    <Card className="border border-dashed shadow-none">
+                                                {/* Chi tiết theo Phân loại */}
+                                                <Col lg={6}>
+                                                    <Card className="border border-dashed shadow-none h-100">
                                                         <CardHeader>
                                                             <div className="d-flex align-items-center">
                                                                 <h6 className="text-muted text-uppercase fw-semibold mb-0 flex-grow-1">Chi tiết theo Phân loại Cơ quan</h6>
-                                                                <div className="flex-shrink-0 w-25">
+                                                                <div className="flex-shrink-0" style={{ width: "150px" }}>
                                                                     <Input type="select" size="sm" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
                                                                         {statsData.available_categories && statsData.available_categories.length > 0 ? (
                                                                             statsData.available_categories.map((cat, i) => (
@@ -336,7 +371,7 @@ const Reports = () => {
                                                                                 const percent = Math.round((a.resolved / a.total) * 100);
                                                                                 return (
                                                                                     <tr key={idx}>
-                                                                                        <td className="fw-medium">{a.agency}</td>
+                                                                                        <td className="fw-medium text-wrap" style={{ maxWidth: '180px' }}>{a.agency}</td>
                                                                                         <td className="text-center"><span className="badge bg-secondary-subtle text-secondary">{a.total}</span></td>
                                                                                         <td className="text-center"><span className="badge bg-success-subtle text-success">{a.resolved}</span></td>
                                                                                         <td>
@@ -359,11 +394,10 @@ const Reports = () => {
                                                         </CardBody>
                                                     </Card>
                                                 </Col>
-                                            </Row>
 
-                                            <Row>
-                                                <Col lg={12}>
-                                                    <Card className="border border-dashed shadow-none">
+                                                {/* Top 10 Đơn vị */}
+                                                <Col lg={6}>
+                                                    <Card className="border border-dashed shadow-none h-100">
                                                         <CardBody>
                                                             <h6 className="text-muted text-uppercase fw-semibold mb-3">Top 10 Đơn vị Góp ý tích cực nhất</h6>
                                                             <div dir="ltr">
