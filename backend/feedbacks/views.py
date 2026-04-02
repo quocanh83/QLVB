@@ -1,5 +1,6 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
+from django.db import models
 from rest_framework.decorators import action
 from .models import Feedback, Explanation, ActionLog, ConsultationResponse
 from documents.models import Document, DocumentNode, DocumentAppendix
@@ -10,7 +11,7 @@ import re
 import os
 from openai import OpenAI
 from django.http import FileResponse
-from .utils.mau10_generator import generate_mau_10
+from .utils.v2_template_generator import generate_from_v2_template, _get_field_value
 from .utils.v2_template_generator import generate_from_v2_template
 from django.core.files.storage import FileSystemStorage
 from django.conf import settings
@@ -1164,42 +1165,6 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         return Response({"message": "Đã phê duyệt thành công"})
 
     @action(detail=False, methods=['get'])
-    def by_document(self, request):
-        """Lấy toàn bộ góp ý của một dự thảo"""
-        doc_id = request.query_params.get('document_id')
-        if not doc_id: return Response({"error": "document_id is required"}, status=400)
-        
-        feedbacks = Feedback.objects.filter(document_id=doc_id)\
-            .select_related('node', 'agency')\
-            .prefetch_related('explanations')\
-            .order_by('node__order_index', 'created_at')
-        
-        results = []
-        for i, fb in enumerate(feedbacks, 1):
-            path = []
-            curr = fb.node
-            while curr:
-                path.insert(0, curr.node_label)
-                curr = curr.parent
-            
-            explanation_obj = fb.explanations.first()
-            
-            results.append({
-                "stt": i,
-                "id": fb.id,
-                "node_id": fb.node_id,
-                "appendix_id": fb.appendix_id,
-                "node_label": fb.node.node_label if fb.node else (f"Phụ lục: {fb.appendix.name}" if fb.appendix else "Vấn đề khác"),
-                "node_path": ", ".join(path),
-                "contributing_agency": fb.contributing_agency or (fb.agency.name if fb.agency else "Ẩn danh"),
-                "content": fb.content,
-                "explanation": explanation_obj.content if explanation_obj else "",
-                "status": fb.status,
-                "created_at": fb.created_at.isoformat(),
-            })
-        return Response(results)
-
-    @action(detail=False, methods=['get'])
     def by_node(self, request):
         """Lấy danh sách góp ý phẳng cho một node (và các con của nó)"""
         node_id = request.query_params.get('node_id')
@@ -1210,7 +1175,6 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         try:
             root_node = DocumentNode.objects.get(id=node_id)
             
-            # Lấy tất cả node con/cháu
             def get_all_descendant_ids(node):
                 ids = [node.id]
                 for child in node.children.all():
@@ -1226,65 +1190,21 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             
             results = []
             for fb in feedbacks:
-                # Build hierarchical path label
                 path = []
                 curr = fb.node
                 while curr:
                     path.insert(0, curr.node_label)
                     curr = curr.parent
                 
-                explanation_obj = fb.explanations.first() # Lấy giải trình đầu tiên
-                
-                if filter_type == 'resolved' and not explanation_obj:
-                    continue
-                if filter_type == 'unresolved' and explanation_obj:
-                    continue
+                explanation_obj = fb.explanations.first()
+                if filter_type == 'resolved' and not explanation_obj: continue
+                if filter_type == 'unresolved' and explanation_obj: continue
                 
                 results.append({
                     "id": fb.id,
                     "node_id": fb.node_id,
                     "node_path": ", ".join(path),
-                    "node_content": fb.node.content,
-                    "contributing_agency": fb.contributing_agency or (fb.agency.name if fb.agency else "Ẩn danh"),
-                    "agency_category": fb.agency.category if fb.agency else "other",
-                    "content": fb.content,
-                    "explanation": explanation_obj.content if explanation_obj else "",
-                    "status": fb.status, # Use real status from model
-                    "created_at": fb.created_at.isoformat(),
-                    "logs": [
-                        {
-                            "username": log.user.username,
-                            "action": log.action,
-                            "time": log.created_at.isoformat(),
-                            "details": log.details
-                        } for log in fb.logs.all()
-                    ]
-                })
-            return Response(results)
-        except DocumentNode.DoesNotExist:
-            return Response({"error": "Node not found"}, status=404)
-
-    @action(detail=False, methods=['get'])
-    def by_appendix(self, request):
-        """Lấy danh sách góp ý cho một Phụ lục"""
-        appendix_id = request.query_params.get('appendix_id')
-        if not appendix_id: return Response([])
-        
-        try:
-            feedbacks = Feedback.objects.filter(appendix_id=appendix_id)\
-                .select_related('appendix', 'agency')\
-                .prefetch_related('explanations', 'logs', 'logs__user')\
-                .order_by('created_at')
-            
-            results = []
-            for fb in feedbacks:
-                explanation_obj = fb.explanations.first()
-                
-                results.append({
-                    "id": fb.id,
-                    "appendix_id": fb.appendix_id,
-                    "node_path": f"Phụ lục: {fb.appendix.name}",
-                    "node_content": fb.appendix.content,
+                    "node_content": fb.node.content if fb.node else "",
                     "contributing_agency": fb.contributing_agency or (fb.agency.name if fb.agency else "Ẩn danh"),
                     "agency_category": fb.agency.category if fb.agency else "other",
                     "content": fb.content,
@@ -1301,80 +1221,141 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                     ]
                 })
             return Response(results)
+        except DocumentNode.DoesNotExist:
+            return Response({"error": "Node not found"}, status=404)
+
+    @action(detail=False, methods=['get'])
+    def subject_stats(self, request):
+        document_id = request.query_params.get('document_id')
+        query = Feedback.objects.all()
+        if document_id:
+            query = query.filter(document_id=document_id)
+            
+        agency_counts = query.values('contributing_agency', 'agency__category', 'agency__agency_category__name').annotate(
+            total=models.Count('id'),
+            resolved=models.Count('id', filter=models.Q(explanations__isnull=False))
+        ).order_by('-total')
+        
+        DEFAULT_CAT = 'Phân loại khác'
+        agency_stats_list = []
+        found_categories = set()
+        
+        for item in agency_counts:
+            raw_cat = item['agency__agency_category__name'] or item['agency__category'] or 'other'
+            cat_label = raw_cat if raw_cat != 'other' else DEFAULT_CAT
+            found_categories.add(cat_label)
+            
+            total = item['total']
+            resolved = item['resolved']
+            agency_stats_list.append({
+                'agency': item['contributing_agency'] or 'Ẩn danh',
+                'total': total,
+                'resolved': resolved,
+                'resolve_rate': round((resolved / total * 100), 1) if total > 0 else 0,
+                'category': cat_label
+            })
+
+        category_stats = {}
+        for stat in query.values('agency__agency_category__name', 'agency__category').annotate(count=models.Count('agency', distinct=True)):
+            raw_cat = stat['agency__agency_category__name'] or stat['agency__category'] or 'other'
+            label = raw_cat if raw_cat != 'other' else DEFAULT_CAT
+            category_stats[label] = category_stats.get(label, 0) + stat['count']
+        
+        invited_category_stats = {}
+        if document_id:
+            from documents.models import Document
+            try:
+                doc = Document.objects.get(id=document_id)
+                for cat_stat in doc.consulted_agencies.values('agency_category__name', 'category').annotate(count=models.Count('id')):
+                    raw_cat = cat_stat['agency_category__name'] or cat_stat['category'] or 'other'
+                    label = raw_cat if raw_cat != 'other' else DEFAULT_CAT
+                    invited_category_stats[label] = invited_category_stats.get(label, 0) + cat_stat['count']
+            except Document.DoesNotExist:
+                pass
+
+        return Response({
+            'agency_stats': agency_stats_list,
+            'category_stats': category_stats,
+            'invited_category_stats': invited_category_stats,
+            'available_categories': sorted(list(found_categories))
+        })
+
+    @action(detail=False, methods=['get'])
+    def by_appendix(self, request):
+        """Lấy danh sách góp ý cho một Phụ lục"""
+        appendix_id = request.query_params.get('appendix_id')
+        if not appendix_id: return Response([])
+        try:
+            feedbacks = Feedback.objects.filter(appendix_id=appendix_id)\
+                .select_related('appendix', 'agency')\
+                .prefetch_related('explanations', 'logs', 'logs__user').order_by('created_at')
+            results = []
+            for fb in feedbacks:
+                explanation_obj = fb.explanations.first()
+                results.append({
+                    "id": fb.id,
+                    "appendix_id": fb.appendix_id,
+                    "node_path": f"Phụ lục: {fb.appendix.name}",
+                    "node_content": fb.appendix.content,
+                    "contributing_agency": fb.contributing_agency or (fb.agency.name if fb.agency else "Ẩn danh"),
+                    "agency_category": fb.agency.category if fb.agency else "other",
+                    "content": fb.content,
+                    "explanation": explanation_obj.content if explanation_obj else "",
+                    "status": fb.status,
+                    "created_at": fb.created_at.isoformat(),
+                    "logs": [{"username": log.user.username, "action": log.action, "time": log.created_at.isoformat(), "details": log.details} for log in fb.logs.all()]
+                })
+            return Response(results)
         except Exception as e:
             return Response({"error": str(e)}, status=500)
 
     @action(detail=False, methods=['get'])
-    def subject_stats(self, request):
-        """API thống kê số lượng góp ý theo chủ thể (cơ quan) và phân loại"""
-        from django.db.models import Count, Q
-        
+    def by_document(self, request):
+        """Lấy toàn bộ danh sách góp ý của một Dự thảo"""
         doc_id = request.query_params.get('document_id')
-        queryset = Feedback.objects.all()
-        if doc_id:
-            queryset = queryset.filter(document_id=doc_id)
+        if not doc_id:
+            return Response({"error": "Vui lòng cung cấp document_id"}, status=400)
             
-        # Group by the unified display name: contributing_agency
-        # contributing_agency is now synced with agency.name in the model's save() method.
-        stats_qs = queryset.filter(
-            Q(agency__isnull=False) | Q(contributing_agency__isnull=False)
-        ).values('contributing_agency', 'agency__name', 'agency__category').annotate(
-            total_feedbacks=Count('id', distinct=True),
-            resolved_count=Count('explanations', distinct=True)
-        ).order_by('-total_feedbacks')
-        
-        agency_data_map = {}
-        category_counts = {}
-        
-        for item in stats_qs:
-            raw_name = item['contributing_agency'] or item['agency__name']
-            if not raw_name: continue
+        feedbacks = Feedback.objects.filter(document_id=doc_id)\
+            .select_related('node', 'agency', 'appendix')\
+            .prefetch_related('explanations', 'logs', 'logs__user')\
+            .order_by('node__order_index', 'created_at')
             
-            import unicodedata
-            norm_name = unicodedata.normalize('NFC', raw_name).strip().lower()
-            category = item['agency__category'] or 'other'
-            
-            # Aggregate by category (keep original SQL behavior for category charts)
-            if category not in category_counts:
-                category_counts[category] = 0
-            category_counts[category] += item['total_feedbacks']
-            
-            # Merge by normalized agency name in Python
-            if norm_name not in agency_data_map:
-                # Store the most "standard" name (prefer first one or latest)
-                agency_data_map[norm_name] = {
-                    "display_name": raw_name.strip(), 
-                    "category": category,
-                    "total": 0,
-                    "resolved": 0
-                }
-            
-            # Pick non-other category if available for this specific agency name
-            if category != 'other':
-                agency_data_map[norm_name]['category'] = category
-                
-            agency_data_map[norm_name]['total'] += item['total_feedbacks']
-            agency_data_map[norm_name]['resolved'] += item['resolved_count']
+        results = []
+        for fb in feedbacks:
+            # Xây dựng path cho node hoặc dùng Phụ lục
+            node_label = "Chung"
+            node_path = ""
+            if fb.node:
+                node_label = fb.node.node_label
+                path_parts = []
+                curr = fb.node
+                while curr:
+                    path_parts.insert(0, curr.node_label)
+                    curr = curr.parent
+                node_path = " > ".join(path_parts)
+            elif fb.appendix:
+                node_label = f"Phụ lục: {fb.appendix.name}"
+                node_path = "Phụ lục"
 
-        agency_results = []
-        for norm, data in agency_data_map.items():
-            total = data['total']
-            resolved = data['resolved']
-            agency_results.append({
-                "agency": data['display_name'],
-                "category": data['category'],
-                "total": total,
-                "resolved": resolved,
-                "resolve_rate": round(resolved / total * 100, 1) if total > 0 else 0
+            explanation_obj = fb.explanations.first()
+            
+            results.append({
+                "id": fb.id,
+                "document_id": fb.document_id,
+                "node_id": fb.node_id,
+                "node_label": node_label,
+                "node_path": node_path,
+                "agency": fb.agency_id,
+                "contributing_agency": fb.contributing_agency or (fb.agency.name if fb.agency else "Ẩn danh"),
+                "official_doc_number": fb.official_doc_number,
+                "content": fb.content,
+                "explanation": explanation_obj.content if explanation_obj else "",
+                "status": fb.status,
+                "created_at": fb.created_at.isoformat(),
             })
             
-        # Re-sort by total
-        agency_results.sort(key=lambda x: x['total'], reverse=True)
-            
-        return Response({
-            "agency_stats": agency_results,
-            "category_stats": category_counts
-        })
+        return Response(results)
 
     @action(detail=False, methods=['get'])
     def uncontributed(self, request):
@@ -1445,7 +1426,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         if template:
             fields = template.field_configs.filter(is_enabled=True).order_by('column_order')
 
-        from .utils.mau10_generator import _get_field_value
+        from .utils.v2_template_generator import _get_field_value
         
         results = []
         for i, fb in enumerate(feedbacks, 1):
@@ -1520,8 +1501,6 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             if not has_data:
                 return Response({"error": "Không có ý kiến góp ý nào thỏa mãn bộ lọc để xuất báo cáo."}, status=404)
             
-            # Sử dụng generator V2 với file template Word chuẩn
-            # Đọc cấu hình admin từ DB (nếu có)
             # Phan nhanh theo loai bao cao (report_type param)
             report_type = request.query_params.get('report_type', 'mau10')
             if report_type == 'mau10': report_type = 'mau_10' # Chuẩn hóa về format DB
@@ -1551,27 +1530,27 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             except Exception as e:
                 print(f"Error loading template config: {e}")
 
-            from .utils.mau10_generator import generate_mau_10
             from .utils.v2_template_generator import generate_from_v2_template
-            from django.http import FileResponse
+            from django.http import HttpResponse
 
-            # Neu la mau custom -> Dung mau10_generator (vi no ho tro cot dong tot hon)
-            # Neu la mau10 -> Dung v2_template_generator (vi no dung file word design san dep hon)
-            if report_type == 'custom':
-                file_stream = generate_mau_10(document, feedbacks, template_config=template_config)
-            else:
-                file_stream = generate_from_v2_template(document, feedbacks, template_config=template_config, template_type=report_type)
+            # HỢP NHẤT TUYỆT ĐỐI: Dùng V2 generator (Landscape) cho mọi chế độ xuất
+            file_stream = generate_from_v2_template(
+                document, 
+                feedbacks, 
+                template_config=template_config, 
+                template_type=report_type
+            )
             
-            # Cấu hình tên file (Bao_cao_Mau_10_ID.docx)
-            filename = f"Bao_cao_{'Mau_10' if report_type=='mau_10' else 'Tuy_chinh'}_{document.id}.docx"
+            # Cấu hình tên file
+            type_label = 'Mau_10' if report_type == 'mau_10' else 'Tuy_chinh'
+            filename = f"Bao_cao_{type_label}_{document.id}.docx"
             
-            # Trả về file Word cho người dùng (SỬ DỤNG FILERESPONSE CHUẨN ĐỂ TRÁNH LỖI TÊN FILE)
-            response = FileResponse(
-                file_stream, 
-                as_attachment=True,
-                filename=filename,
+            # Trả về file Word cho người dùng (SỬ DỤNG HTTPRESPONSE ĐỂ ĐẢM BẢO ỔN ĐỊNH DỮ LIỆU)
+            response = HttpResponse(
+                file_stream.getvalue(),
                 content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             )
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
             return response
             
         except Document.DoesNotExist:

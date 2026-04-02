@@ -1,223 +1,269 @@
 """
-Generator Mẫu Báo cáo V2 — Sử dụng file template_bao_cao_V2_fixed.docx
-Phương pháp: docxtpl (Jinja2-style rendering trực tiếp vào file Word)
-
-Placeholder trong template:
-  Paragraphs:
-    {{ document_title }}   — Tên dự thảo
-    {{ total_consulted }}  — Số cơ quan gửi ý kiến
-    {{ total_feedbacks }}  — Tổng số ý kiến
-  Table[0]:
-    {{ drafting_agency }}  — Cơ quan chủ trì soạn thảo
-    {{ agency_location }}  — Địa điểm (Hà Nội)
-    {{ export_date }}      — Ngày xuất báo cáo (dạng "ngày dd tháng mm năm yyyy")
-  Table[1] (bảng nội dung - lặp):
-    {% for d in dieu_list %}
-      d.node_label, d.content
-      {% for fb in d.feedbacks %}
-        fb.user_name, fb.content
-        {% for ex in fb.explanations %}
-          ex.content
-        {% endfor %}
-      {% endfor %}
-    {% endfor %}
+Generator Mẫu Báo cáo V2 — Consolidated Version
+Phương pháp: Xây dựng file Word từ code (python-docx) để đảm bảo ổn định và linh hoạt.
+Hỗ trợ cả Mẫu 10 và các mẫu tùy chỉnh từ Tab Cấu hình.
 """
 
 import io
 import os
+import re
 from datetime import datetime
-from docxtpl import DocxTemplate
+from docx import Document
+from docx.shared import Pt, Cm, RGBColor
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.section import WD_ORIENT, WD_SECTION
+from docx.oxml.ns import qn
 
-# Đường dẫn mặc định đến file template
-# Đường dẫn mặc định đến các file template
-DEFAULT_MAU10_PATH = os.path.join(os.path.dirname(__file__), 'template_bao_cao_V2_fixed.docx')
-DEFAULT_CUSTOM_PATH = os.path.join(os.path.dirname(__file__), 'template_truong_tu_chinh_v3.docx')
+FONT_NAME = 'Times New Roman'
 
+def clean_text(text):
+    """Giữ lại các ký tự hợp lệ cho XML 1.0, loại bỏ ký tự điều khiển."""
+    if text is None:
+        return ""
+    text = str(text)
+    return re.sub(r'[^\x09\x0A\x0D\x20-\uD7FF\uE000-\uFFFD\U00010000-\U0010FFFF]', '', text)
 
+def _set_cell_style(cell, text, bold=False, italic=False, size=12, align=None):
+    """Định dạng văn bản trong ô bảng"""
+    cell.text = ''
+    p = cell.paragraphs[0]
+    if align:
+        p.alignment = align
+    run = p.add_run(clean_text(text))
+    run.font.name = FONT_NAME
+    run._element.rPr.rFonts.set(qn('w:eastAsia'), FONT_NAME)
+    run.font.size = Pt(size)
+    run.bold = bold
+    run.italic = italic
 
-def _get_template_path(template_type='mau_10'):
-    """
-    Trả về đường dẫn file template:
-    - Ưu tiên 1: File đã upload trong DB (ReportTemplate.file_path)
-    - Ưu tiên 2: File mặc định trong source code (V3 cho custom, V2 cho mau10)
-    """
-    try:
-        from reports.models import ReportTemplate as RT
-        tpl = RT.objects.filter(template_type=template_type, is_active=True).first()
-        if tpl and tpl.file_path:
-            import os as _os
-            path = tpl.file_path.path
-            if _os.path.exists(path):
-                return path
-    except Exception:
-        pass
+def _get_field_value(field_key, fb_idx, fb, explanation=None):
+    """Trích xuất dữ liệu dựa trên field_key (Tối ưu hóa mapping)"""
+    # Lấy giải trình đầu tiên nếu không được truyền vào
+    if explanation is None:
+        explanations = fb.explanations.all() if hasattr(fb, 'explanations') else []
+        explanation = explanations[0] if explanations else None
+    else:
+        explanations = [explanation] if explanation else []
     
-    if template_type == 'custom':
-        return DEFAULT_CUSTOM_PATH
-    return DEFAULT_MAU10_PATH
+    # Lấy tên chuyên viên
+    chuyen_vien = ""
+    if explanation and explanation.user:
+        chuyen_vien = explanation.user.username or explanation.user.first_name
+    elif hasattr(fb, 'user') and fb.user:
+        chuyen_vien = fb.user.username
+        
+    # Map status
+    status_map = {'pending': 'Chưa xử lý', 'reviewed': 'Đã giải trình', 'approved': 'Đã duyệt'}
+    status_tv = status_map.get(fb.status, fb.status)
 
+    # Agency logic
+    agency = fb.contributing_agency or (fb.agency.name if hasattr(fb, 'agency') and fb.agency else 'Ẩn danh')
 
-def _build_dieu_list(feedbacks):
-    """
-    Nhóm feedbacks theo node (Điều/Khoản) để render vào vòng lặp dieu_list.
-    Mỗi phần tử dieu_list là:
-      {
-        'node_label': str,
-        'content': str,
-        'feedbacks': [
-          {
-            'user_name': str,
-            'content': str,
-            'explanations': [{'content': str}, ...]
-          }, ...
-        ]
-      }
-    """
+    # Dieu khoan logic (Full label: Dieu 1, Khoan 2)
+    dieu_khoan_val = ""
+    if fb.node:
+        dieu_khoan_val = fb.node.node_label or ""
+        if fb.node.parent:
+            dieu_khoan_val = f"{fb.node.parent.node_label}, {dieu_khoan_val}"
+    
+    # Theo yêu cầu mới: Cột dự thảo chỉ lấy phần nhãn Điều/Khoản
+    du_thao_val = dieu_khoan_val or 'Chung'
+
+    mapping = {
+        'stt': str(fb_idx),
+        'dieu_khoan': dieu_khoan_val or 'Chung',
+        'noi_dung_du_thao': du_thao_val,
+        'don_vi_gop_y': agency,
+        'co_quan': agency,
+        'user_name': agency,
+        'noi_dung_gop_y': fb.content or '',
+        'content': fb.content or '',
+        'giai_trinh': "\n".join([f"- {ex.content}" for ex in explanations if ex.content]) if explanations else "Chưa có giải trình",
+        'noi_dung_giai_trinh': "\n".join([f"- {ex.content}" for ex in explanations if ex.content]) if explanations else "Chưa có giải trình",
+        'explanations': "\n".join([f"- {ex.content}" for ex in explanations if ex.content]) if explanations else "Chưa có giải trình",
+        'chuyen_vien': chuyen_vien,
+        'trang_thai': status_tv,
+        'status': status_tv,
+    }
+    
+    # Fallback cho các trường tùy chỉnh khác (nếu có trong model Feedback)
+    if field_key not in mapping:
+        return str(getattr(fb, field_key, ''))
+        
+    return mapping.get(field_key, '')
+
+def _build_grouped_data(feedbacks):
+    """Nhóm feedbacks theo node để phục vụ Merge Cells (cho Mẫu 10)"""
     nodes_map = {}
     node_order = []
 
-    for i, fb in enumerate(feedbacks, 1):
-        node_key = None
-        node_label = ''
-        node_content = ''
-
+    for fb in feedbacks:
         if fb.node:
             node_key = fb.node.id
-            node_label = fb.node.node_label or ''
-            # Thêm cả parent node label nếu có
+            node_label = fb.node.node_label
             if fb.node.parent:
                 node_label = f"{fb.node.parent.node_label}, {node_label}"
-            node_content = (fb.node.content or '')[:300]
         else:
             node_key = '__no_node__'
-            node_label = 'Ý kiến chung'
-            node_content = ''
+            node_label = 'Chung'
 
         if node_key not in nodes_map:
             nodes_map[node_key] = {
-                'node_label': node_label,
-                'content': node_content,
+                'label': node_label,
                 'feedbacks': []
             }
             node_order.append(node_key)
-
-        # Lấy danh sách giải trình và Chuyên viên
-        explanations_list = []
-        chuyen_vien = ''
-        if hasattr(fb, 'explanations'):
-            for ex in fb.explanations.all():
-                explanations_list.append({
-                    'content': ex.content or ''
-                })
-                if not chuyen_vien and ex.user:
-                    chuyen_vien = ex.user.username or ex.user.first_name
-
-        # Lấy tên cơ quan góp ý
-        user_name = fb.contributing_agency or ''
-        if not user_name and hasattr(fb, 'agency') and fb.agency:
-            user_name = fb.agency.name
-
-        # Map status sang TV
-        status_map = {'pending': 'Chưa xử lý', 'reviewed': 'Đã giải trình', 'approved': 'Đã duyệt'}
-        status_tv = status_map.get(fb.status, fb.status)
-
-        explanation_str = "\n".join([f"- {ex['content']}" for ex in explanations_list])
-
         
-        nodes_map[node_key]['feedbacks'].append({
-            'stt': len(nodes_map[node_key]['feedbacks']) + 1, # STT trong tung Điều
-            'stt_global': i, # STT tong the
-            'user_name': user_name,
-            'content': fb.content or '',
-            'status': status_tv,
-            'chuyen_vien': chuyen_vien or (fb.user.username if fb.user else ''),
-            'time': fb.created_at.strftime("%d/%m/%Y") if fb.created_at else '',
-            'explanation_str': explanation_str,
-            'explanations': explanations_list
-        })
-
-
-        # Da bo doan code lap tai day
-
+        nodes_map[node_key]['feedbacks'].append(fb)
 
     return [nodes_map[k] for k in node_order]
 
-
 def generate_from_v2_template(document, feedbacks, template_config=None, template_type='mau_10'):
     """
-    Sinh file Word từ template V2 sử dụng docxtpl.
-
-    Thứ tự ưu tiên cho drafting_agency:
-      1. document.drafting_agency (cài đặt lúc nạp dự thảo)
-      2. template_config['header_org_name'] (cài đặt admin trong Mẫu chuẩn)
-      3. Giá trị mặc định
-
-    Args:
-        document: Document model instance
-        feedbacks: QuerySet feedback đã filter
-        template_config: dict cấu hình admin (tuỳ chọn)
-        template_type: 'mau_10' (ngang) hoặc 'custom' (dọc)
-            {
-                'header_org_name': str,
-                'header_org_location': str,
-                'footer_signer_name': str,
-                'footer_signer_title': str
-            }
-
-    Returns:
-        io.BytesIO: file Word đã render
+    Sinh báo cáo linh hoạt (Mẫu 10 hoặc Tùy chỉnh) sử dụng python-docx
     """
+    doc = Document()
     cfg = template_config or {}
+    
+    # 1. Page Setup: Mặc định Landscape cho báo cáo bảng
+    section = doc.sections[0]
+    section.orientation = WD_ORIENT.LANDSCAPE
+    new_width, new_height = section.page_height, section.page_width
+    section.page_width = new_width
+    section.page_height = new_height
+    
+    section.top_margin = Cm(2)
+    section.bottom_margin = Cm(2)
+    section.left_margin = Cm(2.5)
+    section.right_margin = Cm(1.5)
 
-    # Ưu tiên 1: Thông tin cơ quan từ Document model (nhập lúc tạo dự thảo)
-    # Ưu tiên 2: Cài đặt admin trong tab Mẫu chuẩn  
-    # Ưu tiên 3: Giá trị mặc định
-    drafting_agency = (
-        getattr(document, 'drafting_agency', None)
-        or cfg.get('header_org_name')
-        or 'CƠ QUAN CHỦ TRÌ SOẠN THẢO'
-    )
-    agency_location = (
-        getattr(document, 'agency_location', None)
-        or cfg.get('header_org_location')
-        or 'Hà Nội'
-    )
-
-    # Số liệu tổng hợp
-    total_feedbacks = len(feedbacks) if hasattr(feedbacks, '__len__') else feedbacks.count()
-
-    # Số cơ quan (unique theo contributing_agency)
-    agencies = set()
-    for fb in feedbacks:
-        if fb.contributing_agency:
-            agencies.add(fb.contributing_agency)
-        elif hasattr(fb, 'agency') and fb.agency:
-            agencies.add(fb.agency.name)
-    total_consulted = len(agencies) or total_feedbacks
-
-    # Ngày xuất — Dạng đầy đủ tiếng Việt: "ngày 24 tháng 03 năm 2026"
+    # 2. Header (Cơ quan + Quốc hiệu)
+    drafting_agency = getattr(document, 'drafting_agency', '') or cfg.get('header_org_name') or 'BỘ / CƠ QUAN CHỦ TRÌ'
+    agency_location = getattr(document, 'agency_location', '') or cfg.get('header_org_location') or 'Hà Nội'
     now = datetime.now()
     export_date = f"ngày {now.day:02d} tháng {now.month:02d} năm {now.year}"
 
-    # Xây dựng dieu_list từ feedbacks
-    dieu_list = _build_dieu_list(feedbacks)
+    header_table = doc.add_table(rows=2, cols=2)
+    header_table.width = Cm(25)
+    
+    _set_cell_style(header_table.cell(0, 0), drafting_agency.upper(), bold=True, size=12, align=WD_ALIGN_PARAGRAPH.CENTER)
+    _set_cell_style(header_table.cell(0, 1), "CỘNG HÀ XÃ HỘI CHỦ NGHĨA VIỆT NAM", bold=True, size=12, align=WD_ALIGN_PARAGRAPH.CENTER)
+    _set_cell_style(header_table.cell(1, 0), "-------", align=WD_ALIGN_PARAGRAPH.CENTER)
+    _set_cell_style(header_table.cell(1, 1), "Độc lập - Tự do - Hạnh phúc", bold=True, size=12, align=WD_ALIGN_PARAGRAPH.CENTER)
+    
+    p_date = header_table.cell(1, 1).add_paragraph()
+    p_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run_date = p_date.add_run(f"{agency_location}, {export_date}")
+    run_date.font.size = Pt(12); run_date.font.name = FONT_NAME; run_date.italic = True
 
-    # Context cho Jinja2 template
-    context = {
-        'document_title': document.project_name or 'Dự thảo văn bản',
-        'total_consulted': total_consulted,
-        'total_feedbacks': total_feedbacks,
-        'drafting_agency': drafting_agency,
-        'agency_location': agency_location,
-        'export_date': export_date,
-        'dieu_list': dieu_list,
-    }
+    doc.add_paragraph()
 
-    # Render và trả về BytesIO
-    tpl = DocxTemplate(_get_template_path(template_type))
-    tpl.render(context)
+    # 3. Title & Intro
+    p_name = (document.project_name or 'Dự thảo văn bản').upper()
+    title = doc.add_paragraph()
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = title.add_run(f"BẢN TỔNG HỢP Ý KIẾN, TIẾP THU, GIẢI TRÌNH Ý KIẾN GÓP Ý, PHẢN BIỆN XÃ HỘI ĐỐI VỚI {p_name}")
+    run.bold = True; run.font.size = Pt(13)
 
+    p_intro = doc.add_paragraph()
+    p_intro.paragraph_format.first_line_indent = Cm(1.27)
+    p_intro.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    p_intro.add_run(f"Căn cứ Luật Ban hành văn bản quy pháp luật, cơ quan lập đề xuất chính sách/cơ quan chủ trì soạn thảo đã tổ chức lấy ý kiến, tham vấn/phản biện xã hội đối với hồ sơ chính sách {document.project_name}.").font.size = Pt(12)
+
+    agencies = set([f.contributing_agency or (f.agency.name if hasattr(f, 'agency') and f.agency else '') for f in feedbacks])
+    total_consulted = len([a for a in agencies if a]) or feedbacks.count()
+    total_fbs = feedbacks.count()
+
+    p_stats = doc.add_paragraph()
+    p_stats.paragraph_format.first_line_indent = Cm(1.27)
+    p_stats.add_run(f"1. Tổng số {total_consulted} cơ quan, tổ chức, cá nhân đã gửi xin ý kiến, tham vấn/góp ý, phản biện xã hội và tổng số {total_fbs} ý kiến nhận được.").font.size = Pt(12)
+
+    p_res = doc.add_paragraph()
+    p_res.paragraph_format.first_line_indent = Cm(1.27)
+    p_res.add_run("2. Kết quả cụ thể như sau:").font.size = Pt(12)
+    doc.add_paragraph()
+
+    # 4. Main Data Table
+    fields = cfg.get('fields')
+    
+    # Mẫu 10 chuẩn 4 cột: Nhóm/Điều, Agency, Content, Explanation
+    if not fields:
+        fields = [
+            {'field_key': 'noi_dung_du_thao', 'field_label': 'NHÓM VẤN ĐỀ / ĐIÊU / KHOẢN'},
+            {'field_key': 'don_vi_gop_y', 'field_label': 'CHỦ THỂ GÓP Ý'},
+            {'field_key': 'noi_dung_gop_y', 'field_label': 'NỘI DUNG GÓP Ý'},
+            {'field_key': 'giai_trinh', 'field_label': 'Ý KIẾN TIẾP THU, GIẢI TRÌNH'},
+        ]
+
+    table = doc.add_table(rows=1, cols=len(fields))
+    table.style = 'Table Grid'
+    
+    for i, f in enumerate(fields):
+        _set_cell_style(table.cell(0, i), f['field_label'].upper(), bold=True, size=11, align=WD_ALIGN_PARAGRAPH.CENTER)
+
+    # Đổ dữ liệu và gộp dòng
+    grouped_data = _build_grouped_data(feedbacks)
+    stt_global = 1
+    
+    for group in grouped_data:
+        first_row = None; last_row = None
+        is_chung = (group['label'] == 'Chung')
+        
+        for fb_idx, fb in enumerate(group['feedbacks']):
+            row = table.add_row()
+            for col_idx, field in enumerate(fields):
+                f_key = field['field_key']
+                val = _get_field_value(f_key, stt_global, fb)
+                
+                # Logic gộp dòng cho các cột định danh (Điều/Khoản hoặc Nội dung dự thảo nếu nó đóng vai trò này)
+                if f_key in ['dieu_khoan', 'noi_dung_du_thao'] and not is_chung:
+                    if fb_idx == 0:
+                        first_row = row
+                        _set_cell_style(row.cells[col_idx], val, bold=True, size=10, align=WD_ALIGN_PARAGRAPH.CENTER)
+                    last_row = row
+                else:
+                    _set_cell_style(row.cells[col_idx], val, size=10, align=WD_ALIGN_PARAGRAPH.CENTER if f_key=='stt' else None)
+            
+            stt_global += 1
+
+        if first_row and last_row and first_row != last_row:
+            for col_idx, field in enumerate(fields):
+                if field['field_key'] in ['dieu_khoan', 'noi_dung_du_thao']:
+                    first_row.cells[col_idx].merge(last_row.cells[col_idx])
+
+    # 5. Footer (Chữ ký)
+    doc.add_paragraph()
+    signer_name = cfg.get('footer_signer_name', '')
+    signer_title = cfg.get('footer_signer_title', 'ĐẠI DIỆN CƠ QUAN CHỦ TRÌ')
+    
+    f_table = doc.add_table(rows=1, cols=2)
+    f_table.width = Cm(25)
+    # Cột 1 trống, Cột 2 chứa chữ ký
+    sign_cell = f_table.cell(0, 1)
+    _set_cell_style(sign_cell, signer_title.upper(), bold=True, size=13, align=WD_ALIGN_PARAGRAPH.CENTER)
+    
+    p_sign = sign_cell.add_paragraph()
+    p_sign.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_sign.add_run("(Ký tên, đóng dấu)").font.size = Pt(12)
+    
+    if signer_name:
+        p_name = sign_cell.add_paragraph()
+        p_name.paragraph_format.space_before = Pt(60)
+        p_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run_name = p_name.add_run(signer_name.upper())
+        run_name.bold = True; run_name.font.size = Pt(13)
+
+    return _save_to_stream(doc)
+
+def _save_to_stream(doc):
     file_stream = io.BytesIO()
-    tpl.save(file_stream)
+    doc.save(file_stream)
     file_stream.seek(0)
     return file_stream
+
+def _get_template_path(template_type):
+    """Legacy helper cho Reports/views.py - Trả về đường dẫn template mặc định"""
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if template_type == 'custom':
+        return os.path.join(base_dir, 'utils', 'template_truong_tu_chinh_v3.docx')
+    return os.path.join(base_dir, 'utils', 'template_bao_cao_V2_fixed.docx')

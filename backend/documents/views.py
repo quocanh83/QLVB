@@ -529,8 +529,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
             doc_obj = self.get_object()
             
-            # Hợp nhất: Sử dụng generator chuẩn Mẫu 10 mới
-            from feedbacks.utils.mau10_generator import generate_mau_10
+            from feedbacks.utils.v2_template_generator import generate_from_v2_template
             from feedbacks.models import Feedback
             try:
                 from reports.models import ReportTemplate
@@ -542,32 +541,42 @@ class DocumentViewSet(viewsets.ModelViewSet):
             # Đọc cấu hình mẫu
             template_config = None
             if ReportTemplate:
-                tpl = ReportTemplate.objects.filter(template_type='mau_10', is_active=True).first()
+                # Ưu tiên lấy mẫu custom nếu có, nếu không lấy mau_10
+                tpl = ReportTemplate.objects.filter(template_type='custom', is_active=True).first()
+                if not tpl:
+                    tpl = ReportTemplate.objects.filter(template_type='mau_10', is_active=True).first()
+                
                 if tpl:
                     enabled_fields = tpl.field_configs.filter(is_enabled=True).order_by('column_order')
-                    if enabled_fields.exists():
-                        template_config = {
-                            'header_org_name': tpl.header_org_name,
-                            'header_org_location': tpl.header_org_location,
-                            'footer_signer_name': tpl.footer_signer_name,
-                            'footer_signer_title': tpl.footer_signer_title,
-                            'fields': [
-                                {
-                                    'field_key': f.field_key,
-                                    'field_label': f.field_label,
-                                    'column_width_cm': f.column_width_cm,
-                                }
-                                for f in enabled_fields
-                            ]
-                        }
+                    template_config = {
+                        'header_org_name': tpl.header_org_name,
+                        'header_org_location': tpl.header_org_location,
+                        'footer_signer_name': tpl.footer_signer_name,
+                        'footer_signer_title': tpl.footer_signer_title,
+                        'fields': [
+                            {
+                                'field_key': f.field_key,
+                                'field_label': f.field_label,
+                                'column_width_cm': f.column_width_cm,
+                            }
+                            for f in enabled_fields
+                        ]
+                    }
             
-            file_stream = generate_mau_10(doc_obj, feedbacks, template_config=template_config)
+            # LUÔN SỬ DỤNG V2 GENERATOR ĐỂ ĐẢM BẢO KHỔ NGANG VÀ ĐỊNH DẠNG CHUẨN
+            file_stream = generate_from_v2_template(
+                doc_obj, 
+                feedbacks, 
+                template_config=template_config, 
+                template_type='custom'
+            )
             
-            response = FileResponse(
-                file_stream, 
+            # Chuyển sang HttpResponse để đảm bảo ổn định khi truyền tải luồng BytesIO
+            response = HttpResponse(
+                file_stream.getvalue(),
                 content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             )
-            filename = f"Bao_cao_tong_hop_{doc_obj.id}.docx"
+            filename = f"Bao_cao_tuy_chinh_{doc_obj.id}.docx"
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
             return response
         except Exception as e:

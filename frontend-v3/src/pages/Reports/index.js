@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, CardBody, CardHeader, Nav, NavItem, NavLink, TabContent, TabPane, Button, Input } from 'reactstrap';
+import { Container, Row, Col, Card, CardBody, CardHeader, Nav, NavItem, NavLink, TabContent, TabPane, Button, Input, Table, Progress } from 'reactstrap';
 import classnames from 'classnames';
 import BreadCrumb from '../../Components/Common/BreadCrumb';
 import axios from 'axios';
@@ -26,8 +26,9 @@ const Reports = () => {
     const [isCustomLoading, setIsCustomLoading] = useState(false);
 
     // Stats State
-    const [statsData, setStatsData] = useState({ agency_stats: [], category_stats: {} });
+    const [statsData, setStatsData] = useState({ agency_stats: [], category_stats: {}, invited_category_stats: {}, available_categories: [] });
     const [isStatsLoading, setIsStatsLoading] = useState(false);
+    const [selectedCategory, setSelectedCategory] = useState('');
 
     const [reportTemplates, setReportTemplates] = useState([]);
     const [activeTemplate, setActiveTemplate] = useState(null);
@@ -81,7 +82,7 @@ const Reports = () => {
             fetchCustomAgencies(selectedDocId);
             fetchCustomPreview(selectedDocId, customAgency, customStatus, customSpecialist);
         }
-    }, [selectedDocId, activeTab, customAgency, customStatus, customSpecialist]);
+    }, [selectedDocId, activeTab, customAgency, customStatus, customSpecialist, reportMode]);
 
     const fetchSubjectStats = async (docId) => {
         setIsStatsLoading(true);
@@ -89,9 +90,15 @@ const Reports = () => {
             const url = `/api/feedbacks/subject_stats/${docId ? `?document_id=${docId}` : ''}`;
             const res = await axios.get(url, getAuthHeader());
             setStatsData(res);
+            // Tự động chọn category đầu tiên nếu chưa chọn
+            if (res.available_categories && res.available_categories.length > 0) {
+                if (!selectedCategory || !res.available_categories.includes(selectedCategory)) {
+                    setSelectedCategory(res.available_categories[0]);
+                }
+            }
         } catch (error) { 
             toast.error("Lỗi tải thống kê"); 
-            setStatsData({ agency_stats: [], category_stats: {} }); 
+            setStatsData({ agency_stats: [], category_stats: {}, invited_category_stats: {}, available_categories: [] }); 
         } finally { 
             setIsStatsLoading(false); 
         }
@@ -121,7 +128,6 @@ const Reports = () => {
     const handleExportCustomWord = async () => {
         if (!selectedDocId) return;
         try {
-            // FIX LẦN 3: Dùng fetch trực tiếp của trình duyệt (Bỏ qua Axios Interceptor)
             const typeParam = reportMode === 'mau10' ? 'mau_10' : 'custom';
             const baseUrl = api.API_URL || '';
             let url = `${baseUrl}/api/feedbacks/export_mau_10/?document_id=${selectedDocId}&status=${customStatus}`;
@@ -152,7 +158,6 @@ const Reports = () => {
             document.body.appendChild(link);
             link.click();
             
-            // Xóa link sau 10 giây để đảm bảo trình duyệt đã kích hoạt tải xong
             setTimeout(() => {
                 if (document.body.contains(link)) document.body.removeChild(link);
                 window.URL.revokeObjectURL(blobUrl);
@@ -164,9 +169,7 @@ const Reports = () => {
         }
     };
 
-    const categoryMap = { ministry: 'Bộ/Ngành', local: 'Địa phương', organization: 'Tổ chức', enterprise: 'Doanh nghiệp', other: 'Khác' };
-
-    // Prepare ApexCharts Data
+    // Prepare Bar Chart Data
     const top10Agencies = (statsData?.agency_stats || []).slice(0, 10);
     const barSeries = [
         { name: 'Tổng số ý kiến', data: top10Agencies.map(a => a.total) },
@@ -178,20 +181,36 @@ const Reports = () => {
         dataLabels: { enabled: true, offsetX: -6, style: { fontSize: '10px', colors: ['#fff'] } },
         stroke: { show: true, width: 1, colors: ['#fff'] },
         xaxis: { categories: top10Agencies.map(a => a.agency) },
-        colors: ['#3b82f6', '#10b981'],
+        colors: ['#3498db', '#2ecc71'],
         legend: { position: 'top' }
     };
 
-    const pieDataLabels = Object.keys(statsData?.category_stats || {}).map(key => categoryMap[key] || key);
-    const pieDataSeries = Object.keys(statsData?.category_stats || {}).map(key => statsData.category_stats[key]);
-    
-    const pieOptions = {
-        chart: { type: 'donut', height: 350 },
-        labels: pieDataLabels,
-        colors: ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'],
+    // Prepare Donut Chart 1: Invited
+    const invitedLabels = Object.keys(statsData?.invited_category_stats || {});
+    const invitedSeries = Object.values(statsData?.invited_category_stats || {});
+    const invitedOptions = {
+        chart: { type: 'donut', height: 280 },
+        labels: invitedLabels,
+        colors: ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
         legend: { position: 'bottom' },
-        dataLabels: { enabled: true }
+        title: { text: "Cơ quan được lấy ý kiến", align: 'center', style: { fontSize: '14px', fontWeight: 'bold', color: '#666' } },
+        dataLabels: { enabled: true, formatter: (val, opts) => opts.w.config.series[opts.seriesIndex] }
     };
+
+    // Prepare Donut Chart 2: Responded
+    const respondedLabels = Object.keys(statsData?.category_stats || {});
+    const respondedSeries = Object.values(statsData?.category_stats || {});
+    const respondedOptions = {
+        chart: { type: 'donut', height: 280 },
+        labels: respondedLabels,
+        colors: ['#3b82f6', '#22c55e', '#fbbf24', '#f87171', '#a78bfa'],
+        legend: { position: 'bottom' },
+        title: { text: "Cơ quan đã có ý kiến", align: 'center', style: { fontSize: '14px', fontWeight: 'bold', color: '#666' } },
+        dataLabels: { enabled: true, formatter: (val, opts) => opts.w.config.series[opts.seriesIndex] }
+    };
+
+    // Filtered agencies for detailed view
+    const filteredAgencies = (statsData?.agency_stats || []).filter(a => a.category === selectedCategory);
 
     const toggleTab = (tab) => {
         if (activeTab !== tab) {
@@ -247,39 +266,113 @@ const Reports = () => {
                                                 <h5 className="flex-grow-1 mb-0">Thống kê cơ quan tham gia đóng góp:</h5>
                                                 <div className="w-25">
                                                     <Input type="select" value={selectedDocId} onChange={(e) => setSelectedDocId(e.target.value)}>
-                                                        <option value="">-- Tất cả dự thảo --</option>
+                                                        <option value="">-- Chọn dự thảo --</option>
                                                         {documents.map(d => <option key={d.id} value={d.id}>{d.project_name}</option>)}
                                                     </Input>
                                                 </div>
                                             </div>
-                                            <Row>
-                                                <Col lg={7}>
+                                            
+                                            <Row className="mb-4">
+                                                <Col lg={12}>
                                                     <Card className="border border-dashed shadow-none">
                                                         <CardBody>
-                                                            <h6 className="text-muted text-uppercase fw-semibold mb-3">Top 10 Đơn vị Góp ý</h6>
+                                                            <h6 className="text-muted text-uppercase fw-semibold mb-3">Tỉ lệ tham gia theo nhóm cơ quan</h6>
+                                                            {isStatsLoading ? (
+                                                                <div className="text-center py-5"><div className="spinner-border text-primary" role="status"></div></div>
+                                                            ) : (invitedSeries.reduce((a, b) => a + b, 0) > 0 || respondedSeries.reduce((a, b) => a + b, 0) > 0) ? (
+                                                                <Row className="align-items-center">
+                                                                    <Col md={6}>
+                                                                        <ReactApexChart series={invitedSeries} options={invitedOptions} type="donut" height={320} />
+                                                                    </Col>
+                                                                    <Col md={6}>
+                                                                        <ReactApexChart series={respondedSeries} options={respondedOptions} type="donut" height={320} />
+                                                                    </Col>
+                                                                </Row>
+                                                            ) : (
+                                                                <div className="text-center text-muted py-5">
+                                                                    <i className="ri-database-2-line display-4 text-light"></i>
+                                                                    <p className="mt-2">Chưa có dữ liệu thống kê cho dự thảo này.<br/><small>Vui lòng kiểm tra danh sách cơ quan được mời trong phần quản lý Dự thảo.</small></p>
+                                                                </div>
+                                                            )}
+                                                        </CardBody>
+                                                    </Card>
+                                                </Col>
+                                            </Row>
+
+                                            {/* Chi tiết theo Phân loại (ĐÃ CẬP NHẬT DYNAMIC) */}
+                                            <Row className="mb-4">
+                                                <Col lg={12}>
+                                                    <Card className="border border-dashed shadow-none">
+                                                        <CardHeader>
+                                                            <div className="d-flex align-items-center">
+                                                                <h6 className="text-muted text-uppercase fw-semibold mb-0 flex-grow-1">Chi tiết theo Phân loại Cơ quan</h6>
+                                                                <div className="flex-shrink-0 w-25">
+                                                                    <Input type="select" size="sm" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
+                                                                        {statsData.available_categories && statsData.available_categories.length > 0 ? (
+                                                                            statsData.available_categories.map((cat, i) => (
+                                                                                <option key={i} value={cat}>{cat}</option>
+                                                                            ))
+                                                                        ) : (
+                                                                            <option value="">Không có phân loại</option>
+                                                                        )}
+                                                                    </Input>
+                                                                </div>
+                                                            </div>
+                                                        </CardHeader>
+                                                        <CardBody>
+                                                            <div className="table-responsive">
+                                                                <Table className="table-sm table-nowrap align-middle">
+                                                                    <thead className="table-light">
+                                                                        <tr>
+                                                                            <th scope="col">Tên Cơ quan / Tổ chức</th>
+                                                                            <th scope="col" className="text-center">Tổng góp ý</th>
+                                                                            <th scope="col" className="text-center">Đã giải trình</th>
+                                                                            <th scope="col" style={{ width: "20%" }}>Tỉ lệ hoàn thành</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        {filteredAgencies.length > 0 ? (
+                                                                            filteredAgencies.map((a, idx) => {
+                                                                                const percent = Math.round((a.resolved / a.total) * 100);
+                                                                                return (
+                                                                                    <tr key={idx}>
+                                                                                        <td className="fw-medium">{a.agency}</td>
+                                                                                        <td className="text-center"><span className="badge bg-secondary-subtle text-secondary">{a.total}</span></td>
+                                                                                        <td className="text-center"><span className="badge bg-success-subtle text-success">{a.resolved}</span></td>
+                                                                                        <td>
+                                                                                            <div className="d-flex align-items-center gap-2">
+                                                                                                <div className="flex-grow-1">
+                                                                                                    <Progress value={percent} size="sm" color={percent === 100 ? "success" : "primary"} />
+                                                                                                </div>
+                                                                                                <span className="text-muted fs-11">{percent}%</span>
+                                                                                            </div>
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                );
+                                                                            })
+                                                                        ) : (
+                                                                            <tr><td colSpan="4" className="text-center py-4 text-muted">Không có dữ liệu cho phân loại này</td></tr>
+                                                                        )}
+                                                                    </tbody>
+                                                                </Table>
+                                                            </div>
+                                                        </CardBody>
+                                                    </Card>
+                                                </Col>
+                                            </Row>
+
+                                            <Row>
+                                                <Col lg={12}>
+                                                    <Card className="border border-dashed shadow-none">
+                                                        <CardBody>
+                                                            <h6 className="text-muted text-uppercase fw-semibold mb-3">Top 10 Đơn vị Góp ý tích cực nhất</h6>
                                                             <div dir="ltr">
                                                                 {isStatsLoading ? (
                                                                     <div className="text-center py-5"><div className="spinner-border text-primary" role="status"></div></div>
                                                                 ) : top10Agencies.length > 0 ? (
                                                                     <ReactApexChart series={barSeries} options={barOptions} type="bar" height={350} />
                                                                 ) : (
-                                                                    <div className="text-center text-muted p-4">Chưa có dữ liệu</div>
-                                                                )}
-                                                            </div>
-                                                        </CardBody>
-                                                    </Card>
-                                                </Col>
-                                                <Col lg={5}>
-                                                    <Card className="border border-dashed shadow-none">
-                                                        <CardBody>
-                                                            <h6 className="text-muted text-uppercase fw-semibold mb-3">Phân loại Nhóm cơ quan</h6>
-                                                            <div dir="ltr">
-                                                                {isStatsLoading ? (
-                                                                    <div className="text-center py-5"><div className="spinner-border text-primary" role="status"></div></div>
-                                                                ) : pieDataSeries.length > 0 ? (
-                                                                    <ReactApexChart series={pieDataSeries} options={pieOptions} type="donut" height={350} />
-                                                                ) : (
-                                                                    <div className="text-center text-muted p-4">Chưa có dữ liệu</div>
+                                                                    <div className="text-center text-muted p-4">Không tìm thấy dữ liệu ý kiến</div>
                                                                 )}
                                                             </div>
                                                         </CardBody>
@@ -289,6 +382,7 @@ const Reports = () => {
                                         </TabPane>
                                         
                                         <TabPane tabId="2" id="export">
+                                            {/* (Phần xuất báo cáo giữ nguyên không đổi) */}
                                             <div className="d-flex align-items-center mb-4">
                                                 <h5 className="flex-grow-1 mb-0">Thiết lập Báo cáo</h5>
                                                 <div className="flex-shrink-0">
