@@ -346,6 +346,12 @@ const Reports = () => {
                                                                             </Card>
                                                                         </Col>
                                                                         <Col>
+                                                                            <Card className="shadow-none border p-2 h-100 mb-0 border-primary-subtle">
+                                                                                <h6 className="text-primary text-uppercase fw-semibold fs-11 mb-1">Tiếp thu một phần</h6>
+                                                                                <h4 className="mb-0 fs-16 text-primary">{statsData.summary?.total_partial || 0}</h4>
+                                                                            </Card>
+                                                                        </Col>
+                                                                        <Col>
                                                                             <Card className="shadow-none border p-2 h-100 mb-0 border-warning-subtle">
                                                                                 <h6 className="text-warning text-uppercase fw-semibold fs-11 mb-1">Chỉ giải trình</h6>
                                                                                 <h4 className="mb-0 fs-16 text-warning">{statsData.summary?.total_explained_no_acc || 0}</h4>
@@ -488,8 +494,11 @@ const Reports = () => {
                                                     <label className="form-label text-muted text-uppercase fw-semibold fs-12">Trạng thái giải trình</label>
                                                     <Input type="select" value={customStatus} onChange={(e) => setCustomStatus(e.target.value)}>
                                                         <option value="all">Tất cả Ý kiến</option>
-                                                        <option value="unresolved">Chưa xử lý</option>
-                                                        <option value="resolved">Đã tiếp thu/Giải trình</option>
+                                                        <option value="pending">Chưa giải trình</option>
+                                                        <option value="explained">Đã giải trình</option>
+                                                        <option value="accepted">Đã tiếp thu</option>
+                                                        <option value="partially_accepted">Tiếp thu một phần</option>
+                                                        <option value="agreed">Thống nhất với dự thảo</option>
                                                     </Input>
                                                 </Col>
                                             </Row>

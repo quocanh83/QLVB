@@ -557,12 +557,16 @@ const DocumentDetails = () => {
         setIsSavingEdit(true);
         setValidationErrors({});
         try {
-            await axios.patch(`/api/feedbacks/${editFeedbackId}/`, {
+            const payload = {
                 agency: editAgencyId?.value || null,
-                official_doc_number: editDocNumber,
+                contributing_agency: editAgencyId?.label || "Cơ quan góp ý",
+                official_doc_number: editDocNumber || "",
                 content: editContent,
-                node: editNodeId
-            }, getAuthHeader());
+                node: editNodeId || null,
+                document: id // id extracted from useParams()
+            };
+
+            await axios.patch(`/api/feedbacks/${editFeedbackId}/`, payload, getAuthHeader());
             
             toast.success("Cập nhật góp ý thành công!");
             setIsEditModalOpen(false);
@@ -572,10 +576,14 @@ const DocumentDetails = () => {
                 fetchStructure(); // Refresh tree if node changed
             }
         } catch (err) {
+            console.error("Lỗi khi cập nhật góp ý:", err.response?.data);
             if (err.response && err.response.data) {
                 setValidationErrors(err.response.data);
-                const firstError = Object.values(err.response.data)[0];
-                toast.error(Array.isArray(firstError) ? firstError[0] : "Lỗi dữ liệu đầu vào.");
+                const errorData = err.response.data;
+                const errorMsg = typeof errorData === 'object' 
+                    ? JSON.stringify(errorData)
+                    : String(errorData);
+                toast.error("Lỗi: " + errorMsg);
             } else {
                 toast.error("Lỗi khi cập nhật góp ý.");
             }

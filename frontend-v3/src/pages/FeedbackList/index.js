@@ -225,24 +225,31 @@ const FeedbackList = () => {
         }
         setUpdating(true);
         try {
-            await axios.patch(`/api/feedbacks/${currentFeedback.id}/`, {
+            const payload = {
                 content: editContent,
-                node: editNodeId,
-                agency: editAgencyId,
-                official_doc_number: editDocNumber
-            }, getAuthHeader());
+                node: editNodeId || null,
+                agency: editAgencyId || null,
+                contributing_agency: editAgencyId ? agencies.find(a => a.id === editAgencyId)?.name : (currentFeedback?.contributing_agency || "Cơ quan góp ý"),
+                official_doc_number: editDocNumber || "",
+                document: selectedDoc?.id || currentFeedback?.document_id
+            };
+
+            await axios.patch(`/api/feedbacks/${currentFeedback.id}/`, payload, getAuthHeader());
 
             toast.success("Đã cập nhật góp ý thành công.");
             setIsEditModalOpen(false);
-            fetchFeedbacks(selectedDoc.id); // Refresh
+            fetchFeedbacks(selectedDoc.id);
         } catch (error) {
             console.error("Lỗi khi cập nhật góp ý:", error.response?.data);
-            const errorMsg = error.response?.data
-                ? Object.entries(error.response.data)
-                    .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(", ") : value}`)
-                    .join(" | ")
-                : "Lỗi không xác định khi cập nhật dữ liệu.";
-            toast.error("Lỗi: " + errorMsg);
+            if (error.response && error.response.data) {
+                const errorData = error.response.data;
+                const errorMsg = typeof errorData === 'object' 
+                    ? Object.entries(errorData).map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(", ") : JSON.stringify(value)}`).join(" | ")
+                    : String(errorData);
+                toast.error("Lỗi: " + errorMsg);
+            } else {
+                toast.error("Lỗi không xác định khi cập nhật dữ liệu.");
+            }
         } finally {
             setUpdating(false);
         }

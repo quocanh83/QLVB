@@ -146,15 +146,15 @@ def generate_from_v2_template(document, feedbacks, template_config=None, templat
     header_table = doc.add_table(rows=2, cols=2)
     header_table.width = Cm(25)
     
-    _set_cell_style(header_table.cell(0, 0), drafting_agency.upper(), bold=True, size=12, align=WD_ALIGN_PARAGRAPH.CENTER)
-    _set_cell_style(header_table.cell(0, 1), "CỘNG HÀ XÃ HỘI CHỦ NGHĨA VIỆT NAM", bold=True, size=12, align=WD_ALIGN_PARAGRAPH.CENTER)
+    _set_cell_style(header_table.cell(0, 0), drafting_agency.upper(), bold=True, size=14, align=WD_ALIGN_PARAGRAPH.CENTER)
+    _set_cell_style(header_table.cell(0, 1), "CỘNG HÀ XÃ HỘI CHỦ NGHĨA VIỆT NAM", bold=True, size=14, align=WD_ALIGN_PARAGRAPH.CENTER)
     _set_cell_style(header_table.cell(1, 0), "-------", align=WD_ALIGN_PARAGRAPH.CENTER)
-    _set_cell_style(header_table.cell(1, 1), "Độc lập - Tự do - Hạnh phúc", bold=True, size=12, align=WD_ALIGN_PARAGRAPH.CENTER)
+    _set_cell_style(header_table.cell(1, 1), "Độc lập - Tự do - Hạnh phúc", bold=True, size=14, align=WD_ALIGN_PARAGRAPH.CENTER)
     
     p_date = header_table.cell(1, 1).add_paragraph()
     p_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run_date = p_date.add_run(f"{agency_location}, {export_date}")
-    run_date.font.size = Pt(12); run_date.font.name = FONT_NAME; run_date.italic = True
+    run_date.font.size = Pt(14); run_date.font.name = FONT_NAME; run_date.italic = True
 
     doc.add_paragraph()
 
@@ -163,7 +163,7 @@ def generate_from_v2_template(document, feedbacks, template_config=None, templat
     title = doc.add_paragraph()
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = title.add_run(f"BẢN TỔNG HỢP Ý KIẾN, TIẾP THU, GIẢI TRÌNH Ý KIẾN GÓP Ý, PHẢN BIỆN XÃ HỘI ĐỐI VỚI {p_name}")
-    run.bold = True; run.font.size = Pt(13)
+    run.bold = True; run.font.size = Pt(14)
 
     p_intro = doc.add_paragraph()
     p_intro.paragraph_format.first_line_indent = Cm(1.27)
@@ -181,38 +181,54 @@ def generate_from_v2_template(document, feedbacks, template_config=None, templat
     total_consulted = len([a for a in agencies if a]) or len(fbs_list)
     total_fbs = len(fbs_list)
 
-    count_agreed = 0
+    count_agreed_agencies = 0
+    agreed_agencies = set()
+    AGREED_PHRASE = "thống nhất với nội dung dự thảo Nghị định"
+    
+    # Lọc danh sách ý kiến "không thống nhất" để tính các chỉ số khác
+    active_fbs = []
+    for f in fbs_list:
+        content_text = (f.content or "").lower()
+        if AGREED_PHRASE.lower() in content_text:
+            agency_name = f.contributing_agency or (f.agency.name if hasattr(f, 'agency') and f.agency else 'Ẩn danh')
+            agreed_agencies.add(agency_name)
+        else:
+            active_fbs.append(f)
+    
+    count_agreed_agencies = len(agreed_agencies)
+    
     count_accepted = 0
+    count_partial = 0
     count_explained_only = 0
     count_pending = 0
-    AGREED_REGEX = r'thống\s+nhất|nhất\s+trí'
 
-    for f in fbs_list:
-        if f.content and re.search(AGREED_REGEX, f.content, re.IGNORECASE):
-            count_agreed += 1
-        
+    for f in active_fbs:
         exps = f.explanations.all()
         if not exps:
             count_pending += 1
         else:
             exp_text = " ".join([e.content for e in exps if e.content]).lower()
+            if 'tiếp thu một phần' in exp_text:
+                count_partial += 1
             if 'tiếp thu' in exp_text:
                 count_accepted += 1
             else:
                 count_explained_only += 1
 
+    total_active = len(active_fbs)
     p_stats = doc.add_paragraph()
     p_stats.paragraph_format.first_line_indent = Cm(1.27)
     p_stats.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    p_stats.add_run(f"1. Tổng số {total_consulted} cơ quan, tổ chức, cá nhân đã gửi xin ý kiến, tham vấn/góp ý, phản biện xã hội và tổng số {total_fbs} ý kiến nhận được.").font.size = Pt(12)
-    p_stats.add_run(f"\n- Số ý kiến thống nhất với dự thảo: {count_agreed} ý kiến.").font.size = Pt(12)
-    p_stats.add_run(f"\n- Số ý kiến đã tiếp thu: {count_accepted} ý kiến.").font.size = Pt(12)
-    p_stats.add_run(f"\n- Số ý kiến đã giải trình (không bao gồm tiếp thu): {count_explained_only} ý kiến.").font.size = Pt(12)
-    p_stats.add_run(f"\n- Số ý kiến chưa có giải trình: {count_pending} ý kiến.").font.size = Pt(12)
+    p_stats.add_run(f"1. Tổng số {total_consulted} cơ quan, tổ chức, cá nhân đã gửi xin ý kiến, tham vấn/góp ý, phản biện xã hội và tổng số {total_active} ý kiến nhận được (không bao gồm các ý kiến thống nhất hoàn toàn).").font.size = Pt(14)
+    p_stats.add_run(f"\n- Số lượng cơ quan thống nhất với nội dung dự thảo Nghị định: {count_agreed_agencies} đơn vị.").font.size = Pt(14)
+    p_stats.add_run(f"\n- Số ý kiến đã tiếp thu: {count_accepted} ý kiến.").font.size = Pt(14)
+    p_stats.add_run(f"\n- Số ý kiến tiếp thu một phần: {count_partial} ý kiến.").font.size = Pt(14)
+    p_stats.add_run(f"\n- Số ý kiến đã giải trình (không bao gồm tiếp thu): {count_explained_only} ý kiến.").font.size = Pt(14)
+    p_stats.add_run(f"\n- Số ý kiến chưa có giải trình: {count_pending} ý kiến.").font.size = Pt(14)
 
     p_res = doc.add_paragraph()
     p_res.paragraph_format.first_line_indent = Cm(1.27)
-    p_res.add_run("2. Kết quả cụ thể như sau:").font.size = Pt(12)
+    p_res.add_run("2. Kết quả cụ thể như sau:").font.size = Pt(14)
     doc.add_paragraph()
 
     # 4. Main Data Table
@@ -221,7 +237,7 @@ def generate_from_v2_template(document, feedbacks, template_config=None, templat
     # Mẫu 10 chuẩn 4 cột: Nhóm/Điều, Agency, Content, Explanation
     if not fields:
         fields = [
-            {'field_key': 'noi_dung_du_thao', 'field_label': 'NHÓM VẤN ĐỀ / ĐIÊU / KHOẢN'},
+            {'field_key': 'noi_dung_du_thao', 'field_label': 'NHÓM VẤN ĐỀ / ĐIỀU / KHOẢN'},
             {'field_key': 'don_vi_gop_y', 'field_label': 'CHỦ THỂ GÓP Ý'},
             {'field_key': 'noi_dung_gop_y', 'field_label': 'NỘI DUNG GÓP Ý'},
             {'field_key': 'giai_trinh', 'field_label': 'Ý KIẾN TIẾP THU, GIẢI TRÌNH'},
@@ -272,18 +288,18 @@ def generate_from_v2_template(document, feedbacks, template_config=None, templat
     f_table.width = Cm(25)
     # Cột 1 trống, Cột 2 chứa chữ ký
     sign_cell = f_table.cell(0, 1)
-    _set_cell_style(sign_cell, signer_title.upper(), bold=True, size=13, align=WD_ALIGN_PARAGRAPH.CENTER)
+    _set_cell_style(sign_cell, signer_title.upper(), bold=True, size=14, align=WD_ALIGN_PARAGRAPH.CENTER)
     
     p_sign = sign_cell.add_paragraph()
     p_sign.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p_sign.add_run("(Ký tên, đóng dấu)").font.size = Pt(12)
+    p_sign.add_run("(Ký tên, đóng dấu)").font.size = Pt(14)
     
     if signer_name:
         p_name = sign_cell.add_paragraph()
         p_name.paragraph_format.space_before = Pt(60)
         p_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run_name = p_name.add_run(signer_name.upper())
-        run_name.bold = True; run_name.font.size = Pt(13)
+        run_name.bold = True; run_name.font.size = Pt(14)
 
     return _save_to_stream(doc)
 

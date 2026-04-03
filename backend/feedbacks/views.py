@@ -1272,6 +1272,45 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                 'category': cat_label
             })
 
+        # 5. Thống kê cấp ý kiến (Quy tắc mới)
+        AGREED_PHRASE = "thống nhất với nội dung dự thảo Nghị định"
+        
+        # Tính số lượng cơ quan thống nhất (từ toàn bộ query)
+        count_agreed = query.filter(content__icontains=AGREED_PHRASE)\
+            .values('agency_id', 'contributing_agency').distinct().count()
+        
+        # Tập dữ liệu loại trừ các ý kiến thống nhất để tính các thông số khác
+        active_query = query.exclude(content__icontains=AGREED_PHRASE)
+        
+        total_fbs = active_query.count()
+        
+        from .models import Explanation
+        # Lấy danh sách ID các ý kiến có giải trình tiếp thu
+        accepted_fb_ids = Explanation.objects.filter(
+            target_type='Feedback',
+            content__iregex=r'tiếp\s+thu'
+        ).values_list('object_id', flat=True)
+        
+        # Lấy danh sách ID các ý kiến có giải trình tiếp thu một phần
+        partial_fb_ids = Explanation.objects.filter(
+            target_type='Feedback',
+            content__iregex=r'tiếp\s+thu\s+một\s+phần'
+        ).values_list('object_id', flat=True)
+        
+        count_accepted = active_query.filter(id__in=accepted_fb_ids).distinct().count()
+        count_partial = active_query.filter(id__in=partial_fb_ids).distinct().count()
+        
+        # Feedback có giải trình nhưng không tiếp thu (và không thống nhất)
+        count_explained_no_acc = active_query.filter(
+            explanations__isnull=False
+        ).exclude(
+            id__in=accepted_fb_ids
+        ).distinct().count()
+        
+        # Feedback chưa giải trình (và không thống nhất)
+        count_pending = active_query.filter(explanations__isnull=True).count()
+
+
         category_stats = {}
         for stat in query.values('agency__agency_category__name', 'agency__category').annotate(count=models.Count('agency', distinct=True)):
             raw_cat = stat['agency__agency_category__name'] or stat['agency__category'] or 'other'
@@ -1290,32 +1329,6 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             except Document.DoesNotExist:
                 pass
 
-        # 5. Thống kê cấp ý kiến (mới bổ sung)
-        AGREED_REGEX = r'thống\s+nhất|nhất\s+trí'
-        ACCEPTED_REGEX = r'tiếp\s+thu'
-        
-        total_fbs = query.count()
-        count_agreed = query.filter(models.Q(content__iregex=AGREED_REGEX)).count()
-        
-        # Feedback có giải trình 'tiếp thu'
-        from .models import Explanation
-        accepted_fb_ids = Explanation.objects.filter(
-            target_type='Feedback',
-            content__iregex=ACCEPTED_REGEX
-        ).values_list('object_id', flat=True)
-        
-        count_accepted = query.filter(id__in=accepted_fb_ids).distinct().count()
-        
-        # Feedback có giải trình nhưng không tiếp thu
-        count_explained_no_acc = query.filter(
-            explanations__isnull=False
-        ).exclude(
-            id__in=accepted_fb_ids
-        ).distinct().count()
-        
-        # Feedback chưa giải trình
-        count_pending = query.filter(explanations__isnull=True).count()
-
         return Response({
             'agency_stats': agency_stats_list,
             'category_stats': category_stats,
@@ -1325,6 +1338,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                 'total_fbs': total_fbs,
                 'total_agreed': count_agreed,
                 'total_accepted': count_accepted,
+                'total_partial': count_partial,
                 'total_explained_no_acc': count_explained_no_acc,
                 'total_pending': count_pending
             }
@@ -1337,15 +1351,27 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         if not appendix_id: return Response([])
         try:
             feedbacks = Feedback.objects.filter(appendix_id=appendix_id)\
+                .exclude(content__icontains="thống nhất với nội dung dự thảo Nghị định")\
                 .select_related('appendix', 'agency')\
                 .prefetch_related('explanations', 'logs', 'logs__user').order_by('created_at')
+            results = []
+            # Xác định số thứ tự phụ lục
+            appendix = DocumentAppendix.objects.get(id=appendix_id)
+            all_apps = list(DocumentAppendix.objects.filter(document_id=appendix.document_id).order_by('created_at').values_list('id', flat=True))
+            try:
+                app_num = all_apps.index(appendix.id) + 1
+            except ValueError:
+                app_num = "?"
+            app_label = f"Phụ lục {app_num}"
+
             results = []
             for fb in feedbacks:
                 explanation_obj = fb.explanations.first()
                 results.append({
                     "id": fb.id,
                     "appendix_id": fb.appendix_id,
-                    "node_path": f"Phụ lục: {fb.appendix.name}",
+                    "node_path": app_label,
+                    "node_label": app_label,
                     "node_content": fb.appendix.content,
                     "contributing_agency": fb.contributing_agency or (fb.agency.name if fb.agency else "Ẩn danh"),
                     "agency_category": fb.agency.category if fb.agency else "other",
@@ -1367,9 +1393,14 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             return Response({"error": "Vui lòng cung cấp document_id"}, status=400)
             
         feedbacks = Feedback.objects.filter(document_id=doc_id)\
+            .exclude(content__icontains="thống nhất với nội dung dự thảo Nghị định")\
             .select_related('node', 'agency', 'appendix')\
             .prefetch_related('explanations', 'logs', 'logs__user')\
             .order_by('node__order_index', 'created_at')
+            
+        # Map appendix_id sang số thứ tự (Phụ lục 1, 2, 3...)
+        appendices = DocumentAppendix.objects.filter(document_id=doc_id).order_by('created_at')
+        appendix_map = {app.id: idx + 1 for idx, app in enumerate(appendices)}
             
         results = []
         for fb in feedbacks:
@@ -1385,7 +1416,8 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                     curr = curr.parent
                 node_path = " > ".join(path_parts)
             elif fb.appendix:
-                node_label = f"Phụ lục: {fb.appendix.name}"
+                app_num = appendix_map.get(fb.appendix_id, "?")
+                node_label = f"Phụ lục {app_num}"
                 node_path = "Phụ lục"
 
             explanation_obj = fb.explanations.first()
@@ -1446,16 +1478,31 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                 (fb.agency and unicodedata.normalize('NFC', fb.agency.name).strip().lower() == norm_target)
             ]
             
-        if status_filter == 'resolved':
-            if isinstance(feedbacks, list):
-                feedbacks = [fb for fb in feedbacks if fb.explanations.exists()]
-            else:
-                feedbacks = feedbacks.filter(explanations__isnull=False).distinct()
-        elif status_filter == 'unresolved':
-            if isinstance(feedbacks, list):
-                feedbacks = [fb for fb in feedbacks if not fb.explanations.exists()]
-            else:
-                feedbacks = feedbacks.filter(explanations__isnull=True).distinct()
+        if status_filter and status_filter != 'all':
+            import re
+            AGREED_REGEX = r'thống\s+nhất\s+với\s+nội\s+dung\s+dự\s+thảo\s+Nghị\s+định'
+            
+            new_feedbacks = []
+            for fb in feedbacks:
+                exps = fb.explanations.all()
+                exp_text = " ".join([e.content for e in exps if e.content]).lower()
+                content_text = (fb.content or "").lower()
+                
+                match = False
+                if status_filter == 'pending' or status_filter == 'unresolved':
+                    match = not exps
+                elif status_filter == 'explained':
+                    match = exps and 'tiếp thu' not in exp_text
+                elif status_filter == 'accepted' or status_filter == 'resolved':
+                    match = exps and 'tiếp thu' in exp_text
+                elif status_filter == 'partially_accepted':
+                    match = exps and 'tiếp thu một phần' in exp_text
+                elif status_filter == 'agreed':
+                    match = re.search(AGREED_REGEX, content_text, re.IGNORECASE)
+                
+                if match:
+                    new_feedbacks.append(fb)
+            feedbacks = new_feedbacks
 
         if specialist and specialist != 'all':
             if specialist == 'none':
@@ -1535,16 +1582,31 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                     (fb.agency and unicodedata.normalize('NFC', fb.agency.name).strip().lower() == norm_target)
                 ]
                 
-            if status_filter == 'resolved':
-                if isinstance(feedbacks, list):
-                    feedbacks = [fb for fb in feedbacks if fb.explanations.exists()]
-                else:
-                    feedbacks = feedbacks.filter(explanations__isnull=False).distinct()
-            elif status_filter == 'unresolved':
-                if isinstance(feedbacks, list):
-                    feedbacks = [fb for fb in feedbacks if not fb.explanations.exists()]
-                else:
-                    feedbacks = feedbacks.filter(explanations__isnull=True).distinct()
+            if status_filter and status_filter != 'all':
+                import re
+                AGREED_REGEX = r'thống\s+nhất\s+với\s+nội\s+dung\s+dự\s+thảo\s+Nghị\s+định'
+                
+                new_feedbacks = []
+                for fb in feedbacks:
+                    exps = fb.explanations.all()
+                    exp_text = " ".join([e.content for e in exps if e.content]).lower()
+                    content_text = (fb.content or "").lower()
+                    
+                    match = False
+                    if status_filter == 'pending' or status_filter == 'unresolved':
+                        match = not exps
+                    elif status_filter == 'explained':
+                        match = exps and 'tiếp thu' not in exp_text
+                    elif status_filter == 'accepted' or status_filter == 'resolved':
+                        match = exps and 'tiếp thu' in exp_text
+                    elif status_filter == 'partially_accepted':
+                        match = exps and 'tiếp thu một phần' in exp_text
+                    elif status_filter == 'agreed':
+                        match = re.search(AGREED_REGEX, content_text, re.IGNORECASE)
+                    
+                    if match:
+                        new_feedbacks.append(fb)
+                feedbacks = new_feedbacks
             
             # Kiểm tra an toàn xem feedbacks (list hoặc queryset) có trống không
             has_data = feedbacks.exists() if hasattr(feedbacks, 'exists') else (len(feedbacks) > 0)
