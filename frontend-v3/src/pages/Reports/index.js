@@ -311,15 +311,45 @@ const Reports = () => {
                                                                                     </div>
                                                                                 </div>
                                                                                 <div className="flex-grow-1">
-                                                                                    <h6 className="mb-1 fw-bold text-success">Tổng số cơ quan được mời (Đã lọc)</h6>
+                                                                                    <h6 className="mb-1 fw-bold text-success">Tổng số cơ quan được mời</h6>
                                                                                     <h4 className="mb-0 text-success">
-                                                                                        {Object.entries(statsData?.invited_category_stats || {})
-                                                                                            .filter(([label, _]) => label !== 'Sở QL công trình xây dựng chuyên ngành')
-                                                                                            .reduce((acc, [_, count]) => acc + count, 0)} cơ quan
+                                                                                        {Object.values(statsData?.invited_category_stats || {}).reduce((acc, count) => acc + count, 0)} cơ quan
                                                                                     </h4>
-                                                                                    <small className="text-muted-50 italics">*(Không bao gồm Sở QLCT xây dựng chuyên ngành)</small>
                                                                                 </div>
                                                                             </div>
+                                                                        </Col>
+                                                                    </Row>
+
+                                                                    <Row className="mt-3 g-2">
+                                                                        <Col>
+                                                                            <Card className="shadow-none border p-2 h-100 mb-0 bg-light-subtle">
+                                                                                <h6 className="text-muted text-uppercase fw-semibold fs-11 mb-1">Tổng số ý kiến</h6>
+                                                                                <h4 className="mb-0 fs-16">{statsData.summary?.total_fbs || 0}</h4>
+                                                                            </Card>
+                                                                        </Col>
+                                                                        <Col>
+                                                                            <Card className="shadow-none border p-2 h-100 mb-0 border-danger-subtle">
+                                                                                <h6 className="text-danger text-uppercase fw-semibold fs-11 mb-1">Chưa giải trình</h6>
+                                                                                <h4 className="mb-0 fs-16 text-danger">{statsData.summary?.total_pending || 0}</h4>
+                                                                            </Card>
+                                                                        </Col>
+                                                                        <Col>
+                                                                            <Card className="shadow-none border p-2 h-100 mb-0 border-info-subtle">
+                                                                                <h6 className="text-info text-uppercase fw-semibold fs-11 mb-1">Thống nhất dự thảo</h6>
+                                                                                <h4 className="mb-0 fs-16 text-info">{statsData.summary?.total_agreed || 0}</h4>
+                                                                            </Card>
+                                                                        </Col>
+                                                                        <Col>
+                                                                            <Card className="shadow-none border p-2 h-100 mb-0 border-success-subtle">
+                                                                                <h6 className="text-success text-uppercase fw-semibold fs-11 mb-1">Đã tiếp thu</h6>
+                                                                                <h4 className="mb-0 fs-16 text-success">{statsData.summary?.total_accepted || 0}</h4>
+                                                                            </Card>
+                                                                        </Col>
+                                                                        <Col>
+                                                                            <Card className="shadow-none border p-2 h-100 mb-0 border-warning-subtle">
+                                                                                <h6 className="text-warning text-uppercase fw-semibold fs-11 mb-1">Chỉ giải trình</h6>
+                                                                                <h4 className="mb-0 fs-16 text-warning">{statsData.summary?.total_explained_no_acc || 0}</h4>
+                                                                            </Card>
                                                                         </Col>
                                                                     </Row>
                                                                 </>

@@ -170,13 +170,45 @@ def generate_from_v2_template(document, feedbacks, template_config=None, templat
     p_intro.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     p_intro.add_run(f"Căn cứ Luật Ban hành văn bản quy pháp luật, cơ quan lập đề xuất chính sách/cơ quan chủ trì soạn thảo đã tổ chức lấy ý kiến, tham vấn/phản biện xã hội đối với hồ sơ chính sách {document.project_name}.").font.size = Pt(12)
 
-    agencies = set([f.contributing_agency or (f.agency.name if hasattr(f, 'agency') and f.agency else '') for f in feedbacks])
-    total_consulted = len([a for a in agencies if a]) or feedbacks.count()
-    total_fbs = feedbacks.count()
+    # Thống kê chi tiết
+    import re
+    if hasattr(feedbacks, 'prefetch_related'):
+        fbs_list = list(feedbacks.prefetch_related('explanations'))
+    else:
+        fbs_list = list(feedbacks)
+
+    agencies = set([f.contributing_agency or (f.agency.name if hasattr(f, 'agency') and f.agency else '') for f in fbs_list])
+    total_consulted = len([a for a in agencies if a]) or len(fbs_list)
+    total_fbs = len(fbs_list)
+
+    count_agreed = 0
+    count_accepted = 0
+    count_explained_only = 0
+    count_pending = 0
+    AGREED_REGEX = r'thống\s+nhất|nhất\s+trí'
+
+    for f in fbs_list:
+        if f.content and re.search(AGREED_REGEX, f.content, re.IGNORECASE):
+            count_agreed += 1
+        
+        exps = f.explanations.all()
+        if not exps:
+            count_pending += 1
+        else:
+            exp_text = " ".join([e.content for e in exps if e.content]).lower()
+            if 'tiếp thu' in exp_text:
+                count_accepted += 1
+            else:
+                count_explained_only += 1
 
     p_stats = doc.add_paragraph()
     p_stats.paragraph_format.first_line_indent = Cm(1.27)
+    p_stats.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     p_stats.add_run(f"1. Tổng số {total_consulted} cơ quan, tổ chức, cá nhân đã gửi xin ý kiến, tham vấn/góp ý, phản biện xã hội và tổng số {total_fbs} ý kiến nhận được.").font.size = Pt(12)
+    p_stats.add_run(f"\n- Số ý kiến thống nhất với dự thảo: {count_agreed} ý kiến.").font.size = Pt(12)
+    p_stats.add_run(f"\n- Số ý kiến đã tiếp thu: {count_accepted} ý kiến.").font.size = Pt(12)
+    p_stats.add_run(f"\n- Số ý kiến đã giải trình (không bao gồm tiếp thu): {count_explained_only} ý kiến.").font.size = Pt(12)
+    p_stats.add_run(f"\n- Số ý kiến chưa có giải trình: {count_pending} ý kiến.").font.size = Pt(12)
 
     p_res = doc.add_paragraph()
     p_res.paragraph_format.first_line_indent = Cm(1.27)

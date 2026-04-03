@@ -1290,11 +1290,44 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             except Document.DoesNotExist:
                 pass
 
+        # 5. Thống kê cấp ý kiến (mới bổ sung)
+        AGREED_REGEX = r'thống\s+nhất|nhất\s+trí'
+        ACCEPTED_REGEX = r'tiếp\s+thu'
+        
+        total_fbs = query.count()
+        count_agreed = query.filter(models.Q(content__iregex=AGREED_REGEX)).count()
+        
+        # Feedback có giải trình 'tiếp thu'
+        from .models import Explanation
+        accepted_fb_ids = Explanation.objects.filter(
+            target_type='Feedback',
+            content__iregex=ACCEPTED_REGEX
+        ).values_list('object_id', flat=True)
+        
+        count_accepted = query.filter(id__in=accepted_fb_ids).distinct().count()
+        
+        # Feedback có giải trình nhưng không tiếp thu
+        count_explained_no_acc = query.filter(
+            explanations__isnull=False
+        ).exclude(
+            id__in=accepted_fb_ids
+        ).distinct().count()
+        
+        # Feedback chưa giải trình
+        count_pending = query.filter(explanations__isnull=True).count()
+
         return Response({
             'agency_stats': agency_stats_list,
             'category_stats': category_stats,
             'invited_category_stats': invited_category_stats,
-            'available_categories': sorted(list(found_categories))
+            'available_categories': sorted(list(found_categories)),
+            'summary': {
+                'total_fbs': total_fbs,
+                'total_agreed': count_agreed,
+                'total_accepted': count_accepted,
+                'total_explained_no_acc': count_explained_no_acc,
+                'total_pending': count_pending
+            }
         })
 
     @action(detail=False, methods=['get'])
