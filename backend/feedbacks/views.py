@@ -937,14 +937,28 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                 "type": n.node_type
             })
             
-        # Thêm Phụ lục
+        # Thêm Phụ lục từ bảng DocumentAppendix
         from documents.models import DocumentAppendix
         appendices = DocumentAppendix.objects.filter(document_id=doc_id).order_by('name')
         for app in appendices:
+            # Rút gọn tên: "Phụ lục I: ABC" -> "Phụ lục I"
+            display_name = app.name
+            if ':' in display_name:
+                display_name = display_name.split(':')[0].strip()
+            if '\n' in display_name:
+                display_name = display_name.split('\n')[0].strip()
+            
+            # Đảm bảo nhãn hiển thị đẹp (Phụ lục I, Phụ lục II...)
+            if not display_name.lower().startswith('phụ lục'):
+                display_name = f"Phụ lục {display_name}"
+            else:
+                # Chuẩn hóa viết hoa chữ đầu
+                display_name = "Phụ lục" + display_name[7:]
+                
             results.append({
                 "unique_id": f"app-{app.id}",
                 "id": app.id,
-                "label": f"PHỤ LỤC: {app.name}",
+                "label": display_name,
                 "type": "Appendix"
             })
             

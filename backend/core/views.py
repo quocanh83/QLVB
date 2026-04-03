@@ -208,6 +208,19 @@ class AgencyViewSet(viewsets.ModelViewSet):
             print(traceback.format_exc())
             return Response({"error": f"Lỗi xử lý tệp: {str(e)}"}, status=500)
 
+    @action(detail=False, methods=['post'], url_path='bulk-delete')
+    def bulk_delete(self, request):
+        if not IsAdminOrCustomAdmin().has_permission(request, self):
+             return Response({"error": "Bạn không có quyền thực hiện thao tác này."}, status=403)
+             
+        ids = request.data.get('ids', [])
+        if not ids:
+            return Response({"error": "Không có ID nào được cung cấp."}, status=400)
+            
+        # Xóa các đơn vị có ID trong danh sách
+        count, _ = Agency.objects.filter(id__in=ids).delete()
+        return Response({"status": "deleted", "count": count})
+
 import os
 import subprocess
 import threading

@@ -21,6 +21,9 @@ const Agencies = () => {
     const [currentAgency, setCurrentAgency] = useState({ name: '', agency_category: '' });
     const [isDeleteModal, setIsDeleteModal] = useState(false);
     const [selectedAgency, setSelectedAgency] = useState(null);
+    const [selectedCategory, setSelectedCategory] = useState('all');
+    const [selectedAgencies, setSelectedAgencies] = useState([]);
+    const [isBulkDelete, setIsBulkDelete] = useState(false);
 
     // Category Management State
     const [categoryModal, setCategoryModal] = useState(false);
@@ -106,18 +109,31 @@ const Agencies = () => {
     };
 
     const handleDeleteClick = (agency) => {
+        setIsBulkDelete(false);
         setSelectedAgency(agency);
+        setIsDeleteModal(true);
+    };
+
+    const handleBulkDeleteClick = () => {
+        setIsBulkDelete(true);
         setIsDeleteModal(true);
     };
 
     const handleDeleteAgency = async () => {
         try {
-            await axios.delete(`/api/settings/agencies/${selectedAgency.id}/`, getAuthHeader());
-            toast.success("Xóa đơn vị thành công.");
+            if (isBulkDelete) {
+                await axios.post('/api/settings/agencies/bulk-delete/', { ids: selectedAgencies }, getAuthHeader());
+                toast.success("Xóa hàng loạt thành công.");
+                setSelectedAgencies([]);
+            } else {
+                await axios.delete(`/api/settings/agencies/${selectedAgency.id}/`, getAuthHeader());
+                toast.success("Xóa đơn vị thành công.");
+            }
             fetchAgencies();
             setIsDeleteModal(false);
+            setIsBulkDelete(false);
         } catch (e) {
-            toast.error("Lỗi khi xóa đơn vị.");
+            toast.error(e.response?.data?.error || "Lỗi khi xóa.");
         }
     };
 
@@ -218,9 +234,11 @@ const Agencies = () => {
         }
     };
 
-    const filteredAgencies = agencies.filter(a => 
-        a.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredAgencies = agencies.filter(a => {
+        const matchesSearch = a.name.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesCat = selectedCategory === 'all' || a.agency_category === parseInt(selectedCategory);
+        return matchesSearch && matchesCat;
+    });
 
     const getCategoryBadge = (agency) => {
         const label = agency.category_name || agency.category || 'Khác';
@@ -232,12 +250,80 @@ const Agencies = () => {
         );
     };
 
+    const handleSelectAll = (e) => {
+        if (e.target.checked) {
+            setSelectedAgencies(filteredAgencies.map(a => a.id));
+        } else {
+            setSelectedAgencies([]);
+        }
+    };
+
+    const handleSelectAgency = (id) => {
+        if (selectedAgencies.includes(id)) {
+            setSelectedAgencies(selectedAgencies.filter(item => item !== id));
+        } else {
+            setSelectedAgencies([...selectedAgencies, id]);
+        }
+    };
+
     return (
         <React.Fragment>
             <div className="page-content">
                 <Container fluid>
                     <BreadCrumb title="Quản lý Đơn vị góp ý" pageTitle="Hệ thống" />
                     <ToastContainer closeButton={false} />
+
+                    <Row className="mb-4">
+                        <Col lg={12}>
+                            <div className="d-flex flex-wrap gap-3">
+                                <Card 
+                                    className={`mb-0 border border-dashed shadow-none cursor-pointer ${selectedCategory === 'all' ? 'bg-primary-subtle border-primary' : ''}`}
+                                    onClick={() => setSelectedCategory('all')}
+                                    style={{ minWidth: '160px' }}
+                                >
+                                    <CardBody className="p-3">
+                                        <div className="d-flex align-items-center">
+                                            <div className="flex-grow-1">
+                                                <p className="text-muted mb-1 text-uppercase fw-semibold fs-12">Tất cả Đơn vị</p>
+                                                <h4 className="mb-0">{agencies.length}</h4>
+                                            </div>
+                                            <div className="flex-shrink-0 avatar-sm">
+                                                <div className="avatar-title bg-primary-subtle text-primary rounded-circle fs-20">
+                                                    <i className="ri-community-line"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </CardBody>
+                                </Card>
+
+                                {agencyCategories.map((cat, idx) => {
+                                    const isActive = selectedCategory === cat.id.toString();
+                                    return (
+                                        <Card 
+                                            key={cat.id}
+                                            className={`mb-0 border border-dashed shadow-none cursor-pointer ${isActive ? 'bg-info-subtle border-info' : ''}`}
+                                            onClick={() => setSelectedCategory(cat.id.toString())}
+                                            style={{ minWidth: '180px' }}
+                                        >
+                                            <CardBody className="p-3">
+                                                <div className="d-flex align-items-center">
+                                                    <div className="flex-grow-1">
+                                                        <p className="text-muted mb-1 text-uppercase fw-semibold fs-11 text-truncate" style={{maxWidth: '120px'}} title={cat.name}>{cat.name}</p>
+                                                        <h4 className="mb-0">{cat.agencies_count || 0}</h4>
+                                                    </div>
+                                                    <div className="flex-shrink-0 avatar-sm">
+                                                        <div className={`avatar-title bg-${idx % 2 === 0 ? 'info' : 'success'}-subtle text-${idx % 2 === 0 ? 'info' : 'success'} rounded-circle fs-20`}>
+                                                            <i className="ri-government-line"></i>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </CardBody>
+                                        </Card>
+                                    );
+                                })}
+                            </div>
+                        </Col>
+                    </Row>
 
                     <Row className="g-4 mb-3">
                         <Col sm="auto">
@@ -251,13 +337,29 @@ const Agencies = () => {
                                 <Button color="soft-info" onClick={toggleImport}>
                                     <i className="ri-file-upload-line align-bottom me-1"></i> Nhập từ tệp
                                 </Button>
+                                {selectedAgencies.length > 0 && (
+                                    <Button color="danger" onClick={handleBulkDeleteClick}>
+                                        <i className="ri-delete-bin-line align-bottom me-1"></i> Xóa mục đã chọn ({selectedAgencies.length})
+                                    </Button>
+                                )}
                             </div>
                         </Col>
-                        <Col sm="3" className="ms-auto">
+                        <Col sm="3" className="ms-auto d-flex gap-2">
+                            <Input 
+                                type="select"
+                                value={selectedCategory}
+                                onChange={(e) => setSelectedCategory(e.target.value)}
+                                style={{ width: '200px' }}
+                            >
+                                <option value="all">Tất cả phân loại</option>
+                                {agencyCategories.map(c => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                            </Input>
                             <div className="search-box">
                                 <Input 
                                     type="text" 
-                                    placeholder="Tìm kiếm đơn vị..." 
+                                    placeholder="Tìm kiếm..." 
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
@@ -277,6 +379,16 @@ const Agencies = () => {
                                         <Table className="table-hover table-bordered align-middle">
                                             <thead className="table-light">
                                                 <tr>
+                                                    <th style={{ width: '40px' }}>
+                                                        <div className="form-check">
+                                                            <input 
+                                                                className="form-check-input" 
+                                                                type="checkbox" 
+                                                                onChange={handleSelectAll}
+                                                                checked={filteredAgencies.length > 0 && selectedAgencies.length === filteredAgencies.length}
+                                                            />
+                                                        </div>
+                                                    </th>
                                                     <th style={{ width: '50px' }}>STT</th>
                                                     <th>Tên Đơn vị / Tổ chức</th>
                                                     <th>Phân loại</th>
@@ -286,14 +398,24 @@ const Agencies = () => {
                                             <tbody>
                                                 {loading ? (
                                                     <tr>
-                                                        <td colSpan="4" className="text-center py-5">
+                                                        <td colSpan="5" className="text-center py-5">
                                                             <div className="spinner-border text-primary" role="status">
                                                                 <span className="sr-only">Đang tải...</span>
                                                             </div>
                                                         </td>
                                                     </tr>
                                                 ) : filteredAgencies.length > 0 ? filteredAgencies.map((agency, index) => (
-                                                    <tr key={agency.id}>
+                                                    <tr key={agency.id} className={selectedAgencies.includes(agency.id) ? "table-active" : ""}>
+                                                        <td>
+                                                            <div className="form-check">
+                                                                <input 
+                                                                    className="form-check-input" 
+                                                                    type="checkbox" 
+                                                                    checked={selectedAgencies.includes(agency.id)}
+                                                                    onChange={() => handleSelectAgency(agency.id)}
+                                                                />
+                                                            </div>
+                                                        </td>
                                                         <td className="text-center">{index + 1}</td>
                                                         <td className="fs-15">{agency.name}</td>
                                                         <td>{getCategoryBadge(agency)}</td>
@@ -310,7 +432,7 @@ const Agencies = () => {
                                                     </tr>
                                                 )) : (
                                                     <tr>
-                                                        <td colSpan="4" className="text-center py-4 text-muted small">
+                                                        <td colSpan="5" className="text-center py-4 text-muted small">
                                                             Không tìm thấy đơn vị nào.
                                                         </td>
                                                     </tr>
@@ -551,6 +673,8 @@ const Agencies = () => {
 
             <DeleteModal
                 show={isDeleteModal}
+                title={isBulkDelete ? "Xác nhận xóa hàng loạt" : "Xác nhận xóa đơn vị"}
+                message={isBulkDelete ? `Bạn có chắc chắn muốn xóa ${selectedAgencies.length} đơn vị đã chọn không?` : `Bạn có chắc chắn muốn xóa đơn vị "${selectedAgency?.name}" không?`}
                 onDeleteClick={handleDeleteAgency}
                 onCloseClick={() => setIsDeleteModal(false)}
             />

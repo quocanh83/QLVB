@@ -66,7 +66,7 @@ class Agency(models.Model):
         ('other', 'Khác'),
     ]
     name = models.CharField(max_length=255, unique=True, verbose_name="Tên cơ quan/tổ chức")
-    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='other', verbose_name="Phân loại hệ thống (Legacy)")
+    category = models.CharField(max_length=50, default='other', verbose_name="Phân loại hệ thống (Legacy)")
     agency_category = models.ForeignKey(AgencyCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name='agencies', verbose_name="Phân loại cơ quan")
     created_at = models.DateTimeField(auto_now_add=True)
 
