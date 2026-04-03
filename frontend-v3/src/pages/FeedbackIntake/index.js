@@ -489,6 +489,11 @@ const FeedbackIntake = () => {
         if (!selectedDocId) return toast.warning("Chưa chọn dự thảo!");
         const activeFeedbacks = feedbacks.filter(f => showIgnored || f.import_mode !== 'skip');
         if (activeFeedbacks.length === 0) return toast.warning("Danh sách góp ý trống!");
+        
+        const missingAgencies = activeFeedbacks.filter(f => !f.agency_id);
+        if (missingAgencies.length > 0) {
+            return toast.error(`Có ${missingAgencies.length} dòng chưa chọn Đơn vị góp ý. Vui lòng kiểm tra lại (được đánh dấu đỏ)!`);
+        }
 
         setSaving(true);
         try {
@@ -1266,7 +1271,7 @@ const FeedbackIntake = () => {
                                                     <thead className="table-light fs-11 text-uppercase fw-bold">
                                                     <tr>
                                                         <th style={{ width: '10%' }}>Điều/Khoản</th>
-                                                        <th style={{ width: '12%' }}>Đơn vị</th>
+                                                        <th style={{ width: '15%' }}>Đơn vị</th>
                                                         <th style={{ width: '20%' }}>Nội dung</th>
                                                         <th style={{ width: '15%' }}>Lý do</th>
                                                         <th style={{ width: '10%' }}>Ghi chú</th>
@@ -1296,8 +1301,30 @@ const FeedbackIntake = () => {
                                                                     value={agencies.find(a => a.id === fb.agency_id) ? { value: fb.agency_id, label: fb.agency_id ? agencies.find(a => a.id === fb.agency_id).name : fb.agency_name } : (fb.agency_name ? {label: fb.agency_name, value: null} : null)}
                                                                     onChange={(opt) => updateFeedbackField(fb.key, 'agency_id', opt ? opt.value : null)}
                                                                     options={agencies.map(a => ({ value: a.id, label: a.name }))}
-                                                                    styles={selectStyles}
+                                                                    styles={{
+                                                                        ...selectStyles,
+                                                                        control: (base, state) => ({
+                                                                            ...selectStyles.control(base, state),
+                                                                            borderColor: !fb.agency_id ? "var(--vz-danger, #f06548)" : selectStyles.control(base, state).borderColor,
+                                                                            boxShadow: !fb.agency_id && state.isFocused ? "0 0 0 0.1rem rgba(240, 101, 72, 0.25)" : selectStyles.control(base, state).boxShadow,
+                                                                            minHeight: '30px'
+                                                                        }),
+                                                                        singleValue: (base) => ({
+                                                                            ...selectStyles.singleValue(base),
+                                                                            fontSize: "12px",
+                                                                            fontWeight: "500"
+                                                                        }),
+                                                                        input: (base) => ({
+                                                                            ...selectStyles.input(base),
+                                                                            fontSize: "12px"
+                                                                        }),
+                                                                        placeholder: (base) => ({
+                                                                            ...selectStyles.placeholder(base),
+                                                                            fontSize: "12px"
+                                                                        })
+                                                                    }}
                                                                     menuPortalTarget={document.body}
+                                                                    placeholder="Chọn cơ quan..."
                                                                 />
                                                                 {fb.official_number && <div className="mt-1"><Badge color="light" className="text-secondary border fs-10">{fb.official_number} - {fb.official_date}</Badge></div>}
                                                             </td>

@@ -1245,7 +1245,10 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         if document_id:
             query = query.filter(document_id=document_id)
             
-        agency_counts = query.values('contributing_agency', 'agency__category', 'agency__agency_category__name').annotate(
+        from django.db.models.functions import Coalesce
+        agency_counts = query.annotate(
+            display_name=Coalesce('agency__name', 'contributing_agency')
+        ).values('display_name', 'agency__category', 'agency__agency_category__name').annotate(
             total=models.Count('id'),
             resolved=models.Count('id', filter=models.Q(explanations__isnull=False))
         ).order_by('-total')
@@ -1262,7 +1265,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             total = item['total']
             resolved = item['resolved']
             agency_stats_list.append({
-                'agency': item['contributing_agency'] or 'Ẩn danh',
+                'agency': item['display_name'] or 'Ẩn danh',
                 'total': total,
                 'resolved': resolved,
                 'resolve_rate': round((resolved / total * 100), 1) if total > 0 else 0,
@@ -1455,7 +1458,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                 row = {
                     "stt": i,
                     "dieu_khoan": dieu_khoan,
-                    "co_quan": fb.contributing_agency or "Khác",
+                    "co_quan": (fb.agency.name if fb.agency else fb.contributing_agency) or "Khác",
                     "noi_dung_gop_y": fb.content,
                     "noi_dung_giai_trinh": explanation.content if explanation else "",
                 }

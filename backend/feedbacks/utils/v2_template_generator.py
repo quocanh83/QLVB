@@ -57,7 +57,7 @@ def _get_field_value(field_key, fb_idx, fb, explanation=None):
     status_tv = status_map.get(fb.status, fb.status)
 
     # Agency logic
-    agency = fb.contributing_agency or (fb.agency.name if hasattr(fb, 'agency') and fb.agency else 'Ẩn danh')
+    agency = (fb.agency.name if hasattr(fb, 'agency') and fb.agency else fb.contributing_agency) or 'Ẩn danh'
 
     # Dieu khoan logic (Full label: Dieu 1, Khoan 2)
     dieu_khoan_val = ""
