@@ -13,7 +13,7 @@ import ReportConfigTab from './ReportConfigTab';
 const Reports = () => {
     const [activeTab, setActiveTab] = useState('1');
     const [documents, setDocuments] = useState([]);
-    
+
     // Custom Reports State
     const [selectedDocId, setSelectedDocId] = useState('');
     const [reportMode, setReportMode] = useState('mau10');
@@ -24,7 +24,7 @@ const Reports = () => {
     const [customAgenciesList, setCustomAgenciesList] = useState([]);
     const [customStatsData, setCustomStatsData] = useState([]);
     const [isCustomLoading, setIsCustomLoading] = useState(false);
-    
+
     // Personnel Stats State
     const [personnelStats, setPersonnelStats] = useState({ by_user: [], by_department: [] });
     const [isPersonnelLoading, setIsPersonnelLoading] = useState(false);
@@ -124,11 +124,11 @@ const Reports = () => {
                     setSelectedCategory(res.available_categories[0]);
                 }
             }
-        } catch (error) { 
-            toast.error("Lỗi tải thống kê"); 
-            setStatsData({ agency_stats: [], category_stats: {}, invited_category_stats: {}, available_categories: [] }); 
-        } finally { 
-            setIsStatsLoading(false); 
+        } catch (error) {
+            toast.error("Lỗi tải thống kê");
+            setStatsData({ agency_stats: [], category_stats: {}, invited_category_stats: {}, available_categories: [] });
+        } finally {
+            setIsStatsLoading(false);
         }
     };
 
@@ -180,12 +180,12 @@ const Reports = () => {
             const blobUrl = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = blobUrl;
-            
+
             const filename = `Bao_cao_${typeParam === 'mau_10' ? 'Mau_10' : 'Tuy_chinh'}_${selectedDocId}.docx`;
             link.setAttribute('download', filename);
             document.body.appendChild(link);
             link.click();
-            
+
             setTimeout(() => {
                 if (document.body.contains(link)) document.body.removeChild(link);
                 window.URL.revokeObjectURL(blobUrl);
@@ -200,41 +200,59 @@ const Reports = () => {
     // Prepare Bar Chart Data
     const top10Agencies = (statsData?.agency_stats || []).slice(0, 10);
     const barSeries = [
-        { name: 'Tổng số ý kiến', data: top10Agencies.map(a => a.total) },
-        { name: 'Đã giải trình', data: top10Agencies.map(a => a.resolved) }
+        { name: 'Tổng số ý kiến', data: top10Agencies.map(a => Number(a.total) || 0) },
+        { name: 'Đã giải trình', data: top10Agencies.map(a => Number(a.resolved) || 0) }
     ];
     const barOptions = {
-        chart: { type: 'bar', height: 350, toolbar: { show: false } },
+        chart: { type: 'bar', height: 350, toolbar: { show: false }, animations: { enabled: true } },
         plotOptions: { bar: { horizontal: true, dataLabels: { position: 'top' } } },
         dataLabels: { enabled: true, offsetX: -6, style: { fontSize: '10px', colors: ['#fff'] } },
         stroke: { show: true, width: 1, colors: ['#fff'] },
-        xaxis: { categories: top10Agencies.map(a => a.agency) },
+        xaxis: { 
+            categories: top10Agencies.map(a => String(a.agency || 'Ẩn danh')),
+            labels: { show: true }
+        },
         colors: ['#3498db', '#2ecc71'],
-        legend: { position: 'top' }
+        legend: { position: 'top' },
+        noData: { text: "Đang tải dữ liệu...", style: { color: "#888", fontSize: "14px" } }
     };
 
     // Prepare Donut Chart 1: Invited
-    const invitedLabels = Object.keys(statsData?.invited_category_stats || {});
-    const invitedSeries = Object.values(statsData?.invited_category_stats || {});
+    const invitedLabels = Object.keys(statsData?.invited_category_stats || {}).map(String);
+    const invitedSeries = Object.values(statsData?.invited_category_stats || {}).map(v => Number(v) || 0);
     const invitedOptions = {
         chart: { type: 'donut', height: 280 },
-        labels: invitedLabels,
+        labels: invitedLabels.length > 0 ? invitedLabels : ["Không có dữ liệu"],
         colors: ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
         legend: { position: 'bottom' },
         title: { text: "Cơ quan được lấy ý kiến", align: 'center', style: { fontSize: '14px', fontWeight: 'bold', color: '#666' } },
-        dataLabels: { enabled: true, formatter: (val, opts) => opts.w.config.series[opts.seriesIndex] }
+        dataLabels: { 
+            enabled: true, 
+            formatter: (val, opts) => {
+                const series = opts.w.config.series;
+                return series && series[opts.seriesIndex] !== undefined ? series[opts.seriesIndex] : "";
+            }
+        },
+        noData: { text: "Chưa có danh sách mời", style: { color: "#888", fontSize: "14px" } }
     };
 
     // Prepare Donut Chart 2: Responded
-    const respondedLabels = Object.keys(statsData?.category_stats || {});
-    const respondedSeries = Object.values(statsData?.category_stats || {});
+    const respondedLabels = Object.keys(statsData?.category_stats || {}).map(String);
+    const respondedSeries = Object.values(statsData?.category_stats || {}).map(v => Number(v) || 0);
     const respondedOptions = {
         chart: { type: 'donut', height: 280 },
-        labels: respondedLabels,
+        labels: respondedLabels.length > 0 ? respondedLabels : ["Chưa có ý kiến"],
         colors: ['#3b82f6', '#22c55e', '#fbbf24', '#f87171', '#a78bfa'],
         legend: { position: 'bottom' },
         title: { text: "Cơ quan đã có ý kiến", align: 'center', style: { fontSize: '14px', fontWeight: 'bold', color: '#666' } },
-        dataLabels: { enabled: true, formatter: (val, opts) => opts.w.config.series[opts.seriesIndex] }
+        dataLabels: { 
+            enabled: true, 
+            formatter: (val, opts) => {
+                const series = opts.w.config.series;
+                return series && series[opts.seriesIndex] !== undefined ? series[opts.seriesIndex] : "";
+            }
+        },
+        noData: { text: "Chưa nhận được ý kiến", style: { color: "#888", fontSize: "14px" } }
     };
 
     // Filtered agencies for detailed view
@@ -251,7 +269,7 @@ const Reports = () => {
             <div className="page-content">
                 <Container fluid>
                     <BreadCrumb title="Trung tâm Báo cáo" pageTitle="Quản lý" />
-                    
+
                     <Row>
                         <Col lg={12}>
                             <Card>
@@ -296,7 +314,7 @@ const Reports = () => {
                                         </Nav>
                                     </div>
                                 </CardHeader>
-                                
+
                                 <CardBody>
                                     <TabContent activeTab={activeTab} className="text-muted">
                                         <TabPane tabId="1" id="stats">
@@ -309,7 +327,7 @@ const Reports = () => {
                                                     </Input>
                                                 </div>
                                             </div>
-                                            
+
                                             <Row className="mb-4">
                                                 <Col lg={12}>
                                                     <Card className="border border-dashed shadow-none">
@@ -321,10 +339,18 @@ const Reports = () => {
                                                                 <>
                                                                     <Row className="align-items-center">
                                                                         <Col md={6}>
-                                                                            <ReactApexChart series={invitedSeries} options={invitedOptions} type="donut" height={320} />
+                                                                            {invitedSeries.length > 0 ? (
+                                                                                <ReactApexChart key={`invited-${invitedSeries.length}-${invitedSeries.reduce((a,b)=>a+b,0)}`} series={invitedSeries} options={invitedOptions} type="donut" height={320} />
+                                                                            ) : (
+                                                                                <div className="text-center p-4 border rounded bg-light">Chưa có dữ liệu mời</div>
+                                                                            )}
                                                                         </Col>
                                                                         <Col md={6}>
-                                                                            <ReactApexChart series={respondedSeries} options={respondedOptions} type="donut" height={320} />
+                                                                            {respondedSeries.length > 0 ? (
+                                                                                <ReactApexChart key={`responded-${respondedSeries.length}-${respondedSeries.reduce((a,b)=>a+b,0)}`} series={respondedSeries} options={respondedOptions} type="donut" height={320} />
+                                                                            ) : (
+                                                                                <div className="text-center p-4 border rounded bg-light">Chưa có ý kiến góp ý</div>
+                                                                            )}
                                                                         </Col>
                                                                     </Row>
                                                                     <Row className="mt-4 g-3">
@@ -373,7 +399,7 @@ const Reports = () => {
                                                                         </Col>
                                                                         <Col>
                                                                             <Card className="shadow-none border p-2 h-100 mb-0 border-info-subtle">
-                                                                                <h6 className="text-info text-uppercase fw-semibold fs-11 mb-1">Thống nhất dự thảo</h6>
+                                                                                <h6 className="text-info text-uppercase fw-semibold fs-11 mb-1">Đã thống nhất</h6>
                                                                                 <h4 className="mb-0 fs-16 text-info">{statsData.summary?.total_agreed || 0}</h4>
                                                                             </Card>
                                                                         </Col>
@@ -391,7 +417,7 @@ const Reports = () => {
                                                                         </Col>
                                                                         <Col>
                                                                             <Card className="shadow-none border p-2 h-100 mb-0 border-warning-subtle">
-                                                                                <h6 className="text-warning text-uppercase fw-semibold fs-11 mb-1">Chỉ giải trình</h6>
+                                                                                <h6 className="text-warning text-uppercase fw-semibold fs-11 mb-1">Đã Giải trình</h6>
                                                                                 <h4 className="mb-0 fs-16 text-warning">{statsData.summary?.total_explained_no_acc || 0}</h4>
                                                                             </Card>
                                                                         </Col>
@@ -400,7 +426,7 @@ const Reports = () => {
                                                             ) : (
                                                                 <div className="text-center text-muted py-5">
                                                                     <i className="ri-database-2-line display-4 text-light"></i>
-                                                                    <p className="mt-2">Chưa có dữ liệu thống kê cho dự thảo này.<br/><small>Vui lòng kiểm tra danh sách cơ quan được mời trong phần quản lý Dự thảo.</small></p>
+                                                                    <p className="mt-2">Chưa có dữ liệu thống kê cho dự thảo này.<br /><small>Vui lòng kiểm tra danh sách cơ quan được mời trong phần quản lý Dự thảo.</small></p>
                                                                 </div>
                                                             )}
                                                         </CardBody>
@@ -416,7 +442,7 @@ const Reports = () => {
                                                             <div className="d-flex align-items-center">
                                                                 <h6 className="text-muted text-uppercase fw-semibold mb-0 flex-grow-1">Chi tiết theo Phân loại Cơ quan</h6>
                                                                 <div className="flex-shrink-0" style={{ width: "150px" }}>
-                                                                    <Input type="select" size="sm" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
+                                                                    <Input type="select" bsSize="sm" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
                                                                         {statsData.available_categories && statsData.available_categories.length > 0 ? (
                                                                             statsData.available_categories.map((cat, i) => (
                                                                                 <option key={i} value={cat}>{cat}</option>
@@ -478,7 +504,7 @@ const Reports = () => {
                                                                 {isStatsLoading ? (
                                                                     <div className="text-center py-5"><div className="spinner-border text-primary" role="status"></div></div>
                                                                 ) : top10Agencies.length > 0 ? (
-                                                                    <ReactApexChart series={barSeries} options={barOptions} type="bar" height={350} />
+                                                                    <ReactApexChart key={`bar-${top10Agencies.length}-${top10Agencies[0]?.agency}`} series={barSeries} options={barOptions} type="bar" height={350} />
                                                                 ) : (
                                                                     <div className="text-center text-muted p-4">Không tìm thấy dữ liệu ý kiến</div>
                                                                 )}
@@ -488,7 +514,7 @@ const Reports = () => {
                                                 </Col>
                                             </Row>
                                         </TabPane>
-                                        
+
                                         <TabPane tabId="2" id="export">
                                             {/* (Phần xuất báo cáo giữ nguyên không đổi) */}
                                             <div className="d-flex align-items-center mb-4">
@@ -540,7 +566,7 @@ const Reports = () => {
                                                     </Input>
                                                 </Col>
                                             </Row>
-                                            
+
                                             <div className="table-responsive table-card">
                                                 <table className="table align-middle table-nowrap table-striped-columns mb-0">
                                                     <thead className="table-light">
@@ -592,11 +618,11 @@ const Reports = () => {
                                                 </table>
                                             </div>
                                         </TabPane>
-                                        
+
                                         <TabPane tabId="3" id="config">
                                             <ReportConfigTab />
                                         </TabPane>
-                                        
+
                                         <TabPane tabId="4" id="personnel">
                                             <Row>
                                                 <Col lg={12}>
@@ -637,7 +663,7 @@ const Reports = () => {
                                                                                 <td>
                                                                                     <div className="d-flex align-items-center gap-2">
                                                                                         <div className="flex-grow-1">
-                                                                                            <Progress value={dept.rate} size="sm" color={dept.rate > 80 ? "success" : (dept.rate > 40 ? "info" : "warning")} />
+                                                                                             <Progress value={dept.rate} style={{ height: "5px" }} color={dept.rate > 80 ? "success" : (dept.rate > 40 ? "info" : "warning")} />
                                                                                         </div>
                                                                                         <span className="fs-12">{dept.rate}%</span>
                                                                                     </div>
@@ -686,7 +712,7 @@ const Reports = () => {
                                                                                 <td>
                                                                                     <div className="d-flex align-items-center gap-2">
                                                                                         <div className="flex-grow-1">
-                                                                                            <Progress value={user.rate} size="sm" color={user.rate === 100 ? "success" : "primary"} />
+                                                                                             <Progress value={user.rate} style={{ height: "5px" }} color={user.rate === 100 ? "success" : "primary"} />
                                                                                         </div>
                                                                                         <span className="fs-11">{user.rate}%</span>
                                                                                     </div>

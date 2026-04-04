@@ -24,11 +24,16 @@ const GSheetSync = () => {
     const [results, setResults] = useState(null);
     const [selectedIds, setSelectedIds] = useState([]);
     const [showSynced, setShowSynced] = useState(false);
+    const [showSpecialistMatches, setShowSpecialistMatches] = useState(false);
+    const [showPositionMatches, setShowPositionMatches] = useState(false);
 
     // New states for separate assignment
     const [specialists, setSpecialists] = useState([]);
     const [savingIds, setSavingIds] = useState({}); // { feedbackId: true/false }
     const [activeTab, setActiveTab] = useState('1');
+    const [assignmentSyncMode, setAssignmentSyncMode] = useState('sheet'); // 'sheet' (DB -> Sheet) or 'db' (Sheet -> DB)
+    const [dataSyncMode, setDataSyncMode] = useState('sheet'); // 'sheet' (DB -> Sheet) or 'db' (Sheet -> DB)
+    
     const toggleTab = (tab) => {
         if (activeTab !== tab) setActiveTab(tab);
     };
@@ -240,10 +245,69 @@ const GSheetSync = () => {
         }
     };
 
+    const handlePullAssignments = async () => {
+        if (selectedIds.length === 0) {
+            toast.warning("Vui lòng chọn ít nhất một dòng để cập nhật.");
+            return;
+        }
+
+        setPushing(true);
+        try {
+            const pullItems = selectedIds.map(id => {
+                const item = results.find(r => r.id === id);
+                return { id: item.id, gs_specialist: item.gs_specialist };
+            });
+
+            const res = await axios.post('/api/feedbacks/gsheet_pull_assignments/', {
+                document_id: selectedDocId,
+                pull_items: pullItems
+            }, getAuthHeader());
+            toast.success(res.data?.message || "Đã cập nhật dữ liệu từ Google Sheet vào DB thành công.");
+            
+            // Refresh comparison
+            handleCompare();
+        } catch (e) {
+            toast.error(e.response?.data?.error || "Lỗi khi cập nhật dữ liệu từ Google Sheet.");
+        } finally {
+            setPushing(false);
+        }
+    };
+
+    const handlePullData = async () => {
+        if (selectedIds.length === 0) {
+            toast.warning("Vui lòng chọn ít nhất một dòng để cập nhật.");
+            return;
+        }
+
+        setPushing(true);
+        try {
+            const pullItems = selectedIds.map(id => {
+                const item = results.find(r => r.id === id);
+                return { 
+                    id: item.id, 
+                    content: item.gs_content,
+                    explanation: item.gs_explanation 
+                };
+            });
+
+            const res = await axios.post('/api/feedbacks/gsheet_pull_data/', {
+                document_id: selectedDocId,
+                pull_items: pullItems
+            }, getAuthHeader());
+            toast.success(res.data?.message || "Đã cập nhật dữ liệu từ Google Sheet vào hệ thống thành công.");
+            
+            // Refresh comparison
+            handleCompare();
+        } catch (e) {
+            toast.error(e.response?.data?.error || "Lỗi khi cập nhật dữ liệu từ Google Sheet.");
+        } finally {
+            setPushing(false);
+        }
+    };
+
     const toggleSelectAll = () => {
         if (activeTab === '1') {
-            const visibleRows = results.filter(r => showSynced || r.status !== 'synced');
-            const visibleToPush = visibleRows.filter(r => r.status !== 'synced');
+            const visibleToPush = results.filter(r => (showSynced || r.status !== 'synced')).filter(r => r.status !== 'synced');
             
             if (selectedIds.length === visibleToPush.length) {
                 setSelectedIds([]);
@@ -251,9 +315,9 @@ const GSheetSync = () => {
                 setSelectedIds(visibleToPush.map(r => r.id));
             }
         } else if (activeTab === '2') {
-            // Tab đối soát chuyên viên: Chọn tất cả dòng bị lệch chuyên viên
-            const diffRows = results.filter(r => r.is_specialist_diff);
-            const diffIds = diffRows.map(r => r.id);
+            // Tab đối soát chuyên viên: Chọn tất cả dòng bị lệch chuyên viên hiện đang hiển thị
+            const visibleDiffRows = results.filter(r => (showSpecialistMatches || r.is_specialist_diff)).filter(r => r.is_specialist_diff);
+            const diffIds = visibleDiffRows.map(r => r.id);
             
             if (selectedIds.length === diffIds.length) {
                 setSelectedIds([]);
@@ -261,9 +325,9 @@ const GSheetSync = () => {
                 setSelectedIds(diffIds);
             }
         } else {
-            // Tab đối soát vị trí: Chọn tất cả dòng bị lệch vị trí
-            const diffRows = results.filter(r => r.is_node_diff);
-            const diffIds = diffRows.map(r => r.id);
+            // Tab đối soát vị trí: Chọn tất cả dòng bị lệch vị trí hiện đang hiển thị
+            const visibleDiffRows = results.filter(r => (showPositionMatches || r.is_node_diff)).filter(r => r.is_node_diff);
+            const diffIds = visibleDiffRows.map(r => r.id);
             
             if (selectedIds.length === diffIds.length) {
                 setSelectedIds([]);
@@ -402,17 +466,70 @@ const GSheetSync = () => {
 
                                     <div className="d-flex justify-content-between align-items-center mb-3">
                                         <div className="text-muted fs-13">
-                                            Hiển thị <b>{results.filter(r => showSynced || r.status !== 'synced').length}</b> / {results.length} dòng bản ghi.
+                                            Tìm thấy <b>{results.length}</b> góp ý.
                                         </div>
-                                        <div className="form-check form-switch form-switch-right form-switch-md">
-                                            <Input 
-                                                className="form-check-input code-switcher" 
-                                                type="checkbox" 
-                                                id="show-synced-switch" 
-                                                checked={showSynced} 
-                                                onChange={(e) => setShowSynced(e.target.checked)} 
-                                            />
-                                            <Label className="form-check-label text-muted fs-12" htmlFor="show-synced-switch">Hiện các dòng đã khớp nội dung</Label>
+                                        <div className="d-flex gap-4 align-items-center flex-wrap">
+                                            {/* Chế độ đối soát dữ liệu */}
+                                            <div className="d-flex align-items-center gap-3 bg-light p-1 px-2 rounded-2 border border-dashed">
+                                                <Label className="mb-0 fs-12 fw-bold text-muted text-uppercase me-1">Chế độ:</Label>
+                                                <div className="form-check form-check-inline mb-0">
+                                                    <Input 
+                                                        className="form-check-input" 
+                                                        type="radio" 
+                                                        name="dataSyncMode" 
+                                                        id="modeDataSheet" 
+                                                        value="sheet"
+                                                        checked={dataSyncMode === 'sheet'} 
+                                                        onChange={() => setDataSyncMode('sheet')}
+                                                    />
+                                                    <Label className="form-check-label fs-12 mb-0" htmlFor="modeDataSheet">Điều chỉnh Sheet</Label>
+                                                </div>
+                                                <div className="form-check form-check-inline mb-0">
+                                                    <Input 
+                                                        className="form-check-input" 
+                                                        type="radio" 
+                                                        name="dataSyncMode" 
+                                                        id="modeDataDb" 
+                                                        value="db"
+                                                        checked={dataSyncMode === 'db'} 
+                                                        onChange={() => setDataSyncMode('db')}
+                                                    />
+                                                    <Label className="form-check-label fs-12 mb-0 fw-medium text-primary" htmlFor="modeDataDb">Điều chỉnh DB</Label>
+                                                </div>
+                                            </div>
+
+                                            <div className="form-check form-switch form-switch-right form-switch-md">
+                                                <Input 
+                                                    className="form-check-input code-switcher" 
+                                                    type="checkbox" 
+                                                    id="show-synced-switch" 
+                                                    checked={showSynced} 
+                                                    onChange={(e) => setShowSynced(e.target.checked)} 
+                                                />
+                                                <Label className="form-check-label text-muted fs-12 mb-0" htmlFor="show-synced-switch">Hiện các dòng đã khớp</Label>
+                                            </div>
+
+                                            {dataSyncMode === 'sheet' ? (
+                                                <Button 
+                                                    color="danger" 
+                                                    size="sm" 
+                                                    className="fw-bold px-3 shadow-none"
+                                                    onClick={() => handlePush('all')} 
+                                                    disabled={pushing || selectedIds.length === 0}
+                                                >
+                                                    {pushing ? <Spinner size="sm" /> : <><i className="ri-share-forward-2-line me-1"></i> Cập nhật GSheet ({selectedIds.length})</>}
+                                                </Button>
+                                            ) : (
+                                                <Button 
+                                                    color="success" 
+                                                    size="sm" 
+                                                    className="fw-bold px-3 shadow-none"
+                                                    onClick={handlePullData} 
+                                                    disabled={pushing || selectedIds.length === 0}
+                                                >
+                                                    {pushing ? <Spinner size="sm" /> : <><i className="ri-download-cloud-2-line me-1"></i> Cập nhật vào DB ({selectedIds.length})</>}
+                                                </Button>
+                                            )}
                                         </div>
                                     </div>
 
@@ -433,7 +550,7 @@ const GSheetSync = () => {
                                                 <th style={{ width: "10%", minWidth: "80px" }}>Vị trí</th>
                                                 <th style={{ width: "12%", minWidth: "100px" }}>Đơn vị</th>
                                                 <th style={{ width: "25%", minWidth: "200px" }}>Nội dung góp ý</th>
-                                                <th style={{ width: "20%", minWidth: "180px" }}>Giải trình</th>
+                                                <th style={{ width: "20%", minWidth: "180px" }}>Ý KIẾN GIẢI TRÌNH, TIẾP THU</th>
                                                 <th style={{ width: "15%", minWidth: "140px" }}>Phân công</th>
                                                 <th style={{ width: "15%", minWidth: "140px" }}>Trạng thái Sheet</th>
                                             </tr>
@@ -562,18 +679,70 @@ const GSheetSync = () => {
 
                                     <div className="d-flex justify-content-between align-items-center mb-3">
                                         <div className="text-muted fs-13">
-                                            Tìm thấy <b>{results.filter(r => r.is_specialist_diff).length}</b> bản ghi có sự sai lệch phân công chuyên viên.
+                                            Hiển thị <b>{results.filter(r => showSpecialistMatches || r.is_specialist_diff).length}</b> / {results.length} dòng.
                                         </div>
-                                        <div className="d-flex gap-2 text-end">
-                                            <Button 
-                                                color="danger" 
-                                                size="sm" 
-                                                className="fw-bold"
-                                                onClick={() => handlePush('specialist_only')} 
-                                                disabled={pushing || selectedIds.length === 0}
-                                            >
-                                                {pushing ? <Spinner size="sm" /> : <><i className="ri-user-follow-line me-1"></i> Cập nhật Phân công lên GSheet ({selectedIds.length})</>}
-                                            </Button>
+                                        <div className="d-flex gap-4 align-items-center flex-wrap">
+                                            {/* Chế độ đối soát */}
+                                            <div className="d-flex align-items-center gap-3 bg-light p-1 px-2 rounded-2 border border-dashed">
+                                                <Label className="mb-0 fs-12 fw-bold text-muted text-uppercase me-1">Chế độ:</Label>
+                                                <div className="form-check form-check-inline mb-0">
+                                                    <Input 
+                                                        className="form-check-input" 
+                                                        type="radio" 
+                                                        name="syncMode" 
+                                                        id="modeSheet" 
+                                                        value="sheet"
+                                                        checked={assignmentSyncMode === 'sheet'} 
+                                                        onChange={() => setAssignmentSyncMode('sheet')}
+                                                    />
+                                                    <Label className="form-check-label fs-12 mb-0" htmlFor="modeSheet">Điều chỉnh Sheet</Label>
+                                                </div>
+                                                <div className="form-check form-check-inline mb-0">
+                                                    <Input 
+                                                        className="form-check-input" 
+                                                        type="radio" 
+                                                        name="syncMode" 
+                                                        id="modeDb" 
+                                                        value="db"
+                                                        checked={assignmentSyncMode === 'db'} 
+                                                        onChange={() => setAssignmentSyncMode('db')}
+                                                    />
+                                                    <Label className="form-check-label fs-12 mb-0 fw-medium text-primary" htmlFor="modeDb">Điều chỉnh DB</Label>
+                                                </div>
+                                            </div>
+
+                                            <div className="form-check form-switch form-switch-right form-switch-md">
+                                                <Input 
+                                                    className="form-check-input code-switcher" 
+                                                    type="checkbox" 
+                                                    id="show-specialist-matches-switch" 
+                                                    checked={showSpecialistMatches} 
+                                                    onChange={(e) => setShowSpecialistMatches(e.target.checked)} 
+                                                />
+                                                <Label className="form-check-label text-muted fs-12 mb-0" htmlFor="show-specialist-matches-switch">Hiện các dòng đã khớp phân công</Label>
+                                            </div>
+
+                                            {assignmentSyncMode === 'sheet' ? (
+                                                <Button 
+                                                    color="danger" 
+                                                    size="sm" 
+                                                    className="fw-bold px-3 shadow-none"
+                                                    onClick={() => handlePush('specialist_only')} 
+                                                    disabled={pushing || selectedIds.length === 0}
+                                                >
+                                                    {pushing ? <Spinner size="sm" /> : <><i className="ri-user-follow-line me-1"></i> Cập nhật Phân công lên GSheet ({selectedIds.length})</>}
+                                                </Button>
+                                            ) : (
+                                                <Button 
+                                                    color="success" 
+                                                    size="sm" 
+                                                    className="fw-bold px-3 shadow-none"
+                                                    onClick={handlePullAssignments} 
+                                                    disabled={pushing || selectedIds.length === 0}
+                                                >
+                                                    {pushing ? <Spinner size="sm" /> : <><i className="ri-download-cloud-2-line me-1"></i> Cập nhật Phân công vào DB ({selectedIds.length})</>}
+                                                </Button>
+                                            )}
                                         </div>
                                     </div>
 
@@ -599,7 +768,7 @@ const GSheetSync = () => {
                                             </tr>
                                             </thead>
                                             <tbody>
-                                            {results.map((item) => {
+                                            {results.filter(r => showSpecialistMatches || r.is_specialist_diff).map((item) => {
                                                 const isDiff = item.is_specialist_diff;
                                                 return (
                                                     <tr key={`assign-${item.id}`} className={classnames(isDiff ? "bg-danger-subtle" : "")}>
@@ -651,9 +820,19 @@ const GSheetSync = () => {
 
                                             <div className="d-flex justify-content-between align-items-center mb-3">
                                                 <div className="text-muted fs-13">
-                                                    Tìm thấy <b>{results.filter(r => r.is_node_diff).length}</b> bản ghi có sự sai lệch vị trí Điều/Khoản.
+                                                    Hiển thị <b>{results.filter(r => showPositionMatches || r.is_node_diff).length}</b> / {results.length} dòng.
                                                 </div>
-                                                <div className="d-flex gap-2 text-end">
+                                                <div className="d-flex gap-3 align-items-center">
+                                                    <div className="form-check form-switch form-switch-right form-switch-md">
+                                                        <Input 
+                                                            className="form-check-input code-switcher" 
+                                                            type="checkbox" 
+                                                            id="show-position-matches-switch" 
+                                                            checked={showPositionMatches} 
+                                                            onChange={(e) => setShowPositionMatches(e.target.checked)} 
+                                                        />
+                                                        <Label className="form-check-label text-muted fs-12" htmlFor="show-position-matches-switch">Hiện các dòng đã khớp vị trí</Label>
+                                                    </div>
                                                     <Button 
                                                         color="info" 
                                                         size="sm" 
@@ -675,7 +854,7 @@ const GSheetSync = () => {
                                                                 <Input 
                                                                     type="checkbox" 
                                                                     className="form-check-input"
-                                                                    checked={results.filter(r => r.is_node_diff).length > 0 && selectedIds.length === results.filter(r => r.is_node_diff).length}
+                                                                    checked={results.filter(r => showPositionMatches || r.is_node_diff).length > 0 && selectedIds.length === results.filter(r => showPositionMatches || r.is_node_diff).length}
                                                                     onChange={toggleSelectAll}
                                                                 />
                                                             </div>
@@ -687,7 +866,7 @@ const GSheetSync = () => {
                                                     </tr>
                                                     </thead>
                                                     <tbody>
-                                                    {results.map((item) => {
+                                                    {results.filter(r => showPositionMatches || r.is_node_diff).map((item) => {
                                                         const isNodeDiff = item.is_node_diff;
                                                         return (
                                                             <tr key={`node-${item.id}`} className={classnames(isNodeDiff ? "bg-info-subtle" : "")}>

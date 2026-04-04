@@ -645,7 +645,7 @@ const FeedbackList = () => {
                                                             <th style={{ width: '150px' }}>Cán bộ thụ lý</th>
                                                             <th style={{ minWidth: '250px' }}>Nội dung góp ý</th>
                                                             <th>Cơ quan</th>
-                                                            <th style={{ minWidth: '250px' }}>Nội dung giải trình</th>
+                                                            <th style={{ minWidth: '250px' }}>Ý KIẾN GIẢI TRÌNH, TIẾP THU</th>
                                                             <th style={{ width: '120px' }}>Hành động</th>
                                                         </tr>
                                                     </thead>

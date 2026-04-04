@@ -1,0 +1,55 @@
+ID: 2079, Label: Phụ lục I: PHÂN LOẠI CÔNG TRÌNH THEO CÔNG NĂNG SỬ DỤNG, Content: Phụ lục I
+PHÂN LOẠI CÔNG TRÌNH THEO CÔNG NĂNG SỬ DỤNG
+(Ban hành kèm theo Nghị định số    /2026/NĐ-CP
+ID: 2080, Label: Phụ lục IIa: NHẬT KÝ THI CÔNG XÂY DỰNG CÔNG TRÌNH, Content: Phụ lục IIa
+NHẬT KÝ THI CÔNG XÂY DỰNG CÔNG TRÌNH
+(Ban hành kèm theo Nghị định số    /2026/NĐ-CP
+ngày
+ID: 2081, Label: Phụ lục IIb: BẢN VẼ HOÀN CÔNG, Content: Phụ lục IIb
+BẢN VẼ HOÀN CÔNG
+(Ban hành kèm theo Nghị định số    /2026/NĐ-CP
+ngày     tháng     năm 2
+ID: 2082, Label: Phụ lục III: BIỆN PHÁP BẢO ĐẢM AN TOÀN, Content: Phụ lục III
+BIỆN PHÁP BẢO ĐẢM AN TOÀN
+TRONG THI CÔNG XÂY DỰNG CÔNG TRÌNH
+(Ban hành kèm theo Nghị địn
+ID: 2083, Label: Phụ lục IVa:  Báo cáo định kỳ về công tác giám sát thi công xây dựng công trình., Content: Phụ lục IVa
+(Ban hành kèm theo Nghị định số    /2026/NĐ-CP
+ngày     tháng     năm 2026 của Chính phủ
+ID: 2084, Label: Phụ lục IVb: . Báo cáo hoàn thành công tác giám sát thi công xây dựng gói thầu, giai đoạn, hạng mục công trình, công trình xây dựng., Content: Phụ lục IVb
+(Ban hành kèm theo Nghị định số    /2026/NĐ-CP
+ngày     tháng     năm 2026 của Chính phủ
+ID: 2085, Label: Phụ lục V: __________, Content: Phụ lục V
+(Ban hành kèm theo Nghị định số    /2026/NĐ-CP
+ngày     tháng     năm 2026 của Chính phủ)
+
+ID: 2086, Label: Phụ lục VI: BÁO CÁO HOÀN THÀNH THI CÔNG XÂY DỰNG, Content: Phụ lục VI
+BÁO CÁO HOÀN THÀNH THI CÔNG XÂY DỰNG
+HẠNG MỤC CÔNG TRÌNH, CÔNG TRÌNH XÂY DỰNG
+(Ban hành k
+ID: 2087, Label: Phụ lục VII: DANH MỤC HỒ SƠ HOÀN THÀNH CÔNG TRÌNH, Content: Phụ lục VII
+DANH MỤC HỒ SƠ HOÀN THÀNH CÔNG TRÌNH
+(Ban hành kèm theo Nghị định số    /2026/NĐ-CP
+ngày
+ID: 2088, Label: Phụ lục VIII: KẾT QUẢ KIỂM TRA CÔNG TÁC NGHIỆM THU HOÀN THÀNH HẠNG MỤC CÔNG TRÌNH, CÔNG TRÌNH XÂY DỰNG, Content: Phụ lục VIII
+(Ban hành kèm theo Nghị định số    /2026/NĐ-CP
+ngày     tháng     năm 2026 của Chính ph
+ID: 2089, Label: Phụ lục IX: DANH MỤC CÔNG TRÌNH QUY MÔ LỚN, KỸ THUẬT PHỨC TẠP, Content: Phụ lục IX
+DANH MỤC CÔNG TRÌNH QUY MÔ LỚN, KỸ THUẬT PHỨC TẠP
+(Ban hành kèm theo Nghị định số    /202
+ID: 2090, Label: Phụ lục X: DANH MỤC HỒ SƠ PHỤC VỤ QUẢN LÝ, SỬ DỤNG, Content: Phụ lục X
+DANH MỤC HỒ SƠ PHỤC VỤ QUẢN LÝ, SỬ DỤNG
+CÔNG TRÌNH XÂY DỰNG
+(Ban hành kèm theo Nghị định s
+ID: 2091, Label: Phụ lục XIa: Báo cáo kết quả đánh giá an toàn công trình, Content: Phụ lục XIa
+(Ban hành kèm theo Nghị định số    /2026/NĐ-CP
+ngày     tháng     năm 2026 của Chính phủ
+ID: 2092, Label: Phụ lục XIb:Thông báo ý kiến về kết quả đánh giá an toàn công trình, Content: Phụ lục XIb
+(Ban hành kèm theo Nghị định số    /2026/NĐ-CP
+ngày     tháng     năm 2026 của Chính phủ
+ID: 2093, Label: Phụ lục XIIa:  Báo cáo về việc kéo dài thời hạn sử dụng của công trình, Content: Phụ lục XIIa
+(Ban hành kèm theo Nghị định số    /2026/NĐ-CP
+ngày     tháng     năm 2026 của Chính ph
+ID: 2094, Label: Phụ lục XIIb: Thông báo ý kiến về việc kéo dài thời hạn sử dụng của công trình, Content: Phụ lục XIIb
+(Ban hành kèm theo Nghị định số    /2026/NĐ-CP
+ngày     tháng     năm 2026 của Chính ph

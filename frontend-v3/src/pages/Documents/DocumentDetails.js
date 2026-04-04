@@ -139,10 +139,10 @@ const DocumentDetails = () => {
             setSelectedAppendix(null);
             fetchFeedbacks(selectedNode.id);
             setIsEditingNode(false);
-            const initialData = { [selectedNode.id]: selectedNode.content || '' };
+            const initialData = { [selectedNode.id]: { content: selectedNode.content || '', label: selectedNode.node_label || '' } };
             if (selectedNode.children) {
                 selectedNode.children.forEach(child => {
-                    initialData[child.id] = child.content || '';
+                    initialData[child.id] = { content: child.content || '', label: child.node_label || '' };
                 });
             }
             setEditedNodesData(initialData);
@@ -158,7 +158,7 @@ const DocumentDetails = () => {
             setSelectedNode(null);
             fetchAppendicesFeedbacks(selectedAppendix.id);
             setIsEditingNode(false);
-            setEditedNodesData({ [selectedAppendix.id]: selectedAppendix.content || '' });
+            setEditedNodesData({ [selectedAppendix.id]: { content: selectedAppendix.content || '', name: selectedAppendix.name || '' } });
         }
     }, [selectedAppendix]);
 
@@ -323,14 +323,16 @@ const DocumentDetails = () => {
         }
         if (!selectedNode) return;
         try {
-            const updatePromises = Object.entries(editedNodesData).map(([id, content]) => {
-                // Chỉ gửi PATCH nếu nội dung thực sự thay đổi (tối ưu hóa)
-                const originalContent = id === selectedNode.id.toString() 
-                    ? selectedNode.content 
-                    : selectedNode.children?.find(c => c.id.toString() === id)?.content;
+            const updatePromises = Object.entries(editedNodesData).map(([id, data]) => {
+                const originalNode = id === selectedNode.id.toString() 
+                    ? selectedNode 
+                    : selectedNode.children?.find(c => c.id.toString() === id);
                 
-                if (content !== originalContent) {
-                    return axios.patch(`/api/nodes/${id}/`, { content }, getAuthHeader());
+                if (data.content !== originalNode?.content || data.label !== originalNode?.node_label) {
+                    return axios.patch(`/api/documents/nodes/${id}/`, { 
+                        content: data.content,
+                        node_label: data.label 
+                    }, getAuthHeader());
                 }
                 return null;
             }).filter(p => p !== null);
@@ -339,13 +341,20 @@ const DocumentDetails = () => {
                 await Promise.all(updatePromises);
                 toast.success("Cập nhật nội dung thành công!");
                 fetchStructure();
+                
                 // Update selected node locally
-                const newMainContent = editedNodesData[selectedNode.id] || selectedNode.content;
-                const newChildren = selectedNode.children?.map(child => ({
-                    ...child,
-                    content: editedNodesData[child.id] || child.content
-                }));
-                setSelectedNode({ ...selectedNode, content: newMainContent, children: newChildren });
+                const newMain = editedNodesData[selectedNode.id] || { content: selectedNode.content, label: selectedNode.node_label };
+                const newChildren = selectedNode.children?.map(child => {
+                    const editData = editedNodesData[child.id];
+                    return editData ? { ...child, content: editData.content, node_label: editData.label } : child;
+                });
+                
+                setSelectedNode({ 
+                    ...selectedNode, 
+                    content: newMain.content, 
+                    node_label: newMain.label,
+                    children: newChildren 
+                });
             }
             setIsEditingNode(false);
         } catch (err) {
@@ -356,10 +365,18 @@ const DocumentDetails = () => {
     const handleSaveAppendixTextContent = async () => {
         if (!selectedAppendix) return;
         try {
-            const newContent = editedNodesData[selectedAppendix.id];
-            await axios.patch(`/api/documents/appendices/${selectedAppendix.id}/`, { content: newContent }, getAuthHeader());
-            toast.success("Cập nhật nội dung phụ lục thành công!");
-            setSelectedAppendix({ ...selectedAppendix, content: newContent });
+            const data = editedNodesData[selectedAppendix.id];
+            await axios.patch(`/api/documents/appendices/${selectedAppendix.id}/`, { 
+                content: data.content,
+                name: data.name || data.label // Dùng label hoặc name tùy theo key được gán
+            }, getAuthHeader());
+            
+            toast.success("Cập nhật phụ lục thành công!");
+            setSelectedAppendix({ 
+                ...selectedAppendix, 
+                content: data.content,
+                name: data.name || data.label
+            });
             fetchAppendices();
             setIsEditingNode(false);
         } catch (err) {
@@ -893,14 +910,34 @@ const DocumentDetails = () => {
                                                 </div>
                                                 <div className="fs-14 text-body lh-base" style={{ whiteSpace: 'pre-wrap' }}>
                                                     {isEditingNode ? (
-                                                        <Input 
-                                                            type="textarea" 
-                                                            rows={20} 
-                                                            className="form-control bg-white shadow-sm border-primary-subtle" 
-                                                            value={editedNodesData[selectedAppendix.id] || ''} 
-                                                            onChange={(e) => setEditedNodesData({ ...editedNodesData, [selectedAppendix.id]: e.target.value })}
-                                                        />
-                                                    ) : (
+                        <div className="space-y-4">
+                            <div className="mb-3">
+                                <label className="form-label fs-12 text-uppercase text-muted fw-bold">Tên phụ lục</label>
+                                <Input 
+                                    type="text"
+                                    className="form-control mb-2 fw-bold"
+                                    value={editedNodesData[selectedAppendix.id]?.name || ''}
+                                    onChange={(e) => setEditedNodesData({ 
+                                        ...editedNodesData, 
+                                        [selectedAppendix.id]: { ...editedNodesData[selectedAppendix.id], name: e.target.value } 
+                                    })}
+                                />
+                            </div>
+                            <div className="mb-3">
+                                <label className="form-label fs-12 text-uppercase text-muted fw-bold">Nội dung</label>
+                                <Input 
+                                    type="textarea" 
+                                    rows={20} 
+                                    className="form-control bg-white shadow-sm border-primary-subtle" 
+                                    value={editedNodesData[selectedAppendix.id]?.content || ''} 
+                                    onChange={(e) => setEditedNodesData({ 
+                                        ...editedNodesData, 
+                                        [selectedAppendix.id]: { ...editedNodesData[selectedAppendix.id], content: e.target.value } 
+                                    })}
+                                />
+                            </div>
+                        </div>
+                    ) : (
                                                         selectedAppendix.file ? (
                                                             <div className="text-center py-5">
                                                                 <div className="avatar-lg mx-auto mb-3">
@@ -924,9 +961,35 @@ const DocumentDetails = () => {
                                             <div className="bg-card p-4 rounded shadow-sm border border-light-subtle">
                                                 <h5 className="fw-bold mb-3 pb-2 border-bottom border-light d-flex justify-content-between align-items-center">
                                                     <span>
-                                                        {selectedNode.node_type === 'Khoản' 
-                                                            ? `${selectedNode.parent_label || 'Văn bản'}. ${selectedNode.parent_content?.split('\n')[0] || ''}` 
-                                                            : `${selectedNode.node_label}: ${selectedNode.content?.split('\n')[0] || ''}`}
+                                                        {(() => {
+                                                            const nodeLabel = (selectedNode.node_label || "").trim();
+                                                            const firstLine = (selectedNode.content || "").split('\n')[0].trim();
+                                                            
+                                                            // Chuẩn hóa để so sánh (bỏ dấu cách, dấu chấm, dấu hai chấm, hoa thường)
+                                                            const normalize = (s) => s.toLowerCase().replace(/[:.\s]/g, '');
+                                                            const normalizedLabel = normalize(nodeLabel);
+                                                            const normalizedFirstLine = normalize(firstLine);
+                                                            
+                                                            let displayTitle = "";
+                                                            if (normalizedFirstLine.startsWith(normalizedLabel)) {
+                                                                // Nếu dòng đầu đã chứa nhãn (VD: "Điều 1. ...") thì lấy luôn dòng đó
+                                                                displayTitle = firstLine;
+                                                            } else if (normalizedLabel.startsWith(normalizedFirstLine)) {
+                                                                // Ngược lại nếu nhãn chứa dòng đầu (VD: Nhãn="Phụ lục I: ABC", dòng đầu="Phụ lục I")
+                                                                displayTitle = nodeLabel;
+                                                            } else {
+                                                                // Ngược lại ghép nhãn vào trước
+                                                                displayTitle = `${nodeLabel}${firstLine ? ': ' + firstLine : ''}`;
+                                                            }
+                                                            
+                                                            if (selectedNode.node_type === 'Khoản') {
+                                                                const parentLabel = selectedNode.parent_label || 'Văn bản';
+                                                                const parentTitle = (selectedNode.parent_content || "").split('\n')[0].trim();
+                                                                return `${parentLabel}. ${parentTitle}`;
+                                                            }
+                                                            
+                                                            return displayTitle;
+                                                        })()}
                                                     </span>
                                                     <div className="d-flex align-items-center gap-2">
                                                         {!isEditingNode ? (
@@ -947,30 +1010,55 @@ const DocumentDetails = () => {
                                                         <div className="space-y-4">
                                                             {/* Edit Main Node (Điều hoặc Khoản đơn lẻ) */}
                                                             <div className="mb-4">
-                                                                <label className="form-label fs-12 text-uppercase text-muted fw-bold">
-                                                                    {selectedNode.node_label} (Nội dung chính)
-                                                                </label>
+                                                                <div className="d-flex align-items-center gap-2 mb-2">
+                                                                    <label className="form-label fs-12 text-uppercase text-muted fw-bold mb-0" style={{ minWidth: '80px' }}>Tiêu đề:</label>
+                                                                    <Input 
+                                                                        type="text"
+                                                                        className="form-control form-control-sm w-50 fw-bold border-info-subtle"
+                                                                        value={editedNodesData[selectedNode.id]?.label || ''}
+                                                                        onChange={(e) => setEditedNodesData({ 
+                                                                            ...editedNodesData, 
+                                                                            [selectedNode.id]: { ...editedNodesData[selectedNode.id], label: e.target.value } 
+                                                                        })}
+                                                                    />
+                                                                </div>
+                                                                <label className="form-label fs-12 text-uppercase text-muted fw-bold">Nội dung chính</label>
                                                                 <Input 
                                                                     type="textarea" 
                                                                     rows={selectedNode.node_type === 'Điều' ? 3 : 10} 
                                                                     className="form-control bg-white shadow-sm border-info-subtle" 
-                                                                    value={editedNodesData[selectedNode.id] || ''} 
-                                                                    onChange={(e) => setEditedNodesData({ ...editedNodesData, [selectedNode.id]: e.target.value })}
+                                                                    value={editedNodesData[selectedNode.id]?.content || ''} 
+                                                                    onChange={(e) => setEditedNodesData({ 
+                                                                        ...editedNodesData, 
+                                                                        [selectedNode.id]: { ...editedNodesData[selectedNode.id], content: e.target.value } 
+                                                                    })}
                                                                 />
                                                             </div>
 
                                                             {/* Edit Sub-nodes (Nếu là Điều có các Khoản) */}
                                                             {selectedNode.node_type === 'Điều' && selectedNode.children && selectedNode.children.map(child => (
                                                                 <div key={child.id} className="mb-3 ps-3 border-start border-info border-2">
-                                                                    <label className="form-label fs-12 text-uppercase text-muted fw-bold">
-                                                                        {child.node_label}
-                                                                    </label>
+                                                                    <div className="d-flex align-items-center gap-2 mb-2">
+                                                                        <label className="form-label fs-11 text-uppercase text-muted fw-bold mb-0" style={{ minWidth: '60px' }}>{child.node_type}:</label>
+                                                                        <Input 
+                                                                            type="text"
+                                                                            className="form-control form-control-sm w-25 border-light"
+                                                                            value={editedNodesData[child.id]?.label || ''}
+                                                                            onChange={(e) => setEditedNodesData({ 
+                                                                                ...editedNodesData, 
+                                                                                [child.id]: { ...editedNodesData[child.id], label: e.target.value } 
+                                                                            })}
+                                                                        />
+                                                                    </div>
                                                                     <Input 
                                                                         type="textarea" 
                                                                         rows={4} 
                                                                         className="form-control bg-white shadow-sm" 
-                                                                        value={editedNodesData[child.id] || ''} 
-                                                                        onChange={(e) => setEditedNodesData({ ...editedNodesData, [child.id]: e.target.value })}
+                                                                        value={editedNodesData[child.id]?.content || ''} 
+                                                                        onChange={(e) => setEditedNodesData({ 
+                                                                            ...editedNodesData, 
+                                                                            [child.id]: { ...editedNodesData[child.id], content: e.target.value } 
+                                                                        })}
                                                                     />
                                                                 </div>
                                                             ))}

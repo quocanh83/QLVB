@@ -58,58 +58,77 @@ class PersonnelStatsView(APIView):
             return Response({"error": "Chỉ Admin mới có quyền xem thống kê này."}, status=403)
 
         from documents.models import NodeAssignment
+        from .models import Department
         from feedbacks.models import Feedback
 
+        document_id = request.query_params.get('document_id')
+
+        # 1. Thống kê theo từng Cán bộ
         users = User.objects.select_related('department').all()
         user_results = []
-        dept_results = {}
-
+        
         for u in users:
-            # Lấy các node được phân công
+            # Lấy các feedbacks được phân công (qua Node hoặc trực tiếp qua FeedbackAssignment)
             assigned_node_ids = NodeAssignment.objects.filter(user=u).values_list('node_id', flat=True)
             
-            # Thống kê feedbacks thuộc các node đó
-            stats = Feedback.objects.filter(node_id__in=assigned_node_ids).aggregate(
+            fb_query = Q(node_id__in=assigned_node_ids) | Q(individual_assignments__user=u)
+            if document_id:
+                fb_query &= Q(document_id=document_id)
+            
+            stats = Feedback.objects.filter(fb_query).distinct().aggregate(
                 total=Count('id'),
                 completed=Count('id', filter=Q(explanations__isnull=False), distinct=True)
             )
             
             total = stats['total'] or 0
             completed = stats['completed'] or 0
-            pending = total - completed
             
-            res = {
+            user_results.append({
                 "id": u.id,
                 "username": u.username,
                 "full_name": u.full_name,
                 "department": u.department.name if u.department else "Chưa phân phòng",
                 "total": total,
                 "completed": completed,
-                "pending": pending,
                 "rate": round((completed / total * 100), 1) if total > 0 else 0
-            }
-            user_results.append(res)
-            
-            # Gộp theo phòng ban
-            dept_name = res["department"]
-            if dept_name not in dept_results:
-                dept_results[dept_name] = {"total": 0, "completed": 0, "pending": 0}
-            
-            dept_results[dept_name]["total"] += total
-            dept_results[dept_name]["completed"] += completed
-            dept_results[dept_name]["pending"] += pending
+            })
 
-        # Format dept results
+        # 2. Thống kê theo từng Phòng ban (Tránh lặp lại góp ý nếu nhiều người trong phòng cùng làm)
+        departments = Department.objects.all()
         final_depts = []
-        for name, s in dept_results.items():
-            total = s["total"]
-            completed = s["completed"]
+        
+        # Cộng thêm trường hợp null nếu có user chưa phân phòng
+        dept_ids = list(departments.values_list('id', flat=True)) + [None]
+        
+        for d_id in dept_ids:
+            dept_obj = departments.filter(id=d_id).first() if d_id else None
+            dept_name = dept_obj.name if dept_obj else "Chưa phân phòng"
+            
+            dept_users = users.filter(department_id=d_id)
+            if not dept_users.exists():
+                continue
+
+            # Lấy tất cả node được giao cho bất kỳ ai trong phòng
+            dept_node_ids = NodeAssignment.objects.filter(user__in=dept_users).values_list('node_id', flat=True)
+            
+            # Lấy tất cả feedback được giao cho bất kỳ ai trong phòng (Node-based OR Individual-based)
+            dept_fb_query = Q(node_id__in=dept_node_ids) | Q(individual_assignments__user__in=dept_users)
+            if document_id:
+                dept_fb_query &= Q(document_id=document_id)
+            
+            dept_stats = Feedback.objects.filter(dept_fb_query).distinct().aggregate(
+                total=Count('id'),
+                completed=Count('id', filter=Q(explanations__isnull=False), distinct=True)
+            )
+            
+            d_total = dept_stats['total'] or 0
+            d_completed = dept_stats['completed'] or 0
+            
             final_depts.append({
-                "name": name,
-                "total": total,
-                "completed": completed,
-                "pending": s["pending"],
-                "rate": round((completed / total * 100), 1) if total > 0 else 0
+                "name": dept_name,
+                "total": d_total,
+                "completed": d_completed,
+                "rate": round((d_completed / d_total * 100), 1) if d_total > 0 else 0
             })
 
         return Response({

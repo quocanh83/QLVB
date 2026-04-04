@@ -37,7 +37,7 @@ const FeedbackIntake = () => {
     const [gsUrl, setGsUrl] = useState("");
     const [analyzingGs, setAnalyzingGs] = useState(false);
     const [saveGsUrl, setSaveGsUrl] = useState(true);
-    const [showIgnored, setShowIgnored] = useState(false);
+    const [filterMode, setFilterMode] = useState('all'); // 'all', 'diff', 'unassigned'
     
     // Tab State
     const [activeTab, setActiveTab] = useState('1');
@@ -475,19 +475,34 @@ const FeedbackIntake = () => {
         if (field === 'node_id' && typeof value === 'string' && (value.startsWith('node-') || value.startsWith('app-'))) {
             const isApp = value.startsWith('app-');
             const realId = parseInt(value.split('-')[1]);
-            setFeedbacks(feedbacks.map(f => f.key === key ? { 
+            const updatedFeedbacks = feedbacks.map(f => f.key === key ? { 
                 ...f, 
                 node_id: isApp ? null : realId,
                 appendix_id: isApp ? realId : null
-            } : f));
+            } : f);
+            setFeedbacks(updatedFeedbacks);
             return;
         }
-        setFeedbacks(feedbacks.map(f => f.key === key ? { ...f, [field]: value } : f));
+
+        const updatedFeedbacks = feedbacks.map(f => {
+            if (f.key === key) {
+                let updated = { ...f, [field]: value };
+                // Nếu chọn 'Lưu mới' hoặc 'Cập nhật GT' hoặc 'Ghi đè' thì mặc định Giải trình cũng là 'Ghi đè'
+                if (field === 'import_mode' && (value === 'add_new' || value === 'explanation_only' || value === 'overwrite')) {
+                    if (updated.explanation_status !== 'none') {
+                        updated.explanation_import_mode = 'overwrite';
+                    }
+                }
+                return updated;
+            }
+            return f;
+        });
+        setFeedbacks(updatedFeedbacks);
     };
 
     const handleSave = async () => {
         if (!selectedDocId) return toast.warning("Chưa chọn dự thảo!");
-        const activeFeedbacks = feedbacks.filter(f => showIgnored || f.import_mode !== 'skip');
+        const activeFeedbacks = feedbacks.filter(f => f.import_mode !== 'skip');
         if (activeFeedbacks.length === 0) return toast.warning("Danh sách góp ý trống!");
         
         const missingAgencies = activeFeedbacks.filter(f => !f.agency_id);
@@ -605,10 +620,10 @@ const FeedbackIntake = () => {
                                         color="primary" 
                                         className="btn-label waves-effect waves-light shadow-none px-4" 
                                         onClick={handleSave} 
-                                        disabled={saving || feedbacks.filter(f => showIgnored || f.import_mode !== 'skip').length === 0 || !selectedDocId}
+                                        disabled={saving || feedbacks.filter(f => f.import_mode !== 'skip').length === 0 || !selectedDocId}
                                     >
                                         <i className="ri-save-3-line label-icon align-middle fs-16 me-2"></i> 
-                                        {saving ? "Đang lưu..." : `Lưu ${feedbacks.filter(f => showIgnored || f.import_mode !== 'skip').length} góp ý vào hệ thống`}
+                                        {saving ? "Đang lưu..." : `Lưu ${feedbacks.filter(f => f.import_mode !== 'skip').length} góp ý vào hệ thống`}
                                     </Button>
                                 </Col>
                             </Row>
@@ -945,10 +960,10 @@ const FeedbackIntake = () => {
 
                                             <div className="table-responsive" style={{ maxHeight: '650px' }}>
                                                 <Table className="align-middle mb-0 table-hover">
-                                                    <thead className="bg-light text-dark fs-13">
-                                                        <tr>
-                                                            <th scope="col" className="fw-bold" style={{ width: '65%' }}>Nội dung góp ý</th>
-                                                            <th scope="col" className="fw-bold" style={{ width: '30%' }}>Điều/Khoản tương ứng</th>
+                                                    <thead className="table-light fs-13">
+                                                        <tr className="text-uppercase fw-bold">
+                                                            <th scope="col" style={{ width: '65%' }}>Nội dung góp ý</th>
+                                                            <th scope="col" style={{ width: '30%' }}>Điều/Khoản tương ứng</th>
                                                             <th scope="col" className="text-center" style={{ width: '5%' }}>Xóa</th>
                                                         </tr>
                                                     </thead>
@@ -961,7 +976,7 @@ const FeedbackIntake = () => {
                                                                         rows={4} 
                                                                         value={fb.content} 
                                                                         onChange={(e) => updateFeedbackField(fb.key, 'content', e.target.value)}
-                                                                        className="form-control border-light-subtle bg-light-subtle text-body fs-14"
+                                                                        className="form-control border-light-subtle bg-light-subtle fb-table-input fw-medium fs-14"
                                                                         style={{ padding: '12px' }}
                                                                     />
                                                                 </td>
@@ -1103,11 +1118,11 @@ const FeedbackIntake = () => {
                                             <CardBody className="p-3">
                                                 <div className="table-responsive" style={{ maxHeight: '650px' }}>
                                                     <Table className="align-middle mb-0 table-hover">
-                                                        <thead className="bg-light text-dark fs-13">
-                                                            <tr>
-                                                                <th scope="col" className="fw-bold" style={{ width: '45%' }}>Nội dung góp ý</th>
-                                                                <th scope="col" className="fw-bold" style={{ width: '25%' }}>Cơ quan góp ý</th>
-                                                                <th scope="col" className="fw-bold" style={{ width: '25%' }}>Điều/Khoản tương ứng</th>
+                                                        <thead className="table-light fs-13">
+                                                            <tr className="text-uppercase fw-bold">
+                                                                <th scope="col" style={{ width: '45%' }}>Nội dung góp ý</th>
+                                                                <th scope="col" style={{ width: '25%' }}>Cơ quan góp ý</th>
+                                                                <th scope="col" style={{ width: '25%' }}>Điều/Khoản tương ứng</th>
                                                                 <th scope="col" className="text-center" style={{ width: '5%' }}>Thao tác</th>
                                                             </tr>
                                                         </thead>
@@ -1120,7 +1135,7 @@ const FeedbackIntake = () => {
                                                                             rows={4} 
                                                                             value={fb.content} 
                                                                             onChange={(e) => updateFeedbackField(fb.key, 'content', e.target.value)}
-                                                                            className="form-control border-light-subtle bg-light-subtle text-body fs-14"
+                                                                            className="form-control border-light-subtle bg-light-subtle fb-table-input fw-medium fs-14"
                                                                             style={{ padding: '12px' }}
                                                                         />
                                                                     </td>
@@ -1232,42 +1247,88 @@ const FeedbackIntake = () => {
                                     </div>
 
                                     <style>{`
+                                        .is-dup-cell {
+                                            background-color: rgba(var(--vz-warning-rgb), 0.05) !important;
+                                            color: var(--vz-body-color) !important;
+                                            font-weight: 500;
+                                        }
                                         .corner-badge {
                                             position: absolute;
                                             top: 2px;
                                             right: 2px;
                                             z-index: 10;
-                                            font-size: 9px !important;
-                                            padding: 2px 4px !important;
+                                            font-size: 8px !important;
+                                            padding: 1px 3px !important;
                                             pointer-events: none;
-                                            border-radius: 4px;
-                                            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-                                            background-color: rgba(255, 190, 84, 0.9) !important;
-                                            color: #835201 !important;
+                                            border-radius: 3px;
+                                            background-color: var(--vz-warning) !important;
+                                            color: #000 !important;
+                                            font-weight: 800;
                                         }
-                                        .rel-wrapper {
-                                            position: relative;
-                                            width: 100%;
-                                            height: 100%;
+                                        .row-diff {
+                                            border-left: 4px solid var(--vz-primary) !important;
                                         }
-                                        .is-dup-cell {
-                                            background-color: #fff9e1 !important; /* Vàng nhạt dễ thấy */
-                                            border-bottom: 1px dashed #ffeeba !important;
+                                        .row-unassigned {
+                                            border-left: 4px solid var(--vz-danger) !important;
+                                        }
+                                        .fb-table-input {
+                                            color: var(--vz-body-color) !important;
+                                            line-height: 1.4;
+                                        }
+                                        .fb-table-input::placeholder {
+                                            color: var(--vz-text-muted) !important;
+                                            opacity: 0.5;
+                                        }
+                                        .explanation-box {
+                                            background-color: var(--vz-light) !important;
+                                            border: 1px solid var(--vz-border-color) !important;
+                                            color: var(--vz-body-color) !important;
                                         }
                                     `}</style>
 
                                     {(activeTab === '4' || activeTab === '2') && feedbacks.length > 0 && (
                                         <>
-                                            <div className="d-flex justify-content-between align-items-center mb-2 px-1">
-                                                <div className="text-muted fs-12">
-                                                    Hiển thị <b>{feedbacks.filter(f => showIgnored || f.import_mode !== 'skip').length}</b> / {feedbacks.length} dòng dữ liệu.
+                                            <div className="d-flex justify-content-between align-items-center mb-3 px-1">
+                                                <div className="d-flex align-items-center gap-2">
+                                                    <Nav pills className="nav-pills-custom nav-success fs-12 p-1 bg-light rounded border border-light-subtle">
+                                                        <NavItem>
+                                                            <NavLink
+                                                                className={classnames({ active: filterMode === 'all' })}
+                                                                onClick={() => setFilterMode('all')}
+                                                                style={{ cursor: 'pointer', padding: '4px 10px' }}
+                                                            >
+                                                                Tất cả ({feedbacks.length})
+                                                            </NavLink>
+                                                        </NavItem>
+                                                        <NavItem>
+                                                            <NavLink
+                                                                className={classnames({ active: filterMode === 'diff' })}
+                                                                onClick={() => setFilterMode('diff')}
+                                                                style={{ cursor: 'pointer', padding: '4px 10px' }}
+                                                            >
+                                                                Dòng có khác biệt ({feedbacks.filter(f => !f.is_duplicate || f.explanation_status === 'new' || f.explanation_status === 'conflict').length})
+                                                            </NavLink>
+                                                        </NavItem>
+                                                        <NavItem>
+                                                            <NavLink
+                                                                className={classnames({ active: filterMode === 'unassigned' })}
+                                                                onClick={() => setFilterMode('unassigned')}
+                                                                style={{ cursor: 'pointer', padding: '4px 10px' }}
+                                                            >
+                                                                Chưa gán Điều/Khoản ({feedbacks.filter(f => !f.node_id && !f.appendix_id).length})
+                                                            </NavLink>
+                                                        </NavItem>
+                                                    </Nav>
                                                 </div>
-                                                <div className="form-check form-switch form-switch-right form-switch-md">
-                                                    <Input className="form-check-input code-switcher" type="checkbox" id="show-ignored-switch" checked={showIgnored} onChange={(e) => setShowIgnored(e.target.checked)} />
-                                                    <Label className="form-check-label text-muted fs-12" htmlFor="show-ignored-switch">Hiện các bản ghi đã ẩn</Label>
+                                                <div className="text-muted fs-12">
+                                                    Hiển thị <b>{feedbacks.filter(f => {
+                                                        if (filterMode === 'diff') return !f.is_duplicate || f.explanation_status === 'new' || f.explanation_status === 'conflict';
+                                                        if (filterMode === 'unassigned') return !f.node_id && !f.appendix_id;
+                                                        return true;
+                                                    }).length}</b> / {feedbacks.length} dòng dữ liệu.
                                                 </div>
                                             </div>
-                                            <div className="table-responsive bg-white rounded border">
+                                            <div className="table-responsive rounded border border-light-subtle shadow-sm">
                                                 <Table className="table-hover mb-0 align-middle">
                                                     <thead className="table-light fs-11 text-uppercase fw-bold">
                                                     <tr>
@@ -1281,135 +1342,163 @@ const FeedbackIntake = () => {
                                                     </tr>
                                                 </thead>
                                                 <tbody className="fs-13">
-                                                    {feedbacks.filter(f => showIgnored || f.import_mode !== 'skip').map((fb, idx) => (
-                                                        <tr key={fb.key} className={fb.is_duplicate ? "table-light opacity-75" : ""}>
-                                                            <td className="fw-medium">
-                                                                <Select
-                                                                    value={nodes.find(n => (n.unique_id === `node-${fb.node_id}` || n.unique_id === `app-${fb.appendix_id}`)) ? { 
-                                                                        value: fb.appendix_id ? `app-${fb.appendix_id}` : `node-${fb.node_id}`, 
-                                                                        label: nodes.find(n => (n.unique_id === `node-${fb.node_id}` || n.unique_id === `app-${fb.appendix_id}`))?.label 
-                                                                    } : null}
-                                                                    onChange={(opt) => updateFeedbackField(fb.key, 'node_id', opt ? opt.value : null)}
-                                                                    options={nodes.map(n => ({ value: n.unique_id || `node-${n.id}`, label: n.label }))}
-                                                                    placeholder="Chọn..."
-                                                                    styles={selectStyles}
-                                                                    menuPortalTarget={document.body}
-                                                                />
-                                                            </td>
-                                                            <td>
-                                                                <CreatableSelect
-                                                                    isClearable
-                                                                    value={agencies.find(a => a.id === fb.agency_id) ? { value: fb.agency_id, label: fb.agency_id ? agencies.find(a => a.id === fb.agency_id).name : fb.agency_name } : (fb.agency_name ? {label: fb.agency_name, value: null} : null)}
-                                                                    onChange={(opt) => updateFeedbackField(fb.key, 'agency_id', opt ? opt.value : null)}
-                                                                    options={agencies.map(a => ({ value: a.id, label: a.name }))}
-                                                                    styles={{
-                                                                        ...selectStyles,
-                                                                        control: (base, state) => ({
-                                                                            ...selectStyles.control(base, state),
-                                                                            borderColor: !fb.agency_id ? "var(--vz-danger, #f06548)" : selectStyles.control(base, state).borderColor,
-                                                                            boxShadow: !fb.agency_id && state.isFocused ? "0 0 0 0.1rem rgba(240, 101, 72, 0.25)" : selectStyles.control(base, state).boxShadow,
-                                                                            minHeight: '30px'
-                                                                        }),
-                                                                        singleValue: (base) => ({
-                                                                            ...selectStyles.singleValue(base),
-                                                                            fontSize: "12px",
-                                                                            fontWeight: "500"
-                                                                        }),
-                                                                        input: (base) => ({
-                                                                            ...selectStyles.input(base),
-                                                                            fontSize: "12px"
-                                                                        }),
-                                                                        placeholder: (base) => ({
-                                                                            ...selectStyles.placeholder(base),
-                                                                            fontSize: "12px"
-                                                                        })
-                                                                    }}
-                                                                    menuPortalTarget={document.body}
-                                                                    placeholder="Chọn cơ quan..."
-                                                                />
-                                                                {fb.official_number && <div className="mt-1"><Badge color="light" className="text-secondary border fs-10">{fb.official_number} - {fb.official_date}</Badge></div>}
-                                                            </td>
-                                                            <td>
-                                                                <div className="rel-wrapper">
-                                                                    <Input 
-                                                                        type="textarea" 
-                                                                        rows={2} 
-                                                                        className={`form-control form-control-sm fs-12 px-1 py-0 scrollbar-hide border-0 bg-transparent text-truncate-2-lines ${fb.is_duplicate ? 'is-dup-cell' : ''}`} 
-                                                                        value={fb.content}
-                                                                        onChange={(e) => updateFeedbackField(fb.key, 'content', e.target.value)}
+                                                    {feedbacks.filter(f => {
+                                                        if (filterMode === 'diff') return !f.is_duplicate || f.explanation_status === 'new' || f.explanation_status === 'conflict';
+                                                        if (filterMode === 'unassigned') return !f.node_id && !f.appendix_id;
+                                                        return true; // Mode 'all'
+                                                    }).map((fb, idx) => {
+                                                        const isUnassigned = !fb.node_id && !fb.appendix_id;
+                                                        const isDiff = !fb.is_duplicate || fb.explanation_status === 'new' || fb.explanation_status === 'conflict';
+                                                        
+                                                        return (
+                                                            <tr key={fb.key} className={classnames(
+                                                                fb.is_duplicate ? "bg-light-subtle" : "",
+                                                                isUnassigned ? "row-unassigned" : "",
+                                                                isDiff && !fb.is_duplicate ? "row-diff" : ""
+                                                            )} style={{ transition: 'all 0.2s ease' }}>
+                                                                <td className="fw-medium">
+                                                                    <Select
+                                                                        value={nodes.find(n => (n.unique_id === `node-${fb.node_id}` || n.unique_id === `app-${fb.appendix_id}`)) ? { 
+                                                                            value: fb.appendix_id ? `app-${fb.appendix_id}` : `node-${fb.node_id}`, 
+                                                                            label: nodes.find(n => (n.unique_id === `node-${fb.node_id}` || n.unique_id === `app-${fb.appendix_id}`))?.label 
+                                                                        } : null}
+                                                                        onChange={(opt) => updateFeedbackField(fb.key, 'node_id', opt ? opt.value : null)}
+                                                                        options={nodes.map(n => ({ value: n.unique_id || `node-${n.id}`, label: n.label }))}
+                                                                        placeholder="Chọn..."
+                                                                        styles={selectStyles}
+                                                                        menuPortalTarget={document.body}
                                                                     />
-                                                                    {fb.is_duplicate && <Badge className="corner-badge">Đã có</Badge>}
-                                                                </div>
-                                                                {fb.is_duplicate && <div className="mt-1"><Badge color="soft-warning" className="fs-10">Trùng lặp hoàn toàn</Badge></div>}
-                                                            </td>
-                                                            <td>
-                                                                <div className="rel-wrapper">
-                                                                    <Input 
-                                                                        type="textarea" 
-                                                                        rows={1} 
-                                                                        className={`form-control form-control-sm fs-11 px-1 py-0 border-0 bg-transparent ${fb.is_duplicate ? 'is-dup-cell' : ''}`} 
-                                                                        value={fb.reason}
-                                                                        placeholder="..."
-                                                                        onChange={(e) => updateFeedbackField(fb.key, 'reason', e.target.value)}
+                                                                </td>
+                                                                <td>
+                                                                    <CreatableSelect
+                                                                        isClearable
+                                                                        value={agencies.find(a => a.id === fb.agency_id) ? { value: fb.agency_id, label: fb.agency_id ? agencies.find(a => a.id === fb.agency_id).name : fb.agency_name } : (fb.agency_name ? {label: fb.agency_name, value: null} : null)}
+                                                                        onChange={(opt) => updateFeedbackField(fb.key, 'agency_id', opt ? opt.value : null)}
+                                                                        options={agencies.map(a => ({ value: a.id, label: a.name }))}
+                                                                        styles={{
+                                                                            ...selectStyles,
+                                                                            control: (base, state) => ({
+                                                                                ...selectStyles.control(base, state),
+                                                                                borderColor: !fb.agency_id ? "var(--vz-danger)" : selectStyles.control(base, state).borderColor,
+                                                                                boxShadow: !fb.agency_id && state.isFocused ? "0 0 0 0.1rem rgba(240, 101, 72, 0.25)" : selectStyles.control(base, state).boxShadow,
+                                                                                minHeight: '30px'
+                                                                            }),
+                                                                            singleValue: (base) => ({
+                                                                                ...selectStyles.singleValue(base),
+                                                                                fontSize: "12px",
+                                                                                fontWeight: "500"
+                                                                            }),
+                                                                            input: (base) => ({
+                                                                                ...selectStyles.input(base),
+                                                                                fontSize: "12px"
+                                                                            }),
+                                                                            placeholder: (base) => ({
+                                                                                ...selectStyles.placeholder(base),
+                                                                                fontSize: "12px"
+                                                                            })
+                                                                        }}
+                                                                        menuPortalTarget={document.body}
+                                                                        placeholder="Chọn cơ quan..."
                                                                     />
-                                                                    {fb.is_duplicate && <Badge className="corner-badge">Đã có</Badge>}
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div className="rel-wrapper">
-                                                                    <Input 
-                                                                        type="text" 
-                                                                        className={`form-control form-control-sm fs-11 px-1 py-0 border-0 bg-transparent ${fb.is_duplicate ? 'is-dup-cell' : ''}`} 
-                                                                        value={fb.note}
-                                                                        placeholder="..."
-                                                                        onChange={(e) => updateFeedbackField(fb.key, 'note', e.target.value)}
-                                                                    />
-                                                                    {fb.is_duplicate && <Badge className="corner-badge">Đã có</Badge>}
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                {fb.explanation_status === 'none' ? (
-                                                                    <span className="text-muted italic fs-11">Không có giải trình</span>
-                                                                ) : fb.explanation_status === 'identical' ? (
-                                                                    <Badge color="soft-success" className="fs-10">Trùng - Bỏ qua</Badge>
-                                                                ) : (
-                                                                    <div className="d-flex flex-column gap-1 bg-light p-1 rounded">
-                                                                        <div className="d-flex align-items-center gap-1">
-                                                                            <Badge color={fb.explanation_status === 'conflict' ? "soft-danger" : "soft-primary"} className="fs-9">
-                                                                                {fb.explanation_status === 'conflict' ? "Sửa" : "Mới"}
-                                                                            </Badge>
-                                                                            <select 
-                                                                                className="form-select form-select-sm py-0 h-auto fs-10 border-0 bg-transparent text-primary fw-bold"
-                                                                                value={fb.explanation_import_mode}
-                                                                                onChange={(e) => updateFeedbackField(fb.key, 'explanation_import_mode', e.target.value)}
-                                                                            >
-                                                                                <option value="overwrite">Ghi đè</option>
-                                                                                <option value="skip">Bỏ qua</option>
-                                                                            </select>
-                                                                        </div>
-                                                                        <div className="text-muted fs-10 text-truncate-2-lines bg-white p-1 rounded" title={fb.explanation_content}>
-                                                                            {fb.explanation_content}
-                                                                        </div>
+                                                                    {fb.official_number && <div className="mt-1"><Badge color="light" className="text-secondary border fs-10">{fb.official_number} - {fb.official_date}</Badge></div>}
+                                                                </td>
+                                                                <td>
+                                                                    <div className="rel-wrapper">
+                                                                        <Input 
+                                                                            type="textarea" 
+                                                                            rows={2} 
+                                                                            className={`form-control form-control-sm fs-13 px-2 py-1 scrollbar-hide border-0 bg-transparent fb-table-input fw-medium ${fb.is_duplicate ? 'is-dup-cell' : ''}`} 
+                                                                            value={fb.content}
+                                                                            onChange={(e) => updateFeedbackField(fb.key, 'content', e.target.value)}
+                                                                        />
+                                                                        {fb.is_duplicate && <Badge className="corner-badge">Đã có</Badge>}
                                                                     </div>
-                                                                )}
-                                                            </td>
-                                                            <td className="text-center">
-                                                                <Input 
-                                                                    type="select" 
-                                                                    size="sm"
-                                                                    value={fb.import_mode}
-                                                                    onChange={(e) => updateFeedbackField(fb.key, 'import_mode', e.target.value)}
-                                                                    className={fb.import_mode === 'skip' ? 'bg-light' : 'border-primary'}
-                                                                >
-                                                                    <option value="add_new">Lưu mới toàn bộ</option>
-                                                                    <option value="add_if_diff">Lưu nội dung có khác</option>
-                                                                    <option value="explanation_only">Chỉ nhập giải trình</option>
-                                                                    <option value="overwrite">Ghi đè bản ghi cũ</option>
-                                                                    <option value="skip">Bỏ qua</option>
-                                                                </Input>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
+                                                                    {fb.is_duplicate && <div className="mt-1"><Badge color="soft-warning" className="fs-10 text-uppercase">Trùng lặp cơ sở</Badge></div>}
+                                                                </td>
+                                                                <td>
+                                                                    <div className="rel-wrapper">
+                                                                        <Input 
+                                                                            type="textarea" 
+                                                                            rows={1} 
+                                                                            className={`form-control form-control-sm fs-11 px-1 py-0 border-0 bg-transparent ${fb.is_duplicate ? 'is-dup-cell' : ''}`} 
+                                                                            value={fb.reason}
+                                                                            placeholder="..."
+                                                                            onChange={(e) => updateFeedbackField(fb.key, 'reason', e.target.value)}
+                                                                        />
+                                                                        {fb.is_duplicate && <Badge className="corner-badge">Đã có</Badge>}
+                                                                    </div>
+                                                                </td>
+                                                                <td>
+                                                                    <div className="rel-wrapper">
+                                                                        <Input 
+                                                                            type="text" 
+                                                                            className={`form-control form-control-sm fs-12 px-2 py-1 border-0 bg-transparent fb-table-input ${fb.is_duplicate ? 'is-dup-cell' : ''}`} 
+                                                                            value={fb.note}
+                                                                            placeholder="..."
+                                                                            onChange={(e) => updateFeedbackField(fb.key, 'note', e.target.value)}
+                                                                        />
+                                                                        {fb.is_duplicate && <Badge className="corner-badge">Đã có</Badge>}
+                                                                    </div>
+                                                                </td>
+                                                                <td>
+                                                                    {fb.explanation_status === 'none' ? (
+                                                                        <span className="text-muted italic fs-11 text-center d-block">Không có giải trình</span>
+                                                                    ) : (
+                                                                        <div className="d-flex flex-column gap-1 explanation-box p-2 rounded shadow-sm">
+                                                                            <div className="d-flex align-items-center justify-content-between gap-1 mb-1">
+                                                                                <Badge color={fb.explanation_status === 'conflict' ? "soft-danger" : (fb.explanation_status === 'identical' ? "soft-success" : "soft-primary")} className="fs-9 text-uppercase">
+                                                                                    {fb.explanation_status === 'conflict' ? "Cập nhật" : (fb.explanation_status === 'identical' ? "Trùng lặp" : "Mới")}
+                                                                                </Badge>
+                                                                                <select 
+                                                                                    className={classnames("form-select form-select-sm py-0 px-1 h-auto fs-10 border-0 bg-transparent fw-bold", fb.explanation_import_mode === 'skip' ? 'text-muted' : 'text-primary')}
+                                                                                    value={fb.explanation_import_mode}
+                                                                                    onChange={(e) => updateFeedbackField(fb.key, 'explanation_import_mode', e.target.value)}
+                                                                                    style={{ width: 'auto' }}
+                                                                                >
+                                                                                    <option value="overwrite">Ghi đè</option>
+                                                                                    <option value="skip">Bỏ qua</option>
+                                                                                </select>
+                                                                            </div>
+                                                                            <div className="p-1 rounded fw-medium">
+                                                                                {fb.explanation_status === 'conflict' ? (
+                                                                                    <div className="d-flex flex-column gap-1">
+                                                                                        <div className="text-body fs-11" title="Nội dung mới">
+                                                                                            <span className="text-primary me-1 fw-bold">Mới:</span> 
+                                                                                            {fb.explanation_content ? fb.explanation_content : <span className="text-danger italic">[Trống - Sẽ xóa cũ nếu ghi đè]</span>}
+                                                                                        </div>
+                                                                                        {fb.existing_explanation && (
+                                                                                            <div className="text-muted fs-10 border-top pt-1 mt-1" title="Nội dung hiện tại trong hệ thống">
+                                                                                                <span className="me-1 fw-bold">Hiện tại:</span> {fb.existing_explanation}
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <div className="text-body fs-11 text-truncate-2-lines" title={fb.explanation_content}>
+                                                                                        {fb.explanation_content}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </td>
+                                                                <td className="text-center">
+                                                                    <Input 
+                                                                        type="select" 
+                                                                        size="sm"
+                                                                        value={fb.import_mode}
+                                                                        onChange={(e) => updateFeedbackField(fb.key, 'import_mode', e.target.value)}
+                                                                        className={classnames("fs-11 py-0", fb.import_mode === 'skip' ? 'bg-light border-light-subtle text-muted' : 'border-primary-subtle text-primary fw-medium')}
+                                                                        style={{ height: '28px' }}
+                                                                    >
+                                                                        <option value="add_new">Lưu mới</option>
+                                                                        <option value="explanation_only">Cập nhật GT</option>
+                                                                        <option value="overwrite">Ghi đè</option>
+                                                                        <option value="skip">Bỏ qua</option>
+                                                                    </Input>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
                                                 </tbody>
                                             </Table>
                                         </div>
