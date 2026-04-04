@@ -65,6 +65,20 @@ const FeedbackList = () => {
     const [agencyOptions, setAgencyOptions] = useState([]);
     const [selectedAgency, setSelectedAgency] = useState('all');
     const [selectedStatus, setSelectedStatus] = useState('all');
+    const [selectedSpecialist, setSelectedSpecialist] = useState('all');
+    const [selectedNodeId, setSelectedNodeId] = useState('all');
+    const [specialists, setSpecialists] = useState([]);
+    
+    // Assignment State
+    const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+    const [assignTarget, setAssignTarget] = useState(null); // Node ID
+    const [assignUserIds, setAssignUserIds] = useState([]); // Selected User IDs
+    const [assigningLoading, setAssigningLoading] = useState(false);
+    
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(20);
+    const [totalCount, setTotalCount] = useState(0);
 
     // Modal state for Explanation
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -109,7 +123,17 @@ const FeedbackList = () => {
         fetchDocuments();
         fetchAgenciesOnly();
         fetchCategories();
+        fetchSpecialists();
     }, []);
+
+    const fetchSpecialists = async () => {
+        try {
+            const res = await axios.get('/api/accounts/users/', getAuthHeader());
+            setSpecialists(res.data || res || []);
+        } catch (e) {
+            console.error("Lỗi khi tải danh sách cán bộ");
+        }
+    };
 
     const fetchAgenciesOnly = async () => {
         try {
@@ -147,22 +171,24 @@ const FeedbackList = () => {
         }
     };
 
-    const fetchFeedbacks = async (docId) => {
+    const fetchFeedbacks = async (docId, page = 1) => {
+        if (!docId) return;
         setLoading(true);
         try {
-            const res = await axios.get(`/api/feedbacks/by_document/?document_id=${docId}`, getAuthHeader());
-            const data = res.results || res || [];
-            const list = Array.isArray(data) ? data : [];
-            setFeedbacks(list);
-            setFilteredFeedbacks(list);
+            let url = `/api/feedbacks/by_document/?document_id=${docId}&page=${page}&page_size=${pageSize}`;
+            if (selectedNodeId && selectedNodeId !== 'all') url += `&node_id=${selectedNodeId}`;
+            if (selectedAgency && selectedAgency !== 'all') url += `&agency=${selectedAgency}`;
+            if (selectedSpecialist && selectedSpecialist !== 'all') url += `&specialist=${selectedSpecialist}`;
+            if (selectedStatus && selectedStatus !== 'all') url += `&status=${selectedStatus}`;
+            if (tableSearch) url += `&search=${encodeURIComponent(tableSearch)}`;
 
-            // Generate unique agency options
-            const agencies = [...new Set(list.map(fb => fb.contributing_agency))].filter(Boolean);
-            setAgencyOptions(agencies);
+            const res = await axios.get(url, getAuthHeader());
+            const data = res.results || [];
+            setFeedbacks(data);
+            setFilteredFeedbacks(data);
+            setTotalCount(res.count || 0);
+            setCurrentPage(res.page || page);
 
-            // Reset filters
-            setSelectedAgency('all');
-            setSelectedStatus('all');
         } catch (e) {
             toast.error("Không thể tải danh sách góp ý.");
             setFeedbacks([]);
@@ -171,9 +197,21 @@ const FeedbackList = () => {
             setLoading(false);
         }
 
-        // Also pre-fetch nodes for re-assignment
+        // Also pre-fetch nodes for the dropdown filter
         fetchDocNodes(docId);
     };
+
+    // Trigger fetch when filters or page changes
+    useEffect(() => {
+        if (selectedDoc) {
+            fetchFeedbacks(selectedDoc.id, currentPage);
+        }
+    }, [selectedNodeId, selectedAgency, selectedSpecialist, selectedStatus, currentPage, tableSearch]);
+
+    // Reset page when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [selectedNodeId, selectedAgency, selectedSpecialist, selectedStatus, tableSearch]);
 
     const fetchDocNodes = async (docId) => {
         try {
@@ -187,21 +225,7 @@ const FeedbackList = () => {
         }
     };
 
-    useEffect(() => {
-        let result = feedbacks.filter(fb => {
-            const matchesAgency = selectedAgency === 'all' || fb.contributing_agency === selectedAgency;
-            const matchesStatus = selectedStatus === 'all' ||
-                (selectedStatus === 'resolved' ? (fb.explanation && fb.explanation.trim() !== '') : (!fb.explanation || fb.explanation.trim() === ''));
-            const matchesSearch = tableSearch === '' ||
-                fb.content?.toLowerCase().includes(tableSearch.toLowerCase()) ||
-                fb.node_label?.toLowerCase().includes(tableSearch.toLowerCase()) ||
-                fb.contributing_agency?.toLowerCase().includes(tableSearch.toLowerCase());
-
-            return matchesAgency && matchesStatus && matchesSearch;
-        });
-
-        setFilteredFeedbacks(result);
-    }, [selectedAgency, selectedStatus, feedbacks, tableSearch]);
+    // Client-side filtering removed in favor of server-side filtering
 
     const handleAction = (fb, actionType) => {
         setCurrentFeedback(fb);
@@ -370,7 +394,44 @@ const FeedbackList = () => {
         }
     };
 
-    const handleViewNode = async (nodeId, label) => {
+    const handleViewNode = (nodeId, label) => {
+        fetchNodeDetails(nodeId, label);
+    };
+
+    const handleOpenAssignModal = (fb) => {
+        if (!fb.node_id) {
+            toast.warning("Góp ý này không thuộc Điều/Khoản cụ thể nên không thể phân công.");
+            return;
+        }
+        setAssignTarget(fb.node_id);
+        setAssignUserIds(fb.assigned_users ? fb.assigned_users.map(u => u.id) : []);
+        setIsAssignModalOpen(true);
+    };
+
+    const handleSaveAssignment = async () => {
+        if (!selectedDoc || !assignTarget) return;
+        setAssigningLoading(true);
+        try {
+            await axios.post(`/api/documents/${selectedDoc.id}/assign_nodes/`, {
+                assignments: [
+                    {
+                        node_id: assignTarget,
+                        user_ids: assignUserIds
+                    }
+                ]
+            }, getAuthHeader());
+            toast.success("Cập nhật phân công thành công!");
+            setIsAssignModalOpen(false);
+            fetchFeedbacks(selectedDoc.id, currentPage);
+        } catch (error) {
+            console.error("Assignment error:", error);
+            toast.error("Lỗi khi phân công: " + (error.response?.data?.error || "Vui lòng thử lại sau."));
+        } finally {
+            setAssigningLoading(false);
+        }
+    };
+
+    const fetchNodeDetails = async (nodeId, label) => {
         setIsNodeModalOpen(true);
         setNodeLoading(true);
         setSelectedNodeData({ node_label: label, content: 'Đang tải...', node_type: '' });
@@ -487,7 +548,20 @@ const FeedbackList = () => {
                                 <CardBody>
                                     {/* Action Row - Filters */}
                                     <Row className="g-2 mb-3">
-                                        <Col md={3}>
+                                        <Col md={2}>
+                                            <div className="input-group input-group-sm">
+                                                <Label className="input-group-text bg-light border-light text-muted">Điều/Khoản</Label>
+                                                <select
+                                                    className="form-select border-light bg-light"
+                                                    value={selectedNodeId}
+                                                    onChange={(e) => setSelectedNodeId(e.target.value)}
+                                                >
+                                                    <option value="all">Tất cả Điều/Khoản</option>
+                                                    {docNodes.map(n => <option key={n.value} value={n.value}>{n.label}</option>)}
+                                                </select>
+                                            </div>
+                                        </Col>
+                                        <Col md={2}>
                                             <div className="input-group input-group-sm">
                                                 <Label className="input-group-text bg-light border-light text-muted">Cơ quan</Label>
                                                 <select
@@ -495,12 +569,26 @@ const FeedbackList = () => {
                                                     value={selectedAgency}
                                                     onChange={(e) => setSelectedAgency(e.target.value)}
                                                 >
-                                                    <option value="all">Tất cả đơn vị</option>
-                                                    {agencyOptions.map(a => <option key={a} value={a}>{a}</option>)}
+                                                    <option value="all">Tất cả Cơ quan</option>
+                                                    {agencies.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                                                 </select>
                                             </div>
                                         </Col>
-                                        <Col md={3}>
+                                        <Col md={2}>
+                                            <div className="input-group input-group-sm">
+                                                <Label className="input-group-text bg-light border-light text-muted">Cán bộ</Label>
+                                                <select
+                                                    className="form-select border-light bg-light"
+                                                    value={selectedSpecialist}
+                                                    onChange={(e) => setSelectedSpecialist(e.target.value)}
+                                                >
+                                                    <option value="all">Tất cả Cán bộ</option>
+                                                    <option value="none">Chưa giao</option>
+                                                    {specialists.map(s => <option key={s.id} value={s.id}>{s.full_name || s.username}</option>)}
+                                                </select>
+                                            </div>
+                                        </Col>
+                                        <Col md={2}>
                                             <div className="input-group input-group-sm">
                                                 <Label className="input-group-text bg-light border-light text-muted">Tình trạng</Label>
                                                 <select
@@ -508,16 +596,19 @@ const FeedbackList = () => {
                                                     value={selectedStatus}
                                                     onChange={(e) => setSelectedStatus(e.target.value)}
                                                 >
-                                                    <option value="all">Tất cả tình trạng</option>
-                                                    <option value="unresolved">Chưa giải trình</option>
-                                                    <option value="resolved">Đã giải trình</option>
+                                                    <option value="all">Tất cả Ý kiến</option>
+                                                    <option value="pending">Chưa giải trình</option>
+                                                    <option value="explained">Đã giải trình</option>
+                                                    <option value="accepted">Đã tiếp thu</option>
+                                                    <option value="partially_accepted">Tiếp thu một phần</option>
+                                                    <option value="agreed">Thống nhất với dự thảo</option>
                                                 </select>
                                             </div>
                                         </Col>
                                         <Col className="text-end">
                                             <Badge color="soft-info" className="fs-12 p-2">
                                                 <i className="ri-information-line align-bottom me-1"></i>
-                                                Hiển thị {filteredFeedbacks.length} ý kiến
+                                                Tổng số {totalCount} ý kiến
                                             </Badge>
                                         </Col>
                                     </Row>
@@ -528,125 +619,235 @@ const FeedbackList = () => {
                                             <p className="mt-2 text-muted small italic">Đang tải dữ liệu góp ý...</p>
                                         </div>
                                     ) : (
-                                        <div className="table-responsive">
-                                            <Table className="table-bordered table-hover align-middle mb-0">
-                                                <thead className="bg-primary-subtle text-primary fs-13 text-uppercase">
-                                                    <tr className="text-center align-middle">
-                                                        <th style={{ width: '50px' }}>STT</th>
-                                                        <th>Vị trí / Điều góp ý</th>
-                                                        <th style={{ minWidth: '250px' }}>Nội dung góp ý</th>
-                                                        <th>Cơ quan</th>
-                                                        <th style={{ minWidth: '250px' }}>Nội dung giải trình</th>
-                                                        <th style={{ width: '100px' }}>Hành động</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {filteredFeedbacks.map((fb, idx) => (
-                                                        <tr key={fb.id}>
-                                                            <td className="text-center text-muted fw-medium">{idx + 1}</td>
-                                                            <td>
-                                                                <Button
-                                                                    color="link"
-                                                                    className="p-0 text-primary fw-medium text-decoration-none text-start"
-                                                                    onClick={() => handleViewNode(fb.node_id, fb.node_label)}
-                                                                >
-                                                                    {fb.node_label}
-                                                                </Button>
-                                                                <div className="text-muted fs-12 mt-1 font-italic">
-                                                                    {fb.node_path}
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div style={{ whiteSpace: 'normal', fontSize: '14px' }}>
-                                                                    {fb.content}
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <Badge color="soft-info" className="text-muted fs-14 mt-1 ">{fb.contributing_agency}</Badge>
-
-                                                            </td>
-                                                            <td>
-                                                                {fb.explanation ? (
-                                                                    <div style={{ whiteSpace: 'normal', fontSize: '16px', borderLeft: '3px solid var(--vz-success)' }} className="p-2 bg-light-subtle rounded text-body">
-                                                                        <span className="fw-medium">{fb.explanation}</span>
+                                        <>
+                                            <div className="table-responsive">
+                                                <Table className="table-bordered table-hover align-middle mb-0">
+                                                    <thead className="bg-primary-subtle text-primary fs-13 text-uppercase">
+                                                        <tr className="text-center align-middle">
+                                                            <th style={{ width: '50px' }}>STT</th>
+                                                            <th>Vị trí / Điều</th>
+                                                            <th style={{ width: '150px' }}>Cán bộ thụ lý</th>
+                                                            <th style={{ minWidth: '250px' }}>Nội dung góp ý</th>
+                                                            <th>Cơ quan</th>
+                                                            <th style={{ minWidth: '250px' }}>Nội dung giải trình</th>
+                                                            <th style={{ width: '120px' }}>Hành động</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {filteredFeedbacks.map((fb, idx) => (
+                                                            <tr key={fb.id}>
+                                                                <td className="text-center text-muted fw-medium">{(currentPage - 1) * pageSize + idx + 1}</td>
+                                                                <td>
+                                                                    <Button
+                                                                        color="link"
+                                                                        className="p-0 text-primary fw-medium text-decoration-none text-start"
+                                                                        onClick={() => handleViewNode(fb.node_id, fb.node_label)}
+                                                                    >
+                                                                        {fb.node_label}
+                                                                    </Button>
+                                                                    <div className="text-muted fs-12 mt-1 font-italic">
+                                                                        {fb.node_path}
                                                                     </div>
-                                                                ) : (
-                                                                    <span className="text-muted italic opacity-50 px-2 font-italic border-start">Chưa giải trình</span>
-                                                                )}
-                                                            </td>
-                                                            <td>
-                                                                <div className="d-flex gap-1 justify-content-center">
-                                                                    <Button
-                                                                        color="warning"
-                                                                        size="sm"
-                                                                        className="btn-soft-warning btn-icon"
-                                                                        onClick={() => handleEditFeedback(fb)}
-                                                                        title="Sửa nội dung & Gán lại"
-                                                                    >
-                                                                        <i className="ri-edit-line"></i>
-                                                                    </Button>
-                                                                    <Button
-                                                                        color="danger"
-                                                                        size="sm"
-                                                                        className="btn-soft-danger btn-icon"
-                                                                        onClick={() => handleDeleteFeedback(fb)}
-                                                                        title="Xóa góp ý"
-                                                                    >
-                                                                        <i className="ri-delete-bin-line"></i>
-                                                                    </Button>
-                                                                    {!fb.explanation ? (
-                                                                        <Button
-                                                                            color="success"
-                                                                            size="sm"
-                                                                            className="btn-soft-success btn-icon"
-                                                                            onClick={() => handleAction(fb, 'explain')}
-                                                                            title="Giải trình"
-                                                                        >
-                                                                            <i className="ri-chat-1-line"></i>
-                                                                        </Button>
+                                                                </td>
+                                                                <td>
+                                                                    <div className="d-flex flex-wrap gap-1">
+                                                                        {fb.assigned_users && fb.assigned_users.length > 0 ? (
+                                                                            fb.assigned_users.map(u => (
+                                                                                <Badge key={u.id} color="soft-primary" className="text-primary border border-primary-subtle">
+                                                                                    {u.full_name}
+                                                                                </Badge>
+                                                                            ))
+                                                                        ) : (
+                                                                            <span className="text-muted fs-11 italic">Chưa phân công</span>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                <td>
+                                                                    <div style={{ whiteSpace: 'normal', fontSize: '14px' }}>
+                                                                        {fb.content}
+                                                                    </div>
+                                                                </td>
+                                                                <td>
+                                                                    <Badge color="soft-info" className="text-muted fs-14 mt-1 ">{fb.contributing_agency}</Badge>
+                                                                </td>
+                                                                <td>
+                                                                    {fb.explanation ? (
+                                                                        <div style={{ whiteSpace: 'normal', fontSize: '16px', borderLeft: '3px solid var(--vz-success)' }} className="p-2 bg-light-subtle rounded text-body">
+                                                                            <span className="fw-medium">{fb.explanation}</span>
+                                                                        </div>
                                                                     ) : (
-                                                                        <>
-                                                                            <Button
-                                                                                color="info"
-                                                                                size="sm"
-                                                                                className="btn-soft-info btn-icon"
-                                                                                onClick={() => handleAction(fb, 'edit')}
-                                                                                title="Sửa giải trình"
-                                                                            >
-                                                                                <i className="ri-edit-2-line"></i>
-                                                                            </Button>
-                                                                            <Button
-                                                                                color="danger"
-                                                                                size="sm"
-                                                                                className="btn-soft-danger btn-icon"
-                                                                                onClick={() => handleDeleteExplanation(fb)}
-                                                                                title="Xóa giải trình"
-                                                                            >
-                                                                                <i className="ri-close-line"></i>
-                                                                            </Button>
-                                                                        </>
+                                                                        <span className="text-muted italic opacity-50 px-2 font-italic border-start">Chưa giải trình</span>
                                                                     )}
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
+                                                                </td>
+                                                                <td>
+                                                                    <div className="d-flex gap-1 justify-content-center">
+                                                                        <Button
+                                                                            color="primary"
+                                                                            size="sm"
+                                                                            className="btn-soft-primary btn-icon"
+                                                                            onClick={() => handleOpenAssignModal(fb)}
+                                                                            title="Phân công cán bộ"
+                                                                        >
+                                                                            <i className="ri-user-add-line"></i>
+                                                                        </Button>
+                                                                        <Button
+                                                                            color="warning"
+                                                                            size="sm"
+                                                                            className="btn-soft-warning btn-icon"
+                                                                            onClick={() => handleEditFeedback(fb)}
+                                                                            title="Sửa nội dung & Gán lại"
+                                                                        >
+                                                                            <i className="ri-edit-line"></i>
+                                                                        </Button>
+                                                                        <Button
+                                                                            color="danger"
+                                                                            size="sm"
+                                                                            className="btn-soft-danger btn-icon"
+                                                                            onClick={() => handleDeleteFeedback(fb)}
+                                                                            title="Xóa góp ý"
+                                                                        >
+                                                                            <i className="ri-delete-bin-line"></i>
+                                                                        </Button>
+                                                                        {!fb.explanation ? (
+                                                                            <Button
+                                                                                color="success"
+                                                                                size="sm"
+                                                                                className="btn-soft-success btn-icon"
+                                                                                onClick={() => handleAction(fb, 'explain')}
+                                                                                title="Giải trình"
+                                                                            >
+                                                                                <i className="ri-chat-1-line"></i>
+                                                                            </Button>
+                                                                        ) : (
+                                                                            <>
+                                                                                <Button
+                                                                                    color="info"
+                                                                                    size="sm"
+                                                                                    className="btn-soft-info btn-icon"
+                                                                                    onClick={() => handleAction(fb, 'edit')}
+                                                                                    title="Sửa giải trình"
+                                                                                >
+                                                                                    <i className="ri-edit-2-line"></i>
+                                                                                </Button>
+                                                                                <Button
+                                                                                    color="danger"
+                                                                                    size="sm"
+                                                                                    className="btn-soft-danger btn-icon"
+                                                                                    onClick={() => handleDeleteExplanation(fb)}
+                                                                                    title="Xóa giải trình"
+                                                                                >
+                                                                                    <i className="ri-close-line"></i>
+                                                                                </Button>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
 
-                                                    {filteredFeedbacks.length === 0 && (
-                                                        <tr>
-                                                            <td colSpan="6" className="text-center py-5 text-muted small italic">
-                                                                (Không có dữ liệu góp ý phù hợp với bộ lọc)
-                                                            </td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                            </Table>
-                                        </div>
+                                                        {filteredFeedbacks.length === 0 && (
+                                                            <tr>
+                                                                <td colSpan="7" className="text-center py-5 text-muted small italic">
+                                                                    (Không có dữ liệu góp ý phù hợp với bộ lọc)
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                    </tbody>
+                                                </Table>
+                                            </div>
+
+                                            {/* Pagination Controls */}
+                                            {totalCount > pageSize && (
+                                                <div className="d-flex justify-content-between align-items-center mt-3">
+                                                    <div className="text-muted fs-13">
+                                                        Hiển thị <b>{(currentPage - 1) * pageSize + 1}</b> - <b>{Math.min(currentPage * pageSize, totalCount)}</b> trong tổng số <b>{totalCount}</b> ý kiến
+                                                    </div>
+                                                    <div className="d-flex gap-2">
+                                                        <Button
+                                                            color="light"
+                                                            size="sm"
+                                                            disabled={currentPage === 1}
+                                                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                                        >
+                                                            <i className="ri-arrow-left-s-line align-middle me-1"></i> Trước
+                                                        </Button>
+                                                        {(() => {
+                                                            const totalPages = Math.ceil(totalCount / pageSize);
+                                                            const pages = [];
+                                                            for (let i = 1; i <= totalPages; i++) {
+                                                                if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+                                                                    pages.push(i);
+                                                                } else if (i === currentPage - 2 || i === currentPage + 2) {
+                                                                    pages.push('...');
+                                                                }
+                                                            }
+                                                            return [...new Set(pages)].map((p, idx) => (
+                                                                p === '...' ? (
+                                                                    <span key={`dots-${idx}`} className="px-2">...</span>
+                                                                ) : (
+                                                                    <Button
+                                                                        key={p}
+                                                                        color={currentPage === p ? "primary" : "light"}
+                                                                        size="sm"
+                                                                        onClick={() => setCurrentPage(p)}
+                                                                    >
+                                                                        {p}
+                                                                    </Button>
+                                                                )
+                                                            ));
+                                                        })()}
+                                                        <Button
+                                                            color="light"
+                                                            size="sm"
+                                                            disabled={currentPage === Math.ceil(totalCount / pageSize)}
+                                                            onClick={() => setCurrentPage(prev => prev + 1)}
+                                                        >
+                                                            Sau <i className="ri-arrow-right-s-line align-middle ms-1"></i>
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </CardBody>
                             </Card>
                         </Col>
                     </Row>
-                </Container>
+                    {/* Assignment Modal */}
+            <Modal isOpen={isAssignModalOpen} toggle={() => setIsAssignModalOpen(false)} centered>
+                <ModalHeader toggle={() => setIsAssignModalOpen(false)} className="bg-light p-3">
+                    <i className="ri-user-add-line align-middle me-2 text-primary"></i>
+                    Phân công Cán bộ Giải trình
+                </ModalHeader>
+                <ModalBody>
+                    <div className="mb-3">
+                        <Label className="form-label">Chọn cán bộ (Chuyên viên) thụ lý cho nội dung này:</Label>
+                        <Select
+                            isMulti
+                            options={specialists.map(s => ({ value: s.id, label: s.full_name || s.username }))}
+                            value={specialists
+                                .filter(s => assignUserIds.includes(s.id))
+                                .map(s => ({ value: s.id, label: s.full_name || s.username }))
+                            }
+                            onChange={(selected) => setAssignUserIds(selected ? selected.map(opt => opt.value) : [])}
+                            placeholder="Tìm kiếm và chọn cán bộ..."
+                            classNamePrefix="react-select"
+                            styles={selectStyles}
+                        />
+                        <div className="form-text mt-2 text-muted small">
+                            <i className="ri-information-line me-1"></i>
+                            Phân công này sẽ áp dụng cho <b>tất cả</b> ý kiến thuộc cùng Điều/Khoản này.
+                        </div>
+                    </div>
+                </ModalBody>
+                <ModalFooter>
+                    <Button color="light" onClick={() => setIsAssignModalOpen(false)} disabled={assigningLoading}>Đóng</Button>
+                    <Button color="primary" onClick={handleSaveAssignment} disabled={assigningLoading}>
+                        {assigningLoading ? <Spinner size="sm" /> : "Lưu phân công"}
+                    </Button>
+                </ModalFooter>
+            </Modal>
+        </Container>
 
                 {/* Explanation Modal */}
                 <Modal isOpen={isModalOpen} toggle={() => setIsModalOpen(!isModalOpen)} centered size="lg" contentClassName="border-0 shadow-lg">

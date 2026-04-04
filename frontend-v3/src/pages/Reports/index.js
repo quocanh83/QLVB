@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, CardBody, CardHeader, Nav, NavItem, NavLink, TabContent, TabPane, Button, Input, Table, Progress } from 'reactstrap';
+import { Container, Row, Col, Card, CardBody, CardHeader, Nav, NavItem, NavLink, TabContent, TabPane, Button, Input, Table, Progress, Badge } from 'reactstrap';
 import classnames from 'classnames';
 import BreadCrumb from '../../Components/Common/BreadCrumb';
 import axios from 'axios';
@@ -24,6 +24,11 @@ const Reports = () => {
     const [customAgenciesList, setCustomAgenciesList] = useState([]);
     const [customStatsData, setCustomStatsData] = useState([]);
     const [isCustomLoading, setIsCustomLoading] = useState(false);
+    
+    // Personnel Stats State
+    const [personnelStats, setPersonnelStats] = useState({ by_user: [], by_department: [] });
+    const [isPersonnelLoading, setIsPersonnelLoading] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(false);
 
     // Stats State
     const [statsData, setStatsData] = useState({ agency_stats: [], category_stats: {}, invited_category_stats: {}, available_categories: [] });
@@ -37,7 +42,17 @@ const Reports = () => {
         fetchDocuments();
         fetchTemplates();
         fetchSpecialists();
+        checkAdmin();
     }, []);
+
+    const checkAdmin = async () => {
+        try {
+            const res = await axios.get('/api/accounts/profile/', getAuthHeader());
+            const user = res.data || res;
+            const admin = user.is_staff || user.is_superuser || (user.roles || []).some(r => (typeof r === 'string' ? r === 'Admin' : r.role_name === 'Admin'));
+            setIsAdmin(admin);
+        } catch (e) { console.error(e); }
+    };
 
     useEffect(() => {
         if (reportTemplates.length > 0) {
@@ -81,8 +96,21 @@ const Reports = () => {
         } else if (activeTab === '2') {
             fetchCustomAgencies(selectedDocId);
             fetchCustomPreview(selectedDocId, customAgency, customStatus, customSpecialist);
+        } else if (activeTab === '4') {
+            fetchPersonnelStats();
         }
     }, [selectedDocId, activeTab, customAgency, customStatus, customSpecialist, reportMode]);
+
+    const fetchPersonnelStats = async () => {
+        setIsPersonnelLoading(true);
+        try {
+            const res = await axios.get('/api/accounts/personnel-stats/', getAuthHeader());
+            setPersonnelStats(res);
+        } catch (e) {
+            toast.error("Không thể tải thống kê cán bộ");
+        }
+        setIsPersonnelLoading(false);
+    };
 
     const fetchSubjectStats = async (docId) => {
         setIsStatsLoading(true);
@@ -255,6 +283,16 @@ const Reports = () => {
                                                     <i className="ri-settings-4-line align-middle me-1"></i> Cấu hình Mẫu
                                                 </NavLink>
                                             </NavItem>
+                                            {isAdmin && (
+                                                <NavItem>
+                                                    <NavLink
+                                                        className={classnames({ active: activeTab === '4' })}
+                                                        onClick={() => { toggleTab('4'); }}
+                                                    >
+                                                        <i className="ri-group-line align-middle me-1"></i> Tiến độ Cán bộ
+                                                    </NavLink>
+                                                </NavItem>
+                                            )}
                                         </Nav>
                                     </div>
                                 </CardHeader>
@@ -557,6 +595,111 @@ const Reports = () => {
                                         
                                         <TabPane tabId="3" id="config">
                                             <ReportConfigTab />
+                                        </TabPane>
+                                        
+                                        <TabPane tabId="4" id="personnel">
+                                            <Row>
+                                                <Col lg={12}>
+                                                    <div className="d-flex align-items-center mb-4">
+                                                        <h5 className="flex-grow-1 mb-0">Thống kê tiến độ theo Phòng ban & Cán bộ</h5>
+                                                        <Button color="soft-info" onClick={fetchPersonnelStats}>
+                                                            <i className="ri-refresh-line align-bottom"></i> Làm mới
+                                                        </Button>
+                                                    </div>
+                                                </Col>
+                                            </Row>
+
+                                            {isPersonnelLoading ? (
+                                                <div className="text-center py-5"><div className="spinner-border text-primary" role="status"></div></div>
+                                            ) : (
+                                                <Row>
+                                                    <Col lg={5}>
+                                                        <Card className="border shadow-none">
+                                                            <CardHeader className="bg-light-subtle">
+                                                                <h6 className="card-title mb-0">Tổng hợp theo Phòng ban</h6>
+                                                            </CardHeader>
+                                                            <CardBody>
+                                                                <Table className="align-middle table-nowrap">
+                                                                    <thead className="table-light">
+                                                                        <tr>
+                                                                            <th>Phòng ban</th>
+                                                                            <th className="text-center">Tổng ý kiến</th>
+                                                                            <th className="text-center">Hoàn thành</th>
+                                                                            <th>Tiến độ</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        {personnelStats.by_department.map((dept, i) => (
+                                                                            <tr key={i}>
+                                                                                <td className="fw-medium">{dept.name}</td>
+                                                                                <td className="text-center">{dept.total}</td>
+                                                                                <td className="text-center text-success">{dept.completed}</td>
+                                                                                <td>
+                                                                                    <div className="d-flex align-items-center gap-2">
+                                                                                        <div className="flex-grow-1">
+                                                                                            <Progress value={dept.rate} size="sm" color={dept.rate > 80 ? "success" : (dept.rate > 40 ? "info" : "warning")} />
+                                                                                        </div>
+                                                                                        <span className="fs-12">{dept.rate}%</span>
+                                                                                    </div>
+                                                                                </td>
+                                                                            </tr>
+                                                                        ))}
+                                                                    </tbody>
+                                                                </Table>
+                                                            </CardBody>
+                                                        </Card>
+                                                    </Col>
+                                                    <Col lg={7}>
+                                                        <Card className="border shadow-none">
+                                                            <CardHeader className="bg-light-subtle">
+                                                                <h6 className="card-title mb-0">Chi tiết theo từng Cán bộ</h6>
+                                                            </CardHeader>
+                                                            <CardBody>
+                                                                <Table className="align-middle table-nowrap">
+                                                                    <thead className="table-light">
+                                                                        <tr>
+                                                                            <th>Cán bộ</th>
+                                                                            <th>Phòng ban</th>
+                                                                            <th className="text-center">Giao</th>
+                                                                            <th className="text-center">Xong</th>
+                                                                            <th>Tiến độ</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        {personnelStats.by_user.map((user, i) => (
+                                                                            <tr key={i}>
+                                                                                <td>
+                                                                                    <div className="d-flex align-items-center">
+                                                                                        <div className="flex-shrink-0 avatar-xs me-2">
+                                                                                            <div className="avatar-title rounded-circle bg-soft-info text-info fs-10">
+                                                                                                {(user.full_name || user.username).charAt(0)}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        <div className="flex-grow-1">
+                                                                                            <span className="fw-medium">{user.full_name || user.username}</span>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </td>
+                                                                                <td><span className="fs-12 text-muted">{user.department}</span></td>
+                                                                                <td className="text-center"><Badge color="light" className="text-body border">{user.total}</Badge></td>
+                                                                                <td className="text-center text-success">{user.completed}</td>
+                                                                                <td>
+                                                                                    <div className="d-flex align-items-center gap-2">
+                                                                                        <div className="flex-grow-1">
+                                                                                            <Progress value={user.rate} size="sm" color={user.rate === 100 ? "success" : "primary"} />
+                                                                                        </div>
+                                                                                        <span className="fs-11">{user.rate}%</span>
+                                                                                    </div>
+                                                                                </td>
+                                                                            </tr>
+                                                                        ))}
+                                                                    </tbody>
+                                                                </Table>
+                                                            </CardBody>
+                                                        </Card>
+                                                    </Col>
+                                                </Row>
+                                            )}
                                         </TabPane>
                                     </TabContent>
                                 </CardBody>

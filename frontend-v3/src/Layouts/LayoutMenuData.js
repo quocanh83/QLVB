@@ -80,8 +80,9 @@ const useNavData = () => {
 
   const [sidebarConfig, setSidebarConfig] = useState(JSON.parse(localStorage.getItem('sidebarConfig') || '{}'));
   const [sidebarJSONConfig, setSidebarJSONConfig] = useState(JSON.parse(localStorage.getItem('sidebarJSONConfig') || '[]'));
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  const CURRENT_SIDEBAR_VERSION = "4.3.47";
+  const CURRENT_SIDEBAR_VERSION = "4.3.86";
 
   useEffect(() => {
     const fetchSidebarConfig = async () => {
@@ -98,6 +99,9 @@ const useNavData = () => {
           setSidebarJSONConfig([]);
           return;
         }
+
+        const isAdminUser = remoteData.is_staff || remoteData.is_superuser || (remoteData.roles || []).some(r => (typeof r === 'string' ? r === 'Admin' : r.role_name === 'Admin'));
+        setIsAdmin(isAdminUser);
 
         if (remoteConfig && Array.isArray(remoteConfig) && remoteConfig.length > 0) {
           setSidebarJSONConfig(remoteConfig);
@@ -219,6 +223,12 @@ const useNavData = () => {
       link: "/documents",
     },
     {
+      id: "project-assignment",
+      label: "Phân công Dự thảo",
+      icon: "ri-user-shared-2-line",
+      link: "/project-assignment",
+    },
+    {
       id: "draft-consultation",
       label: "Lấy ý kiến dự thảo",
       icon: "ri-send-plane-2-line",
@@ -302,6 +312,12 @@ const useNavData = () => {
           parentId: "settings",
         },
         {
+          id: "department-management",
+          label: "Quản lý Phòng ban",
+          link: "/departments",
+          parentId: "settings",
+        },
+        {
           id: "sys-settings",
           label: "Cấu hình chung",
           link: "/settings",
@@ -335,7 +351,10 @@ const useNavData = () => {
   // 1. Build the ordered menu list based on JSON config
   let finalMenuItems = [];
 
-  if (effectiveConfig && effectiveConfig.length > 0) {
+  if (isAdmin) {
+    // Admins always see the master menu list fully
+    finalMenuItems = menuItems;
+  } else if (effectiveConfig && effectiveConfig.length > 0) {
     effectiveConfig.forEach(configItem => {
       if (!configItem.visible) return;
 
@@ -427,7 +446,9 @@ const useNavData = () => {
     });
   } else {
     // Fallback: Use the old filtering logic if JSON config is missing
+    // Admins are already handled above, but for non-admin without config, we still check old flags
     finalMenuItems = menuItems.filter(item => {
+      if (isAdmin) return true; // Safety bypass if logic reaches here
       if (item.id === 'qlvb' && sidebarConfig.SIDEBAR_HIDE_QLVB) return false;
       if (item.id === 'dashboard' && sidebarConfig.SIDEBAR_HIDE_DASHBOARD) return false;
       if (item.id === 'apps' && sidebarConfig.SIDEBAR_HIDE_APPS) return false;

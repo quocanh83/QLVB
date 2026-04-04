@@ -57,24 +57,21 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def set_lead(self, request, pk=None):
-        """Admin chỉ định Chủ trì (Lead) cho một Dự thảo"""
-        user = request.user
+        """Admin chỉ định danh sách Chủ trì (Leads) cho một Dự thảo"""
         user = request.user
         is_admin = user.is_staff or user.is_superuser or (hasattr(user, 'roles') and user.roles.filter(role_name='Admin').exists())
         if not is_admin:
             return Response({"error": "Chỉ Admin mới có thể chỉ định Chủ trì."}, status=403)
+        
         document = self.get_object()
-        lead_id = request.data.get('lead_id')
-        if lead_id:
-            try:
-                lead_user = User.objects.get(id=lead_id)
-                document.lead = lead_user
-            except User.DoesNotExist:
-                return Response({"error": "Không tìm thấy tài khoản cán bộ."}, status=404)
+        lead_ids = request.data.get('lead_ids', [])
+        
+        if isinstance(lead_ids, list):
+            valid_leads = User.objects.filter(id__in=lead_ids)
+            document.leads.set(valid_leads)
+            return Response({"message": f"Đã cập nhật danh sách {valid_leads.count()} Chủ trì thành công!"})
         else:
-            document.lead = None  # Gỡ chủ trì
-        document.save()
-        return Response({"message": "Đã cập nhật thông tin Chủ trì (Lead) thành công!"})
+            return Response({"error": "Dữ liệu lead_ids không hợp lệ. Phải là một mảng ID."}, status=400)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -166,7 +163,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
         user = request.user
         
         is_admin = user.is_staff or user.is_superuser or (hasattr(user, 'roles') and user.roles.filter(role_name='Admin').exists())
-        is_lead = (document.lead == user)
+        is_lead = document.leads.filter(id=user.id).exists()
         
         if is_admin or is_lead:
             all_nodes = DocumentNode.objects.filter(document=document).annotate(
@@ -242,7 +239,9 @@ class DocumentViewSet(viewsets.ModelViewSet):
         document = self.get_object()
         user = request.user
         is_admin = user.is_staff or user.is_superuser or (hasattr(user, 'roles') and user.roles.filter(role_name='Admin').exists())
-        if not (is_admin or document.lead == user):
+        is_lead = document.leads.filter(id=user.id).exists()
+        
+        if not (is_admin or is_lead):
             return Response({"error": "Bạn không có quyền Phân công dự án này."}, status=403)
             
         assignments_data = request.data.get('assignments', [])
@@ -252,7 +251,26 @@ class DocumentViewSet(viewsets.ModelViewSet):
                 node_id = item.get('node_id')
                 user_ids = item.get('user_ids', [])
                 
-                NodeAssignment.objects.filter(node_id=node_id).delete()
+                # Nếu là Lead (không phải Admin), chỉ cho phép phân công nhân viên cùng phòng ban
+                if is_lead and not is_admin:
+                    # Lấy danh sách user được yêu cầu phân công
+                    target_users = User.objects.filter(id__in=user_ids)
+                    for tu in target_users:
+                        if tu.department_id != user.department_id:
+                            return Response({"error": f"Bạn chỉ được phân công cho cán bộ thuộc '{user.department.name if user.department else 'Phòng của bạn'}'. Cán bộ '{tu.username}' thuộc phòng khác."}, status=403)
+
+                # Xử lý phân công: Logic cũ là xóa hết rồi tạo lại. 
+                # Tuy nhiên, theo yêu cầu mới "2 chủ trì đều có thể phân công cho nhân viên của mình cùng giải trình một điều",
+                # Ta nên giữ nguyên các phân công cũ của người khác và chỉ cập nhật phân công của mình (nếu là Lead).
+                # HOẶC đơn giản nhất là cho phép append.
+                # Nhưng UI hiện tại có thể đang gửi danh sách đầy đủ.
+                
+                if is_admin:
+                    # Admin có quyền xóa hết và set lại
+                    NodeAssignment.objects.filter(node_id=node_id).delete()
+                else:
+                    # Lead chỉ được xóa những người mình đã phân công trước đó hoặc những người thuộc phòng mình
+                    NodeAssignment.objects.filter(node_id=node_id, user__department_id=user.department_id).delete()
                 
                 new_assignments = [
                     NodeAssignment(node_id=node_id, user_id=uid, assigned_by=user)
@@ -694,12 +712,29 @@ class DocumentAppendixViewSet(viewsets.ModelViewSet):
 
         created_results = []
         with transaction.atomic():
+            # Lấy order_index lớn nhất hiện tại
+            from .models import DocumentNode
+            last_node = DocumentNode.objects.filter(document_id=document_id).order_by('-order_index').first()
+            current_index = (last_node.order_index + 1) if last_node else 0
+
             for item in appendices_data:
                 app = DocumentAppendix.objects.create(
                     document_id=document_id,
                     name=item.get('name', 'Phụ lục không tên'),
                     content=item.get('content', '')
                 )
+                
+                # Đồng bộ sang DocumentNode để có thể phân công
+                DocumentNode.objects.get_or_create(
+                    document_id=document_id,
+                    node_type='Phụ lục',
+                    node_label=app.name,
+                    defaults={
+                        'content': app.content or "",
+                        'order_index': 9000 + current_index
+                    }
+                )
+                current_index += 1
                 created_results.append(DocumentAppendixSerializer(app).data)
             
         return Response(created_results, status=201)

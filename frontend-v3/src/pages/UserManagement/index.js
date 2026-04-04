@@ -18,7 +18,13 @@ const UserManagement = () => {
 
     const [users, setUsers] = useState([]);
     const [roles, setRoles] = useState([]);
+    const [departments, setDepartments] = useState([]);
     const [loading, setLoading] = useState(false);
+    
+    // Import Modal state
+    const [importModal, setImportModal] = useState(false);
+    const [importFile, setImportFile] = useState(null);
+    const [importing, setImporting] = useState(false);
     
     // Modal state
     const [modal, setModal] = useState(false);
@@ -31,7 +37,8 @@ const UserManagement = () => {
         password: "",
         full_name: "",
         email: "",
-        role_ids: []
+        role_ids: [],
+        department_id: ""
     });
     const [errors, setErrors] = useState({});
 
@@ -44,7 +51,8 @@ const UserManagement = () => {
                 password: "",
                 full_name: "",
                 email: "",
-                role_ids: []
+                role_ids: [],
+                department_id: ""
             });
             setErrors({});
         } else {
@@ -56,14 +64,16 @@ const UserManagement = () => {
         setLoading(true);
         try {
             const authHeader = getAuthHeader();
-            const [usersRes, rolesRes] = await Promise.all([
+            const [usersRes, rolesRes, deptRes] = await Promise.all([
                 axios.get('/api/accounts/users/', authHeader),
-                axios.get('/api/accounts/roles/', authHeader)
+                axios.get('/api/accounts/roles/', authHeader),
+                axios.get('/api/accounts/departments/', authHeader)
             ]);
             
             // Axios interceptor in api_helper.js returns response.data directly
             setUsers(usersRes.results || usersRes || []);
             setRoles(rolesRes.results || rolesRes || []);
+            setDepartments(deptRes.results || deptRes || []);
         } catch (error) {
             console.error("Error fetching users:", error);
             toast.error("Không thể tải danh sách cán bộ");
@@ -82,7 +92,8 @@ const UserManagement = () => {
             password: "",
             full_name: user.full_name || "",
             email: user.email || "",
-            role_ids: (user.roles || []).map(r => typeof r === 'object' ? r.id : r)
+            role_ids: (user.roles || []).map(r => typeof r === 'object' ? r.id : r),
+            department_id: user.department?.id || ""
         });
         setModal(true);
     };
@@ -134,6 +145,47 @@ const UserManagement = () => {
         }
     };
 
+    const handleDownloadTemplate = async () => {
+        try {
+            const authHeader = getAuthHeader();
+            const response = await axios.get('/api/accounts/users/template/', {
+                ...authHeader,
+                responseType: 'blob'
+            });
+            const url = window.URL.createObjectURL(new Blob([response]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'Mau_nhap_lieu_can_bo.xlsx');
+            document.body.appendChild(link);
+            link.click();
+        } catch (error) {
+            toast.error("Không thể tải bảng mẫu");
+        }
+    };
+
+    const handleImport = async () => {
+        if (!importFile) return;
+        setImporting(true);
+        const data = new FormData();
+        data.append('file', importFile);
+        try {
+            const authHeader = getAuthHeader();
+            await axios.post('/api/accounts/users/import/', data, {
+                headers: {
+                    ...authHeader.headers,
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+            toast.success("Nhập cán bộ thành công");
+            setImportModal(false);
+            setImportFile(null);
+            fetchData();
+        } catch (error) {
+            toast.error(error.response?.data?.error || "Lỗi khi nhập Excel");
+        }
+        setImporting(false);
+    };
+
     const filteredUsers = users.filter(user => 
         user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (user.full_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -143,6 +195,11 @@ const UserManagement = () => {
     const roleOptions = roles.map(r => ({
         value: r.id,
         label: r.role_name
+    }));
+
+    const deptOptions = departments.map(d => ({
+        value: d.id,
+        label: d.name
     }));
 
     return (
@@ -166,6 +223,12 @@ const UserManagement = () => {
                                             />
                                             <i className="ri-search-line search-icon"></i>
                                         </div>
+                                        <Button color="info" outline onClick={handleDownloadTemplate}>
+                                            <i className="ri-download-2-line align-bottom me-1"></i> Tải mẫu
+                                        </Button>
+                                        <Button color="info" onClick={() => setImportModal(true)}>
+                                            <i className="ri-file-excel-2-line align-bottom me-1"></i> Nhập Excel
+                                        </Button>
                                         <Button color="success" onClick={toggle}>
                                             <i className="ri-add-line align-bottom me-1"></i> Cấp tài khoản mới
                                         </Button>
@@ -179,6 +242,7 @@ const UserManagement = () => {
                                                     <th className="sort" data-sort="username">Tên đăng nhập</th>
                                                     <th className="sort" data-sort="fullname">Họ và tên</th>
                                                     <th className="sort" data-sort="email">Email</th>
+                                                    <th className="sort" data-sort="dept">Phòng ban</th>
                                                     <th className="sort" data-sort="roles">Nhóm quyền</th>
                                                     <th className="sort" data-sort="action">Thao tác</th>
                                                 </tr>
@@ -211,6 +275,11 @@ const UserManagement = () => {
                                                             </td>
                                                             <td className="fullname">{user.full_name}</td>
                                                             <td className="email">{user.email || "---"}</td>
+                                                            <td className="dept">
+                                                                <Badge color="light" className="text-body border fw-normal">
+                                                                    {user.department?.name || "Chưa phân phòng"}
+                                                                </Badge>
+                                                            </td>
                                                             <td className="roles">
                                                                 {(user.roles || []).map((r, i) => (
                                                                     <Badge key={i} color="info" className="badge-soft-info me-1">
@@ -321,13 +390,26 @@ const UserManagement = () => {
                             </Col>
                             <Col lg={12}>
                                 <div>
+                                    <Label htmlFor="dept-field" className="form-label">Phòng ban</Label>
+                                    <Select
+                                        options={deptOptions}
+                                        classNamePrefix="select"
+                                        placeholder="Chọn phòng ban..."
+                                        value={deptOptions.find(opt => opt.value === formData.department_id)}
+                                        onChange={(selected) => setFormData({...formData, department_id: selected ? selected.value : ""})}
+                                        isClearable
+                                    />
+                                </div>
+                            </Col>
+                            <Col lg={12}>
+                                <div>
                                     <Label htmlFor="role-field" className="form-label">Nhóm quyền</Label>
                                     <Select
                                         isMulti
                                         options={roleOptions}
                                         classNamePrefix="select"
                                         placeholder="Chọn nhóm quyền..."
-                                        value={roleOptions.filter(opt => formData.role_ids.includes(opt.value))}
+                                        value={roleOptions.filter(opt => (formData.role_ids || []).includes(opt.value))}
                                         onChange={(selected) => setFormData({...formData, role_ids: selected ? selected.map(s => s.value) : []})}
                                     />
                                 </div>
@@ -343,6 +425,30 @@ const UserManagement = () => {
                         </div>
                     </ModalFooter>
                 </Form>
+            </Modal>
+            {/* Import Modal */}
+            <Modal isOpen={importModal} toggle={() => setImportModal(false)} centered>
+                <ModalHeader toggle={() => setImportModal(false)}>Nhập cán bộ từ Excel</ModalHeader>
+                <ModalBody>
+                    <div className="text-center p-3">
+                        <div className="mb-3">
+                            <i className="ri-file-excel-2-line display-4 text-success"></i>
+                        </div>
+                        <p className="text-muted">Đính kèm file Excel (.xlsx) chứa danh sách cán bộ theo mẫu.</p>
+                        <Input 
+                            type="file" 
+                            accept=".xlsx" 
+                            onChange={(e) => setImportFile(e.target.files[0])} 
+                            className="mb-3"
+                        />
+                    </div>
+                </ModalBody>
+                <ModalFooter>
+                    <Button color="light" onClick={() => setImportModal(false)}>Hủy</Button>
+                    <Button color="success" onClick={handleImport} disabled={!importFile || importing}>
+                        {importing ? "Đang xử lý..." : "Bắt đầu nhập"}
+                    </Button>
+                </ModalFooter>
             </Modal>
             <ToastContainer autoClose={2000} limit={1} />
         </React.Fragment>

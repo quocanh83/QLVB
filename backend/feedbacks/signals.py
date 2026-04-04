@@ -10,11 +10,13 @@ def notify_new_feedback(sender, instance, created, **kwargs):
         
     if created:
         document = instance.document
-        if document.lead:
+        leads = document.leads.all()
+        if leads.exists():
             agency = instance.contributing_agency or "Một cơ quan"
-            Notification.objects.create(
-                recipient=document.lead,
-                sender=instance.user,
-                message=f'Có góp ý mới từ "{agency}" cho dự thảo: {document.project_name}',
-                link=f"/feedbacks?docId={document.id}"
-            )
+            for lead in leads:
+                Notification.objects.create(
+                    recipient=lead,
+                    sender=instance.user,
+                    message=f'Có góp ý mới từ "{agency}" cho dự thảo: {document.project_name}',
+                    link=f"/feedbacks?docId={document.id}"
+                )

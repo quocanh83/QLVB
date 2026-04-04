@@ -68,8 +68,8 @@ class FeedbackViewSet(viewsets.ModelViewSet):
         try:
             if not document_id: return False
             doc = Document.objects.get(id=document_id)
-            if doc.lead == user: return True
-        except (Document.DoesNotExist, ValueError, TypeError):
+            if doc.leads.filter(id=user.id).exists(): return True
+        except (Document.DoesNotExist, ValueError, TypeError, AttributeError):
             pass
 
         # 3. Chuyên viên Role?
@@ -122,28 +122,83 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                             if diem_match:
                                 d_label = diem_match.group(1).lower()
                                 possible_diems = DocumentNode.objects.filter(document_id=document_id, parent_id=k.id, node_label__icontains=d_label)
-                                if possible_diems.exists(): return possible_diems.first()
-                            return k
-                return node_dieu
+    def _find_best_node_match(self, document_id, label):
+        if not label: return None
+        
+        import re
+        import unicodedata
+        # Chuẩn hóa đầu vào sang NFC
+        label = unicodedata.normalize('NFC', label).strip()
+        label_lower = label.lower()
+        label_upper = label.upper()
+        
+        # --- 1. XỬ LÝ PHỤ LỤC (Số La Mã VII, VIII... hoặc 7, 8...) ---
+        # Regex tìm số La Mã hoặc số thường
+        roman_pattern = r'^(?:M{0,3}(?:CM|CD|D?C{0,3})(?:XC|XL|L?X{0,3})(?:IX|IV|V?I{0,3})|\d+[a-z]?)$'
+        
+        app_num = ""
+        is_appendix_prefix = any(kw in label_lower for kw in ['phụ lục', 'pl', 'phu luc'])
+        if is_appendix_prefix:
+            m = re.search(r'(?:phụ\s*lục|pl|phu\s*luc)\s*([ivxlcdm\d]+[a-z]?)', label_lower)
+            if m: app_num = m.group(1).upper()
+        elif re.match(roman_pattern, label_upper):
+            app_num = label_upper
 
-        # 2. Xử lý chỉ có Khoản (trong context Điều)
-        if khoan_match and parent_context:
-            k_num_int = int(khoan_match.group(1))
-            search_parent = parent_context.id
-            if parent_context.node_type != 'Điều':
-                p = parent_context
-                while p and p.node_type != 'Điều':
-                    p = DocumentNode.objects.filter(id=p.parent_id).first()
-                if p: search_parent = p.id
+        if app_num:
+            from documents.models import DocumentAppendix
+            # Tìm trong DocumentNode
+            possible_nodes = DocumentNode.objects.filter(document_id=document_id, node_label__icontains=app_num)
+            for n in possible_nodes:
+                db_label = unicodedata.normalize('NFC', n.node_label).lower()
+                # Bóc tách phần số từ nhãn của DB (ví dụ từ "Phụ lục VII: abc" lấy ra "VII")
+                db_match = re.search(r'(?:phụ\s*lục|pl|phu\s*luc)\s*([ivxlcdm\d]+[a-z]?)', db_label)
+                if db_match:
+                    db_extracted_num = db_match.group(1).upper()
+                    # SO KHỚP TUYỆT ĐỐI: Phải giống hệt nhau về ký tự và độ dài (Chống VII khớp VIII)
+                    if db_extracted_num == app_num:
+                        return n
+            
+            # Tìm trong DocumentAppendix
+            possible_apps = DocumentAppendix.objects.filter(document_id=document_id, name__icontains=app_num)
+            for a in possible_apps:
+                db_name = unicodedata.normalize('NFC', a.name).lower()
+                db_match = re.search(r'(?:phụ\s*lục|pl|phu\s*luc)\s*([ivxlcdm\d]+[a-z]?)', db_name)
+                if db_match:
+                    db_extracted_num = db_match.group(1).upper()
+                    if db_extracted_num == app_num:
+                        return a
+                elif app_num in db_name.upper(): # Fallback cho appendix không có chữ "Phụ lục"
+                    # Kiểm tra ranh giới từ để tránh VII vào VIII
+                    if re.search(rf'\b{re.escape(app_num.lower())}\b', db_name):
+                        return a
 
-            possible_khoans = DocumentNode.objects.filter(document_id=document_id, parent_id=search_parent)
-            for k in possible_khoans:
-                k_actual_nums = re.findall(r'\d+', k.node_label)
-                if any(int(x) == k_num_int for x in k_actual_nums):
-                    return k
-            return parent_context
+        # --- 2. XỬ LÝ ĐIỀU / KHOẢN / ĐIỂM (Phân cấp) ---
+        d_match = re.search(r'(?:điều|đ)\.?\s*(\d+)', label_lower)
+        k_match = re.search(r'(?:khoản|k)\.?\s*(\d+)', label_lower)
+        p_match = re.search(r'(?:điểm|đ)\.?\s*([a-zđ])\b', label_lower)
+        
+        target_node = None
+        if d_match:
+            d_num = d_match.group(1)
+            # Dùng regex \b cho Điều
+            d_node = DocumentNode.objects.filter(document_id=document_id, node_type='Điều').filter(node_label__regex=rf'(?i)điều\s*{d_num}(?:\b|:|\s|$)').first()
+            if d_node:
+                target_node = d_node
+                if k_match:
+                    k_num = k_match.group(1)
+                    k_node = DocumentNode.objects.filter(parent=d_node, node_type='Khoản').filter(node_label__regex=rf'(?i)khoản\s*{k_num}(?:\b|:|\s|$)').first()
+                    if k_node:
+                        target_node = k_node
+                        if p_match:
+                            p_char = p_match.group(1)
+                            p_node = DocumentNode.objects.filter(parent=k_node, node_type='Điểm').filter(node_label__regex=rf'(?i)điểm\s*{p_char}(?:\b|:|\s|$)').first()
+                            if p_node: target_node = p_node
+        
+        if target_node: return target_node
 
-        # Fallback: icontains đơn thuần
+        # --- 3. FALLBACK ---
+        node = DocumentNode.objects.filter(document_id=document_id, node_label=label).first()
+        if node: return node
         return DocumentNode.objects.filter(document_id=document_id, node_label__icontains=label).first()
 
     def _find_similar_agencies(self, name, limit=5):
@@ -187,6 +242,7 @@ class FeedbackViewSet(viewsets.ModelViewSet):
             import pandas as pd
             import io
             import requests
+            import numpy as np
             
             if gs_url:
                 # Regex trích xuất sheet_id và gid
@@ -210,29 +266,74 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                 else:
                     df = pd.read_csv(file_obj, encoding='utf-8-sig')
             
-            # Map columns based on keywords (9 columns support)
+            # Map columns based on keywords (Scoring System)
             col_map = {}
-            # Thứ tự ưu tiên quan trọng
-            for col in df.columns:
-                c = str(col).lower()
-                if any(kw in c for kw in ['điều', 'khoản', 'mục', 'phạm vi', 'vị trí']): col_map['node'] = col
-                if any(kw in c for kw in ['cơ quan', 'chủ thể', 'đơn vị']): col_map['agency'] = col
-                if any(kw in c for kw in ['số văn bản', 'số hiệu']): col_map['doc_number'] = col
-                if any(kw in c for kw in ['ngày', 'thời gian']): col_map['doc_date'] = col
-                if any(kw in c for kw in ['giải trình', 'tiếp thu']): col_map['explanation'] = col
-                if any(kw in c for kw in ['lý do', 'cơ sở']): col_map['reason'] = col
-                if any(kw in c for kw in ['ghi chú', 'note']): col_map['note'] = col
+            # Khởi tạo điểm là 0, chỉ nhận cột nếu điểm > 0 để tránh vơ nhầm cột STT
+            col_scores = {'node': 0, 'agency': 0, 'content': 0, 'doc_number': 0, 'doc_date': 0, 'explanation': 0, 'reason': 0, 'note': 0}
             
-            # Map cột Nội dung riêng để tránh nhầm với 'Số văn bản góp ý'
             for col in df.columns:
                 c = str(col).lower()
-                # Ưu tiên có chữ 'nội dung'
-                if 'nội dung' in c and any(kw in c for kw in ['góp ý', 'tham vấn', 'phản biện']):
+                
+                # 1. Logic cho Điều/Khoản/Phụ lục
+                score_node = 0
+                if 'điều, khoản' in c: score_node = 100
+                elif any(kw in c for kw in ['điều', 'khoản', 'phụ lục']): score_node = 80
+                if score_node > col_scores['node']:
+                    col_map['node'] = col
+                    col_scores['node'] = score_node
+                
+                # 2. Logic cho Chủ thể/Cơ quan góp ý
+                score_agency = 0
+                if 'chủ thể góp ý' in c: score_agency = 100
+                elif any(kw in c for kw in ['chủ thể', 'agency']): score_agency = 80
+                elif 'cơ quan' in c: score_agency = 50
+                # Ghi chú: Đã loại bỏ 'bộ', 'tỉnh' để tránh nhận nhầm 'Cán bộ' hay cột địa danh
+                if score_agency > col_scores['agency']:
+                    col_map['agency'] = col
+                    col_scores['agency'] = score_agency
+                
+                # 3. Logic cho Số hiệu văn bản
+                score_doc = 0
+                if 'số văn bản góp ý' in c: score_doc = 100
+                elif any(kw in c for kw in ['số hiệu', 'số văn bản', 'số vb']): score_doc = 50
+                if score_doc > col_scores['doc_number']:
+                    col_map['doc_number'] = col
+                    col_scores['doc_number'] = score_doc
+
+                # 4. Logic cho Ngày
+                score_date = 0
+                if c.strip() == 'ngày': score_date = 100
+                elif 'ngày' in c: score_date = 50
+                if score_date > col_scores['doc_date']:
+                    col_map['doc_date'] = col
+                    col_scores['doc_date'] = score_date
+
+                # 5. Logic cho Giải trình/Tiếp thu
+                score_exp = 0
+                if 'tiếp thu giải trình' in c: score_exp = 100
+                elif any(kw in c for kw in ['giải trình', 'tiếp thu']): score_exp = 50
+                if score_exp > col_scores['explanation']:
+                    col_map['explanation'] = col
+                    col_scores['explanation'] = score_exp
+                
+                # 6. Lý do & Ghi chú
+                score_reason = 0
+                if c.strip() == 'lý do': score_reason = 100
+                if score_reason > col_scores['reason']:
+                    col_map['reason'] = col
+                    col_scores['reason'] = score_reason
+
+                if any(kw in c for kw in ['ghi chú', 'note']): col_map['note'] = col
+
+            # Tìm cột Nội dung - CỰC KỲ QUAN TRỌNG
+            for col in df.columns:
+                c = str(col).lower()
+                if 'nội dung góp ý' in c:
                     col_map['content'] = col
                     break
-            
-            # Nếu chưa tìm thấy nội dung thì mới dùng từ khóa 'góp ý' chung, 
-            # nhưng loại trừ cột đã map là 'số văn bản'
+                elif 'nội dung' in c and any(kw in c for kw in ['góp ý', 'tham vấn', 'phản biện']):
+                    col_map['content'] = col
+                    break
             if 'content' not in col_map:
                 for col in df.columns:
                     c = str(col).lower()
@@ -245,19 +346,37 @@ class FeedbackViewSet(viewsets.ModelViewSet):
 
             results = []
             
-            # Lấy trước dữ liệu để kiểm tra trùng lặp và giải trình
+            # XỬ LÝ MERGE CELLS
+            import numpy as np
+            columns_to_ffill = [
+                col_map.get('node'), col_map.get('agency'), 
+                col_map.get('doc_number'), col_map.get('doc_date')
+            ]
+            for c in columns_to_ffill:
+                if c and c in df.columns:
+                    df[c] = df[c].replace(r'^\s*$', np.nan, regex=True)
+                    df[c] = df[c].ffill()
+            
             feedbacks_qs = Feedback.objects.filter(document_id=document_id).prefetch_related('explanations')
             
             for index, row in df.iterrows():
-                raw_node = str(row.get(col_map.get('node'), '')).strip()
-                raw_agency = str(row.get(col_map.get('agency'), '')).strip()
-                raw_content = str(row.get(col_map['content'], '')).strip()
-                raw_reason = str(row.get(col_map.get('reason'), '')).strip()
-                raw_note = str(row.get(col_map.get('note'), '')).strip()
-                raw_explanation = str(row.get(col_map.get('explanation'), '')).strip()
-                raw_doc_num = str(row.get(col_map.get('doc_number'), '')).strip()
+                def safe_str(val):
+                    import unicodedata
+                    s = str(val).strip() if pd.notnull(val) else ""
+                    return unicodedata.normalize('NFC', s)
                 
-                # Format date string (only Date)
+                raw_node = safe_str(row.get(col_map.get('node'), ''))
+                raw_agency = safe_str(row.get(col_map.get('agency'), ''))
+                raw_content = safe_str(row.get(col_map['content'], ''))
+                raw_reason = safe_str(row.get(col_map.get('reason'), ''))
+                raw_note = safe_str(row.get(col_map.get('note'), ''))
+                raw_explanation = safe_str(row.get(col_map.get('explanation'), ''))
+                raw_doc_num = safe_str(row.get(col_map.get('doc_number'), ''))
+                
+                # Check ND 'OK' và Giải trình trống -> Skip (Giảm nhiễu cho người dùng)
+                if raw_content.upper() == "OK" and (not raw_explanation or raw_explanation.upper() in ["OK", "NAN", "NONE"]):
+                    continue
+
                 val_doc_date = row.get(col_map.get('doc_date'), '')
                 raw_doc_date = ""
                 if pd.notnull(val_doc_date):
@@ -268,79 +387,49 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                 
                 if not raw_content or raw_content.lower() in ['nan', 'none']: continue
                 
-                # MỚI: Nếu ND và GT đều là OK (hoặc ND là OK và GT trống) thì bỏ qua
-                def is_ok_or_empty(val):
-                    v = str(val).strip().upper()
-                    return v == "OK" or v in ["", "NAN", "NONE"]
-
-                content_val = str(row.get(col_map['content'], '')).strip().upper()
-                exp_val = str(row.get(col_map.get('explanation'), '')).strip().upper()
-
-                if content_val == "OK":
-                    # Nếu nội dung đã OK, và (giải trình cũng OK hoặc không có giải trình) thì skip
-                    if exp_val in ["OK", "", "NAN", "NONE"]:
-                        continue
-                
-                # Logic trùng lặp (vẫn dùng full_content để so khớp với dữ liệu cũ nếu cần, 
-                # hoặc chuyển sang so khớp từng trường)
-                full_content_for_dup_check = raw_content
-                if raw_reason and raw_reason.lower() not in ['nan', 'none']:
-                    full_content_for_dup_check += f" - Lý do: {raw_reason}"
-                if raw_note and raw_note.lower() not in ['nan', 'none']:
-                    full_content_for_dup_check += f" - Ghi chú: {raw_note}"
-                
-                # Khớp cơ quan
+                # Khớp Cơ quan & Node
                 agency_matches = self._find_similar_agencies(raw_agency)
                 matched_agency = agency_matches[0] if agency_matches and agency_matches[0]['is_exact'] else None
                 agency_id = matched_agency['id'] if matched_agency else None
                 
-                # Khớp Node/Appendix
-                suggested_node = self._find_best_node_match(document_id, raw_node)
+                suggested_match = self._find_best_node_match(document_id, raw_node)
+                
+                target_node_id = None
                 appendix_id = None
-                if not suggested_node and 'phụ lục' in raw_node.lower():
+                display_label = raw_node
+                
+                if suggested_match:
                     from documents.models import DocumentAppendix
-                    app_match = re.search(r'Phụ\s+lục\s*([IVXLCDM\d]+)', raw_node, re.IGNORECASE)
-                    if app_match:
-                        app_name_part = app_match.group(1).upper()
-                        app_obj = DocumentAppendix.objects.filter(document_id=document_id, name__icontains=app_name_part).first()
-                        if app_obj: appendix_id = app_obj.id
-                # 1. Kiểm tra trùng lặp Góp ý
+                    if isinstance(suggested_match, DocumentAppendix):
+                        appendix_id = suggested_match.id
+                        display_label = re.split(r'[:.\n]', suggested_match.name)[0].strip()
+                    else:
+                        target_node_id = suggested_match.id
+                        display_label = suggested_match.node_label
+                
+                # --- KIỂM TRA TRÙNG LẶP ---
+                # CHỈ kiểm tra nếu đã có Agency ID. Nếu chưa có (None) thì cho phép tạo bản ghi mới để không mất dữ liệu.
                 is_duplicate = False
                 duplicate_id = None
                 existing_fb = None
                 
-                target_node_id = suggested_node.id if suggested_node else None
-                
-                # Query feedbacks with SAME content, agency, and document
-                # (Lưu ý: Feedback model đã import global ở trên)
-                f_qs = Feedback.objects.filter(
-                    document_id=document_id,
-                    content=raw_content,
-                    agency_id=agency_id
-                )
-                
-                for fb in f_qs:
-                    is_duplicate = True
-                    duplicate_id = fb.id
-                    existing_fb = fb
-                    break
+                if agency_id:
+                    f_qs = Feedback.objects.filter(document_id=document_id, content=raw_content, agency_id=agency_id)
+                    for fb in f_qs:
+                        is_duplicate = True
+                        duplicate_id = fb.id
+                        existing_fb = fb
+                        break
                 
                 # 2. Logic xử lý Giải trình (Explanation)
                 explanation_status = "new"
                 existing_exp_content = ""
-                
                 if raw_explanation and raw_explanation.lower() not in ['nan', 'none']:
                     if existing_fb:
-                        # Tìm giải trình hiện có
                         exp = existing_fb.explanations.first()
                         if exp:
                             existing_exp_content = exp.content
-                            if exp.content.strip() == raw_explanation.strip():
-                                explanation_status = "identical"
-                            else:
-                                explanation_status = "conflict"
-                        else:
-                            explanation_status = "new"
+                            explanation_status = "identical" if exp.content.strip() == raw_explanation.strip() else "conflict"
                 else:
                     explanation_status = "none"
 
@@ -348,7 +437,7 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                     "key": f"import-{index}",
                     "original_node": raw_node,
                     "node_id": target_node_id,
-                    "node_label": suggested_node.node_label if suggested_node else raw_node,
+                    "node_label": display_label,
                     "appendix_id": appendix_id,
                     "original_agency": raw_agency,
                     "agency_id": agency_id,
@@ -357,23 +446,16 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                     "content": raw_content,
                     "reason": raw_reason if raw_reason.lower() not in ['nan', 'none'] else "",
                     "note": raw_note if raw_note.lower() not in ['nan', 'none'] else "",
-                    # MỚI: Logic thông minh cho Chế độ Lưu (import_mode)
-                    # Nếu trùng nội dung nhưng giải trình mới hoặc khác -> "Chỉ nhập giải trình"
-                    # Ngược lại nếu trùng -> "skip" (Bỏ qua)
                     "is_duplicate": is_duplicate,
                     "duplicate_id": duplicate_id,
                     "import_mode": "explanation_only" if (is_duplicate and explanation_status in ["new", "conflict"]) else ("skip" if is_duplicate else "add_new"),
-                    
-                    # Thông tin giải trình
                     "explanation_content": raw_explanation if explanation_status != "none" else "",
                     "explanation_status": explanation_status,
                     "existing_explanation": existing_exp_content,
                     "explanation_import_mode": "overwrite" if explanation_status in ["new", "conflict"] else "skip",
-                    
-                    # Thông tin công văn (ConsultationResponse)
                     "official_number": raw_doc_num if raw_doc_num.lower() not in ['nan', 'none'] else "",
-                    "official_date": raw_doc_date if raw_doc_date.lower() not in ['nan', 'none'] else "",
-                    "row_index": index + 2, # GSheet row starts at 2 (1 is header)
+                    "official_date": raw_doc_date,
+                    "row_index": index + 2,
                 })
                 
             return Response({"rows": results})
@@ -385,6 +467,7 @@ class FeedbackViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def confirm_import(self, request):
+        from django.db import transaction
         document_id = request.data.get('document_id')
         if not self._check_permission(request, document_id, 'Chuyên viên Góp ý'):
             return Response({"error": "Bạn không có quyền Nhập góp ý cho dự thảo này."}, status=403)
@@ -401,108 +484,107 @@ class FeedbackViewSet(viewsets.ModelViewSet):
         except Document.DoesNotExist:
             return Response({"error": "Dự thảo không tồn tại."}, status=404)
         
-        for row in rows:
-            mode = row.get('import_mode', 'add_new')
-            node_id = row.get('node_id')
-            appendix_id = row.get('appendix_id')
-            agency_id = row.get('agency_id')
-            content = row.get('content', '')
-            reason = row.get('reason', '')
-            note = row.get('note', '')
-            duplicate_id = row.get('duplicate_id')
-            
-            # 1. Xử lý Feedback (Góp ý)
-            feedback_obj = None
-            if mode == 'skip' or (mode == 'add_if_diff' and row.get('is_duplicate')):
-                skipped_count += 1
-                if duplicate_id:
-                    feedback_obj = Feedback.objects.filter(id=duplicate_id).first()
-            elif mode == 'explanation_only' and duplicate_id:
-                feedback_obj = Feedback.objects.filter(id=duplicate_id).first()
-                # Không update content, chỉ để feedback_obj có giá trị cho bước sau
-            elif mode == 'overwrite' and duplicate_id:
-                Feedback.objects.filter(id=duplicate_id).update(
-                    node_id=node_id,
-                    appendix_id=appendix_id,
-                    agency_id=agency_id,
-                    content=content,
-                    reason=reason,
-                    note=note,
-                    user=request.user
-                )
-                feedback_obj = Feedback.objects.get(id=duplicate_id)
-                updated_count += 1
-            else:
-                # add_new (hoặc add_if_diff mà không trùng)
-                feedback_obj = Feedback.objects.create(
-                    document_id=document_id,
-                    node_id=node_id,
-                    appendix_id=appendix_id,
-                    user=request.user,
-                    agency_id=agency_id,
-                    content=content,
-                    reason=reason,
-                    note=note
-                )
-                created_count += 1
+        def clean_id(val):
+            if val is None or str(val).strip() == "" or str(val).lower() == 'nan':
+                return None
+            try:
+                if isinstance(val, str) and '-' in val:
+                    return int(val.split('-')[-1])
+                return int(val)
+            except (ValueError, TypeError):
+                return None
 
-            # 2. Xử lý Giải trình (Explanation)
-            exp_content = row.get('explanation_content', '')
-            exp_mode = row.get('explanation_import_mode', 'skip')
-            
-            if feedback_obj and exp_content and exp_mode == 'overwrite':
-                # Xóa giải trình cũ nếu có
-                feedback_obj.explanations.all().delete()
-                # Tạo giải trình mới
-                Explanation.objects.create(
-                    target_type='Feedback',
-                    content_type=ContentType.objects.get_for_model(Feedback),
-                    object_id=feedback_obj.id,
-                    content=exp_content,
-                    user=request.user
-                )
-                exp_count += 1
-                row['has_imported_explanation'] = True
-            elif feedback_obj and exp_content and exp_mode == 'skip':
-                # Nếu đã có giải trình thì đánh dấu là đã có (không ghi đè nhưng vẫn coi là đã nhập)
-                if feedback_obj.explanations.exists():
-                    row['has_imported_explanation'] = True
-
-            if feedback_obj:
-                row['has_imported_content'] = True
-
-            # 3. Xử lý Công văn (ConsultationResponse)
-            doc_num = row.get('official_number', '')
-            doc_date_raw = row.get('official_date', '')
-            
-            if agency_id and doc_num and str(doc_num).lower() != 'nan':
-                # Parse date if possible
-                official_date = None
-                if doc_date_raw and str(doc_date_raw).lower() != 'nan':
-                    try:
-                        from datetime import datetime
-                        # Clean date string (remove time if exists)
-                        date_str = str(doc_date_raw).split(' ')[0]
-                        # Thử các định dạng phổ biến
-                        for fmt in ('%d/%m/%Y', '%Y-%m-%d', '%d-%m-%Y'):
+        try:
+            with transaction.atomic():
+                for row in rows:
+                    mode = row.get('import_mode', 'add_new')
+                    node_id = clean_id(row.get('node_id'))
+                    appendix_id = clean_id(row.get('appendix_id'))
+                    agency_id = clean_id(row.get('agency_id'))
+                    content = row.get('content', '')
+                    reason = row.get('reason', '')
+                    note = row.get('note', '')
+                    duplicate_id = row.get('duplicate_id')
+                    
+                    # 1. Xử lý Feedback (Góp ý)
+                    feedback_obj = None
+                    if mode == 'skip' or (mode == 'add_if_diff' and row.get('is_duplicate')):
+                        skipped_count += 1
+                        if duplicate_id:
+                            feedback_obj = Feedback.objects.filter(id=duplicate_id).first()
+                    elif mode == 'explanation_only' and duplicate_id:
+                        feedback_obj = Feedback.objects.filter(id=duplicate_id).first()
+                    elif mode == 'overwrite' and duplicate_id:
+                        Feedback.objects.filter(id=duplicate_id).update(
+                            node_id=node_id,
+                            appendix_id=appendix_id,
+                            agency_id=agency_id,
+                            content=content,
+                            reason=reason,
+                            note=note,
+                            user=request.user
+                        )
+                        feedback_obj = Feedback.objects.get(id=duplicate_id)
+                        updated_count += 1
+                    else:
+                        feedback_obj = Feedback.objects.create(
+                            document_id=document_id,
+                            node_id=node_id,
+                            appendix_id=appendix_id,
+                            user=request.user,
+                            agency_id=agency_id,
+                            content=content,
+                            reason=reason,
+                            note=note
+                        )
+                        created_count += 1
+        
+                    # 2. Xử lý Giải trình (Explanation)
+                    exp_content = row.get('explanation_content', '')
+                    exp_mode = row.get('explanation_import_mode', 'skip')
+                    
+                    if feedback_obj and exp_content and exp_mode == 'overwrite':
+                        feedback_obj.explanations.all().delete()
+                        from django.contrib.contenttypes.models import ContentType
+                        Explanation.objects.create(
+                            target_type='Feedback',
+                            content_type=ContentType.objects.get_for_model(Feedback),
+                            object_id=feedback_obj.id,
+                            content=exp_content,
+                            user=request.user
+                        )
+                        exp_count += 1
+        
+                    # 3. Xử lý Công văn (ConsultationResponse)
+                    doc_num = row.get('official_number', '')
+                    doc_date_raw = row.get('official_date', '')
+                    if agency_id and doc_num and str(doc_num).lower() != 'nan':
+                        official_date = None
+                        if doc_date_raw and str(doc_date_raw).lower() != 'nan':
                             try:
-                                official_date = datetime.strptime(date_str, fmt).date()
-                                break
-                            except: continue
-                    except: pass
-                
-                # Tạo hoặc cập nhật ConsultationResponse (Số hiệu công văn của đơn vị này)
-                cr, created = ConsultationResponse.objects.get_or_create(
-                    document=doc,
-                    agency_id=agency_id,
-                    official_number=doc_num,
-                    defaults={'official_date': official_date}
-                )
-                if not created and official_date:
-                    cr.official_date = official_date
-                    cr.save()
-                
-                if created: consultation_count += 1
+                                from datetime import datetime
+                                date_str = str(doc_date_raw).split(' ')[0]
+                                for fmt in ('%d/%m/%Y', '%Y-%m-%d', '%d-%m-%Y'):
+                                    try:
+                                        official_date = datetime.strptime(date_str, fmt).date()
+                                        break
+                                    except: continue
+                            except: pass
+                        
+                        cr, created = ConsultationResponse.objects.get_or_create(
+                            document=doc,
+                            agency_id=agency_id,
+                            official_number=doc_num,
+                            defaults={'official_date': official_date}
+                        )
+                        if not created and official_date:
+                            cr.official_date = official_date
+                            cr.save()
+                        if created: consultation_count += 1
+        except Exception as e:
+            import traceback
+            print(traceback.format_exc())
+            return Response({"error": f"Lỗi khi lưu dữ liệu tại bản ghi '{index}': {str(e)}"}, status=500)
 
         # MỚI: Cập nhật Google Sheets nếu có link
         gs_url = request.data.get('gs_url')
@@ -520,6 +602,13 @@ class FeedbackViewSet(viewsets.ModelViewSet):
 
         if gs_url and rows:
             self._update_google_sheet_status(gs_url, rows)
+
+        # Tránh in trực tiếp ra console trên Windows nếu có tiếng Việt để không gây UnicodeEncodeError
+        try:
+            msg = f"Nhập hoàn tất: {created_count} góp ý mới, {updated_count} ghi đè. Đã xử lý {exp_count} giải trình và {consultation_count} công văn."
+            print(msg.encode('ascii', 'ignore').decode('ascii')) # Safe print for console
+        except:
+            pass
 
         return Response({
             "message": f"Nhập hoàn tất: {created_count} góp ý mới, {updated_count} ghi đè. Đã xử lý {exp_count} giải trình và {consultation_count} công văn.",
@@ -544,10 +633,23 @@ class FeedbackViewSet(viewsets.ModelViewSet):
         
         return Response({"message": f"Đã xóa thành công toàn bộ {count} nội dung góp ý của dự thảo."}, status=200)
 
+    def _get_inherited_assignments(self, node):
+        """Lấy danh sách cán bộ được phân công cho một node, bao gồm cả kế thừa từ cha"""
+        users_map = {} # id -> name
+        curr = node
+        while curr:
+            for a in curr.assignments.all():
+                if a.user_id not in users_map:
+                    # Ưu tiên trường full_name tùy chỉnh, sau đó đến get_full_name, cuối cùng là username
+                    users_map[a.user_id] = a.user.full_name or a.user.get_full_name() or a.user.username
+            curr = curr.parent
+        return [{"id": uid, "full_name": name} for uid, name in users_map.items()]
+
     def _get_gsheet_worksheet(self, gs_url):
         try:
             import gspread
             from google.oauth2.service_account import Credentials
+            from google.auth.exceptions import GoogleAuthError
             import re
             
             # 1. Auth (Dùng credentials file)
@@ -557,18 +659,20 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                 key_path = os.path.join(settings.BASE_DIR, 'google_keys.json')
                 
             if not os.path.exists(key_path):
-                return None, f"File keys.json không tồn tại tại {settings.BASE_DIR}"
+                return None, f"File keys.json hoặc google_keys.json không tồn tại tại {settings.BASE_DIR}. Vui lòng liên hệ quản trị viên."
                 
             try:
                 creds = Credentials.from_service_account_file(key_path, scopes=scopes)
                 client = gspread.authorize(creds)
-            except Exception as auth_e:
-                return None, f"Lỗi xác thực Google API: {str(auth_e)}"
+            except GoogleAuthError as auth_e:
+                return None, f"Lỗi xác thực Google API: {str(auth_e)}. Kiểm tra tính hợp lệ của file keys."
+            except Exception as e:
+                return None, f"Lỗi không xác định khi khởi tạo Google Client: {str(e)}"
             
             # 2. Open Sheet (Lấy ID và GID từ link)
             match = re.search(r'/spreadsheets/d/([a-zA-Z0-9-_]+)', gs_url)
             if not match: 
-                return None, "Link Google Sheet không hợp lệ (không tìm thấy Spreadsheet ID)."
+                return None, "Link Google Sheet không hợp lệ. Phải có định dạng: https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/..."
             
             sheet_id = match.group(1)
             
@@ -577,8 +681,12 @@ class FeedbackViewSet(viewsets.ModelViewSet):
             
             try:
                 spreadsheet = client.open_by_key(sheet_id)
+            except gspread.exceptions.SpreadsheetNotFound:
+                return None, f"Không tìm thấy Spreadsheet với ID: {sheet_id}. Kiểm tra lại URL."
+            except gspread.exceptions.APIError as api_e:
+                return None, f"Lỗi API Google Sheets (Quyền truy cập?): {str(api_e)}. Hãy đảm bảo đã chia sẻ Sheet cho email trong file keys."
             except Exception as open_e:
-                return None, f"Không thể mở Spreadsheet (ID: {sheet_id}). Hãy kiểm tra quyền chia sẻ với công tác viên. Chi tiết: {str(open_e)}"
+                return None, f"Không thể mở Spreadsheet. Chi tiết: {str(open_e)}"
 
             # Tìm worksheet theo GID
             worksheet = None
@@ -930,10 +1038,16 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                     path_parts.insert(0, curr.node_label)
                 curr = curr.parent
             
+            label = " > ".join(path_parts) if path_parts else n.node_label
+            
+            # Nếu là Phụ lục, thực hiện rút gọn nhãn theo yêu cầu
+            if n.node_type == 'Phụ lục' or n.node_label.lower().startswith('phụ lục'):
+                label = re.split(r'[:.\n]', label)[0].strip()
+                
             results.append({
                 "unique_id": f"node-{n.id}",
                 "id": n.id, 
-                "label": " > ".join(path_parts) if path_parts else n.node_label, 
+                "label": label, 
                 "type": n.node_type
             })
             
@@ -941,12 +1055,8 @@ class FeedbackViewSet(viewsets.ModelViewSet):
         from documents.models import DocumentAppendix
         appendices = DocumentAppendix.objects.filter(document_id=doc_id).order_by('name')
         for app in appendices:
-            # Rút gọn tên: "Phụ lục I: ABC" -> "Phụ lục I"
-            display_name = app.name
-            if ':' in display_name:
-                display_name = display_name.split(':')[0].strip()
-            if '\n' in display_name:
-                display_name = display_name.split('\n')[0].strip()
+            # Rút gọn nhãn hiển thị triệt để: "Phụ lục I: Tiêu đề" hoặc "Phụ lục I. Tiêu đề" -> "Phụ lục I"
+            display_name = re.split(r'[:.\n]', app.name)[0].strip()
             
             # Đảm bảo nhãn hiển thị đẹp (Phụ lục I, Phụ lục II...)
             if not display_name.lower().startswith('phụ lục'):
@@ -1386,41 +1496,121 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             return Response({"error": str(e)}, status=500)
 
     @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'])
     def by_document(self, request):
-        """Lấy toàn bộ danh sách góp ý của một Dự thảo"""
+        """Lấy danh sách góp ý của một Dự thảo với bộ lọc và phân trang"""
         doc_id = request.query_params.get('document_id')
         if not doc_id:
             return Response({"error": "Vui lòng cung cấp document_id"}, status=400)
             
-        feedbacks = Feedback.objects.filter(document_id=doc_id)\
-            .exclude(content__icontains="thống nhất với nội dung dự thảo Nghị định")\
+        # Các tham số lọc
+        node_id = request.query_params.get('node_id')
+        agency_id = request.query_params.get('agency')
+        specialist = request.query_params.get('specialist') # Cán bộ thụ lý (dựa trên giải trình)
+        status_filter = request.query_params.get('status')
+        search = request.query_params.get('search')
+        
+        # Query cơ bản
+        queryset = Feedback.objects.filter(document_id=doc_id)\
             .select_related('node', 'agency', 'appendix')\
-            .prefetch_related('explanations', 'logs', 'logs__user')\
+            .prefetch_related('explanations', 'logs', 'logs__user', 'node__assignments__user')\
             .order_by('node__order_index', 'created_at')
+
+        # 1. Lọc theo Điều/Khoản
+        if node_id and node_id != 'all':
+            queryset = queryset.filter(node_id=node_id)
             
-        # Map appendix_id sang số thứ tự (Phụ lục 1, 2, 3...)
+        # 1.1 Lọc theo Cơ quan
+        if agency_id and agency_id != 'all':
+            queryset = queryset.filter(agency_id=agency_id)
+            
+        # 2. Tìm kiếm nội dung
+        if search:
+            queryset = queryset.filter(
+                models.Q(content__icontains=search) | 
+                models.Q(contributing_agency__icontains=search) |
+                models.Q(node__node_label__icontains=search)
+            )
+
+        # 3. Lọc theo Cán bộ (Specialist) - Bao gồm phân công kế thừa
+        if specialist and specialist != 'all':
+            if specialist == 'none':
+                # Lọc những góp ý hoàn toàn chưa được gán (ở bất kỳ cấp nào trong phân cấp node)
+                queryset = queryset.filter(
+                    node__assignments__isnull=True,
+                    node__parent__assignments__isnull=True,
+                    node__parent__parent__assignments__isnull=True
+                )
+            else:
+                queryset = queryset.filter(
+                    models.Q(node__assignments__user_id=specialist) |
+                    models.Q(node__parent__assignments__user_id=specialist) |
+                    models.Q(node__parent__parent__assignments__user_id=specialist)
+                )
+
+        # 4. Lọc theo Trạng thái giải trình
+        # Lưu ý: Do trạng thái tính toán dựa trên text trong giải trình nên ta cần xử lý sau khi lấy queryset 
+        # hoặc tối ưu bằng cách lọc DB nếu có thể. Ở đây ta áp dụng logic lọc sau/trước tùy độ phức tạp.
+        if status_filter and status_filter != 'all':
+            import re
+            AGREED_REGEX = r'thống\s+nhất\s+với\s+nội\s+dung\s+dự\s+thảo\s+Nghị\s+định'
+            
+            # Chuyển thành list để lọc phức tạp (giống report)
+            feedbacks_list = list(queryset)
+            filtered_list = []
+            for fb in feedbacks_list:
+                exps = fb.explanations.all()
+                exp_text = " ".join([e.content for e in exps if e.content]).lower()
+                content_text = (fb.content or "").lower()
+                
+                match = False
+                if status_filter == 'pending':
+                    match = not exps
+                elif status_filter == 'explained':
+                    match = exps and 'tiếp thu' not in exp_text
+                elif status_filter == 'accepted':
+                    match = exps and 'tiếp thu' in exp_text and 'tiếp thu một phần' not in exp_text
+                elif status_filter == 'partially_accepted':
+                    match = exps and 'tiếp thu một phần' in exp_text
+                elif status_filter == 'agreed':
+                    match = re.search(AGREED_REGEX, content_text, re.IGNORECASE)
+                
+                if match:
+                    filtered_list.append(fb)
+            queryset = filtered_list
+        else:
+            queryset = list(queryset)
+
+        # 5. Phân trang Thủ công (vì queryset có thể đã bị ép thành list sau khi lọc status)
+        try:
+            page = int(request.query_params.get('page', 1))
+            page_size = int(request.query_params.get('page_size', 20))
+        except ValueError:
+            page = 1
+            page_size = 20
+            
+        total_count = len(queryset)
+        start = (page - 1) * page_size
+        end = start + page_size
+        paginated_data = queryset[start:end]
+
+        # Map appendix_id sang số thứ tự
         appendices = DocumentAppendix.objects.filter(document_id=doc_id).order_by('created_at')
         appendix_map = {app.id: idx + 1 for idx, app in enumerate(appendices)}
-            
-        results = []
-        for fb in feedbacks:
-            # Xây dựng path cho node hoặc dùng Phụ lục
-            node_label = "Chung"
-            node_path = ""
-            if fb.node:
-                node_label = fb.node.node_label
-                path_parts = []
-                curr = fb.node
-                while curr:
-                    path_parts.insert(0, curr.node_label)
-                    curr = curr.parent
-                node_path = " > ".join(path_parts)
-            elif fb.appendix:
-                app_num = appendix_map.get(fb.appendix_id, "?")
-                node_label = f"Phụ lục {app_num}"
-                node_path = "Phụ lục"
+
+        def get_hierarchical_label(node):
+            if not node: return "Chung"
+            if node.node_type == 'Điều':
+                return node.node_label
+            if node.node_type in ['Khoản', 'Điểm']:
+                if node.parent:
+                    return f"{node.node_label} {get_hierarchical_label(node.parent)}"
+            return node.node_label
 
             explanation_obj = fb.explanations.first()
+
+            # Lấy danh sách cán bộ được phân công (bao gồm kế thừa)
+            assigned_users = self._get_inherited_assignments(fb.node) if fb.node else []
             
             results.append({
                 "id": fb.id,
@@ -1434,10 +1624,16 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                 "content": fb.content,
                 "explanation": explanation_obj.content if explanation_obj else "",
                 "status": fb.status,
+                "assigned_users": assigned_users,
                 "created_at": fb.created_at.isoformat(),
             })
             
-        return Response(results)
+        return Response({
+            "count": total_count,
+            "page": page,
+            "page_size": page_size,
+            "results": results
+        })
 
     @action(detail=False, methods=['get'])
     def uncontributed(self, request):
@@ -1706,6 +1902,52 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             current = current.parent
         return ", ".join(path)
 
+    def _normalize_text(self, s):
+        import unicodedata
+        import re
+        if not s: return ""
+        # Bỏ HTML tags
+        s = re.sub(r'<[^>]+>', ' ', str(s))
+        # Xoá các ký tự đặc biệt, dấu câu
+        s = re.sub(r'[^\w\s]', ' ', s)
+        s = re.sub(r'\s+', ' ', s)
+        return unicodedata.normalize('NFC', s).strip().lower()
+
+    @action(detail=False, methods=['post'])
+    def assign_feedbacks(self, request):
+        """
+        Gán chuyên viên cho danh sách các góp ý (Feedback) cụ thể.
+        Payload: { "assignments": [ { "feedback_id": 1, "user_ids": [1, 2] }, ... ] }
+        """
+        document_id = request.data.get('document_id')
+        if not self._check_permission(request, document_id, 'Chuyên viên Góp ý'):
+            return Response({"error": "Bạn không có quyền Phân công cho dự thảo này."}, status=403)
+            
+        assignments_data = request.data.get('assignments', [])
+        if not assignments_data:
+            return Response({"error": "Thiếu dữ liệu phân công."}, status=400)
+            
+        from django.db import transaction
+        try:
+            with transaction.atomic():
+                for item in assignments_data:
+                    fb_id = item.get('feedback_id')
+                    user_ids = item.get('user_ids', [])
+                    
+                    # Xóa phân công cũ của góp ý này
+                    FeedbackAssignment.objects.filter(feedback_id=fb_id).delete()
+                    
+                    # Thêm phân công mới
+                    new_assignments = [
+                        FeedbackAssignment(feedback_id=fb_id, user_id=uid, assigned_by=request.user)
+                        for uid in user_ids
+                    ]
+                    FeedbackAssignment.objects.bulk_create(new_assignments)
+                    
+            return Response({"message": "Đã cập nhật phân công riêng biệt thành công."})
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
     @action(detail=False, methods=['post'])
     def gsheet_compare(self, request):
         document_id = request.data.get('document_id')
@@ -1716,7 +1958,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             
         try:
             # 1. Fetch local feedbacks
-            local_feedbacks = Feedback.objects.filter(document_id=document_id).select_related('node', 'agency', 'appendix').prefetch_related('explanations')
+            local_feedbacks = Feedback.objects.filter(document_id=document_id).select_related('node', 'agency', 'appendix').prefetch_related('explanations', 'individual_assignments', 'individual_assignments__user')
             
             # 2. Fetch GS rows
             worksheet, error_msg = self._get_gsheet_worksheet(gs_url)
@@ -1741,56 +1983,59 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                     col_map['agency'] = idx
                 elif 'content' not in col_map and any(kw in h for kw in ['nội dung', 'ý kiến', 'góp ý']): 
                     col_map['content'] = idx
+                elif 'specialist' not in col_map and any(kw in h for kw in ['cán bộ', 'chuyên viên', 'thụ lý', 'phân công']): 
+                    col_map['specialist'] = idx
 
             if 'content' not in col_map:
-                 return Response({"error": "Không tìm thấy cột 'Nội dung góp ý' trong Google Sheet để đối chiếu."}, status=400)
+                 # Thử tìm kiếm sâu hơn hoặc báo lỗi rõ ràng
+                 return Response({
+                     "error": "Không tìm thấy cột 'Nội dung góp ý' trong Google Sheet.",
+                     "found_headers": headers,
+                     "suggestion": "Hãy đảm bảo Sheet có dòng tiêu đề và chứa cột 'Nội dung', 'Ý kiến' hoặc 'Góp ý'."
+                 }, status=400)
 
             # 3. Compare logic
-            import unicodedata
-            import re
             from difflib import SequenceMatcher
 
-            def norm(s):
-                if not s: return ""
-                # Bỏ HTML tags
-                s = re.sub(r'<[^>]+>', ' ', str(s))
-                # Xoá các ký tự đặc biệt, dấu câu
-                s = re.sub(r'[^\w\s]', ' ', s)
-                s = re.sub(r'\s+', ' ', s)
-                return unicodedata.normalize('NFC', s).strip().lower()
-
             def get_key(content, agency):
-                return f"{norm(content)}|{norm(agency)}"
+                return f"{self._normalize_text(content)}|{self._normalize_text(agency)}"
 
-            gs_data = {}
+            from collections import defaultdict
+            gs_data = defaultdict(list)
             unmatched_gs = []
             for i, row in enumerate(rows):
                 raw_content = row[col_map['content']] if len(row) > col_map['content'] else ""
                 raw_agency = row[col_map['agency']] if 'agency' in col_map and len(row) > col_map['agency'] else ""
                 raw_exp = row[col_map['explanation']] if 'explanation' in col_map and len(row) > col_map['explanation'] else ""
+                raw_specialist = row[col_map['specialist']] if 'specialist' in col_map and len(row) > col_map['specialist'] else ""
 
                 entry = {
                     "row": i + 2,
                     "content": raw_content,
                     "agency": raw_agency,
                     "explanation": raw_exp,
-                    "norm_content": norm(raw_content),
-                    "norm_agency": norm(raw_agency)
+                    "specialist": raw_specialist,
+                    "norm_content": self._normalize_text(raw_content),
+                    "norm_agency": self._normalize_text(raw_agency)
                 }
 
                 key = get_key(raw_content, raw_agency)
                 if key and key != "|":
-                    gs_data[key] = entry
+                    gs_data[key].append(entry)
                     unmatched_gs.append(entry)
 
             results = []
             for fb in local_feedbacks:
-                norm_fb_content = norm(fb.content)
-                norm_fb_agency = norm(fb.contributing_agency)
+                norm_fb_content = self._normalize_text(fb.content)
+                norm_fb_agency = self._normalize_text(fb.contributing_agency)
                 key = f"{norm_fb_content}|{norm_fb_agency}"
                 
-                # Check exact match first
-                gs_info = gs_data.get(key)
+                # Check exact match first from available pool
+                gs_info = None
+                if key in gs_data and gs_data[key]:
+                    gs_info = gs_data[key].pop(0)
+                    if gs_info in unmatched_gs:
+                        unmatched_gs.remove(gs_info)
                 
                 # Try fuzzy matching if no exact match
                 if not gs_info and norm_fb_content:
@@ -1811,10 +2056,12 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                     
                     if best_match:
                         gs_info = best_match
-
-                # Nếu đã khớp thì bỏ khỏi list danh sách chờ để không móc trùng
-                if gs_info and gs_info in unmatched_gs:
-                    unmatched_gs.remove(gs_info)
+                        # Remove from gs_data pool too
+                        k = get_key(gs_info["content"], gs_info["agency"])
+                        if k in gs_data and gs_info in gs_data[k]:
+                            gs_data[k].remove(gs_info)
+                        if gs_info in unmatched_gs:
+                            unmatched_gs.remove(gs_info)
                 
                 exp = fb.explanations.first()
                 exp_content = exp.content if exp else ""
@@ -1824,14 +2071,46 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                 is_exp_diff = False
                 if gs_info:
                     is_content_diff = norm_fb_content != gs_info["norm_content"]
-                    is_exp_diff = norm(exp_content) != norm(gs_info["explanation"])
+                    is_exp_diff = self._normalize_text(exp_content) != self._normalize_text(gs_info["explanation"])
 
+                # Lấy danh sách cán bộ: Ưu tiên phân công riêng, nếu rỗng thì lấy kế thừa từ node
+                individual_assignments = [{"id": a.user_id, "full_name": a.user.full_name or a.user.username} for a in fb.individual_assignments.all()]
+                node_assignments = self._get_inherited_assignments(fb.node) if fb.node else []
+                
+                # Logic hiển thị: Nếu có phân công riêng thì dùng, không thì dùng kế thừa
+                # Quy tắc đặc biệt: Nếu nội dung là "Thống nhất với nội dung dự thảo Nghị định" -> Gán cho Quốc Anh (ID 9)
+                if norm_fb_content == "thống nhất với nội dung dự thảo nghị định":
+                    final_assignments = [{"id": 9, "full_name": "Quốc Anh"}]
+                else:
+                    final_assignments = individual_assignments if individual_assignments else node_assignments
+
+                gs_specialist = gs_info["specialist"] if gs_info else ""
+                is_specialist_diff = False
+                if gs_info and 'specialist' in col_map:
+                    # So khớp cơ bản: Kiểm tra xem tất cả tên cán bộ trong hệ thống có nằm trong chuỗi trên Sheet không
+                    db_names = [u['full_name'].strip().lower() for u in final_assignments]
+                    gs_spec_lower = gs_specialist.lower()
+                    if db_names and not gs_spec_lower:
+                        is_specialist_diff = True
+                    elif not db_names and gs_spec_lower:
+                        is_specialist_diff = True
+                    else:
+                        for name in db_names:
+                            if name not in gs_spec_lower:
+                                is_specialist_diff = True
+                                break
+                                
                 results.append({
                     "id": fb.id,
                     "node_label": self._get_full_node_path(fb.node) if fb.node else (f"Phụ lục: {fb.appendix.name}" if fb.appendix else "Chung"),
                     "agency": fb.contributing_agency,
                     "content": fb.content,
                     "explanation": exp_content,
+                    "assigned_users": final_assignments,
+                    "individual_assignments": individual_assignments, 
+                    "node_assignments": node_assignments,
+                    "gs_specialist": gs_specialist,
+                    "is_specialist_diff": is_specialist_diff,
                     "is_in_gs": gs_info is not None,
                     "gs_row": gs_info["row"] if gs_info else None,
                     "gs_content": gs_info["content"] if gs_info else "",
@@ -1853,6 +2132,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         document_id = request.data.get('document_id')
         gs_url = request.data.get('gs_url')
         push_items = request.data.get('push_items', [])
+        update_mode = request.data.get('update_mode', 'all') # 'all' or 'specialist_only'
         
         # Hỗ trợ legacy (trường hợp api gửi danh sách id thô)
         feedback_ids = request.data.get('feedback_ids', [])
@@ -1869,14 +2149,14 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                 push_items = [{"id": fid, "gs_row": None} for fid in feedback_ids]
                 
             all_fids = [item['id'] for item in push_items]
-            feedbacks = Feedback.objects.filter(id__in=all_fids).select_related('node', 'appendix').prefetch_related('explanations')
+            feedbacks = Feedback.objects.filter(id__in=all_fids).select_related('node', 'appendix').prefetch_related('explanations', 'individual_assignments', 'individual_assignments__user')
             feedback_dict = {fb.id: fb for fb in feedbacks}
             
             # Map headers to know where to write
             raw_headers = worksheet.row_values(1)
             headers = [h.strip().lower() for h in raw_headers]
             
-            col_node = col_agency = col_content = col_reason = col_explanation = col_note = col_nd = col_gt = None
+            col_node = col_agency = col_content = col_reason = col_explanation = col_note = col_nd = col_gt = col_specialist = None
             
             for idx, h in enumerate(headers):
                 # Ưu tiên các cột trạng thái viết tắt trước để tránh bị hốt vào cột nội dung chính
@@ -1888,6 +2168,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                 elif not col_content and any(kw in h for kw in ['nội dung', 'ý kiến', 'góp ý']): col_content = idx + 1
                 elif not col_reason and any(kw in h for kw in ['lý do', 'cơ sở']): col_reason = idx + 1
                 elif not col_note and any(kw in h for kw in ['ghi chú', 'note']): col_note = idx + 1
+                elif not col_specialist and any(kw in h for kw in ['cán bộ', 'chuyên viên', 'thụ lý', 'phân công', 'specialist']): col_specialist = idx + 1
 
             if not col_content:
                 return Response({"error": "Google Sheet không có cột 'Nội dung góp ý' để định danh dữ liệu."}, status=400)
@@ -1906,16 +2187,33 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
 
                 gs_row = item.get('gs_row')
                 if gs_row: # Cập nhật
-                    if col_node: cells_to_update.append(Cell(row=gs_row, col=col_node, value=node_val))
-                    if col_agency: cells_to_update.append(Cell(row=gs_row, col=col_agency, value=fb.contributing_agency))
-                    if col_content: cells_to_update.append(Cell(row=gs_row, col=col_content, value=fb.content))
-                    if col_reason: cells_to_update.append(Cell(row=gs_row, col=col_reason, value=fb.reason or ""))
-                    if col_explanation: cells_to_update.append(Cell(row=gs_row, col=col_explanation, value=exp_val))
-                    if col_note: cells_to_update.append(Cell(row=gs_row, col=col_note, value=fb.note or ""))
+                    if update_mode == 'all':
+                        if col_node: cells_to_update.append(Cell(row=gs_row, col=col_node, value=node_val))
+                        if col_agency: cells_to_update.append(Cell(row=gs_row, col=col_agency, value=fb.contributing_agency))
+                        if col_content: cells_to_update.append(Cell(row=gs_row, col=col_content, value=fb.content))
+                        if col_reason: cells_to_update.append(Cell(row=gs_row, col=col_reason, value=fb.reason or ""))
+                        if col_explanation: cells_to_update.append(Cell(row=gs_row, col=col_explanation, value=exp_val))
+                        if col_note: cells_to_update.append(Cell(row=gs_row, col=col_note, value=fb.note or ""))
+                        
+                        # Tự động điền trạng thái OK
+                        if col_nd and fb.content: cells_to_update.append(Cell(row=gs_row, col=col_nd, value="OK"))
+                        if col_gt and exp_val: cells_to_update.append(Cell(row=gs_row, col=col_gt, value="OK"))
                     
-                    # Tự động điền trạng thái OK
-                    if col_nd and fb.content: cells_to_update.append(Cell(row=gs_row, col=col_nd, value="OK"))
-                    if col_gt and exp_val: cells_to_update.append(Cell(row=gs_row, col=col_gt, value="OK"))
+                    if col_specialist:
+                        # Quy tắc đặc biệt: Nếu nội dung là "Thống nhất với nội dung dự thảo Nghị định" -> Gán cho Quốc Anh (ID 9)
+                        if self._normalize_text(fb.content) == "thống nhất với nội dung dự thảo nghị định":
+                            specialists_val = "Quốc Anh"
+                        else:
+                            # Lấy phân công: Ưu tiên phân công riêng
+                            individual = [{"id": a.user_id, "name": a.user.full_name or a.user.username} for a in fb.individual_assignments.all()]
+                            if individual:
+                                specialists_val = ", ".join([u['name'] for u in individual])
+                            else:
+                                assigned = self._get_inherited_assignments(fb.node) if fb.node else []
+                                specialists_val = ", ".join([u['full_name'] for u in assigned])
+                        cells_to_update.append(Cell(row=gs_row, col=col_specialist, value=specialists_val))
+                    
+                    # Logic cũ (Tự động điền trạng thái OK đã được cho vào trong block update_mode == 'all')
                 else: # Thêm mới
                     row = [""] * len(headers)
                     if col_node: row[col_node-1] = node_val
@@ -1924,6 +2222,18 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                     if col_reason: row[col_reason-1] = fb.reason or ""
                     if col_explanation: row[col_explanation-1] = exp_val
                     if col_note: row[col_note-1] = fb.note or ""
+                    
+                    if col_specialist:
+                        # Quy tắc đặc biệt: Nếu nội dung là "Thống nhất với nội dung dự thảo Nghị định" -> Gán cho Quốc Anh (ID 9)
+                        if self._normalize_text(fb.content) == "thống nhất với nội dung dự thảo nghị định":
+                            row[col_specialist-1] = "Quốc Anh"
+                        else:
+                            individual = [{"id": a.user_id, "name": a.user.full_name or a.user.username} for a in fb.individual_assignments.all()]
+                            if individual:
+                                row[col_specialist-1] = ", ".join([u['name'] for u in individual])
+                            else:
+                                assigned = self._get_inherited_assignments(fb.node) if fb.node else []
+                                row[col_specialist-1] = ", ".join([u['full_name'] for u in assigned])
                     
                     # Trạng thái OK cho dòng mới
                     if col_nd and fb.content: row[col_nd-1] = "OK"

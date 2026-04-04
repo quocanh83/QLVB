@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
     Container, Row, Col, Card, CardBody, CardHeader,
     Button, Input, Table, Spinner, FormGroup, Label,
-    Badge, Alert, InputGroup
+    Badge, Alert, InputGroup,
+    Nav, NavItem, NavLink, TabContent, TabPane
 } from 'reactstrap';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -10,8 +11,10 @@ import BreadCrumb from '../../Components/Common/BreadCrumb';
 import Select from 'react-select';
 import { getAuthHeader } from '../../helpers/api_helper';
 import classnames from 'classnames';
+import { useProfile } from "../../Components/Hooks/UserHooks";
 
 const GSheetSync = () => {
+    const { userProfile } = useProfile();
     const [documents, setDocuments] = useState([]);
     const [selectedDocId, setSelectedDocId] = useState(null);
     const [gsUrl, setGsUrl] = useState("");
@@ -21,6 +24,14 @@ const GSheetSync = () => {
     const [results, setResults] = useState(null);
     const [selectedIds, setSelectedIds] = useState([]);
     const [showSynced, setShowSynced] = useState(false);
+
+    // New states for separate assignment
+    const [specialists, setSpecialists] = useState([]);
+    const [savingIds, setSavingIds] = useState({}); // { feedbackId: true/false }
+    const [activeTab, setActiveTab] = useState('1');
+    const toggleTab = (tab) => {
+        if (activeTab !== tab) setActiveTab(tab);
+    };
 
     // Select styles consistent with the app
     const selectStyles = {
@@ -64,6 +75,7 @@ const GSheetSync = () => {
 
     useEffect(() => {
         fetchDocuments();
+        fetchSpecialists();
     }, []);
 
     useEffect(() => {
@@ -91,6 +103,67 @@ const GSheetSync = () => {
         }
     };
 
+    const fetchSpecialists = async () => {
+        try {
+            const res = await axios.get('/api/accounts/users/', getAuthHeader());
+            const data = Array.isArray(res.results || res) ? (res.results || res) : [];
+            setSpecialists(data);
+        } catch (e) {
+            console.error("Lỗi khi tải danh sách chuyên viên");
+        }
+    };
+
+    // Filter specialists based on current user's department or admin status
+    const eligibleSpecialists = React.useMemo(() => {
+        if (!userProfile) return [];
+        const isAdmin = userProfile.is_staff || userProfile.is_superuser || userProfile.role === 'Admin' || (userProfile.roles && userProfile.roles.some(r => r === 'Admin' || r.role_name === 'Admin'));
+        
+        if (isAdmin) return specialists;
+        return specialists.filter(u => u.department_id === userProfile.department_id);
+    }, [specialists, userProfile]);
+
+    const specialistOptions = eligibleSpecialists.map(u => ({
+        value: u.id,
+        label: `${u.full_name || u.username} (${u.department_name || 'N/A'})`
+    }));
+
+    const handleAssignmentChange = async (feedbackId, selectedOptions) => {
+        const userIds = selectedOptions ? selectedOptions.map(o => o.value) : [];
+        
+        setSavingIds(prev => ({ ...prev, [feedbackId]: true }));
+        try {
+            await axios.post('/api/feedbacks/assign_feedbacks/', {
+                document_id: selectedDocId,
+                assignments: [{ feedback_id: feedbackId, user_ids: userIds }]
+            }, getAuthHeader());
+            
+            // Cập nhật local state results để hiển thị đúng
+            const newResults = results.map(item => {
+                if (item.id === feedbackId) {
+                    const newIndividual = eligibleSpecialists
+                        .filter(u => userIds.includes(u.id))
+                        .map(u => ({ id: u.id, full_name: u.full_name || u.username }));
+                    
+                    // Nếu rỗng thì fallback về node assignments theo logic backend
+                    const finalAssignments = newIndividual.length > 0 ? newIndividual : item.node_assignments;
+                    
+                    return { 
+                        ...item, 
+                        individual_assignments: newIndividual,
+                        assigned_users: finalAssignments
+                    };
+                }
+                return item;
+            });
+            setResults(newResults);
+            toast.success("Đã cập nhật phân công riêng cho góp ý.");
+        } catch (e) {
+            toast.error("Lỗi khi lưu phân công: " + (e.response?.data?.error || "Vui lòng thử lại."));
+        } finally {
+            setSavingIds(prev => ({ ...prev, [feedbackId]: false }));
+        }
+    };
+
     const handleCompare = async () => {
         if (!selectedDocId || !gsUrl.trim()) {
             toast.warning("Vui lòng chọn Dự thảo và nhập Google Sheet URL.");
@@ -103,20 +176,25 @@ const GSheetSync = () => {
                 document_id: selectedDocId,
                 gs_url: gsUrl
             }, getAuthHeader());
-            setResults(res.feedbacks);
+            
+            const feedbacks = res.feedbacks || (res.data && res.data.feedbacks);
+            setResults(feedbacks || []);
+            
             // Mặc định chọn các dòng Chưa có trong GS (new_in_db)
-            const newIds = res.feedbacks.filter(f => !f.is_in_gs).map(f => f.id);
-            setSelectedIds(newIds);
+            if (feedbacks) {
+                const newIds = feedbacks.filter(f => !f.is_in_gs).map(f => f.id);
+                setSelectedIds(newIds);
+            }
             toast.success("Đã hoàn tất đối chiếu dữ liệu.");
         } catch (e) {
-            toast.error(e.response?.data?.error || "Lỗi khi đối chiếu Google Sheet.");
+            const errorMsg = e.response?.data?.error || e.response?.data?.detail || "Lỗi khi đối chiếu Google Sheet.";
+            toast.error(errorMsg);
         } finally {
-            setComparing(true); // Wait, should be false
             setComparing(false);
         }
     };
 
-    const handlePush = async () => {
+    const handlePush = async (mode = 'all') => {
         if (selectedIds.length === 0) {
             toast.warning("Vui lòng chọn ít nhất một dòng để đẩy lên.");
             return;
@@ -132,7 +210,8 @@ const GSheetSync = () => {
             const res = await axios.post('/api/feedbacks/gsheet_push/', {
                 document_id: selectedDocId,
                 gs_url: gsUrl,
-                push_items: pushItems
+                push_items: pushItems,
+                update_mode: mode
             }, getAuthHeader());
             toast.success(res.data?.message || "Đã đẩy dữ liệu thành công.");
             
@@ -146,13 +225,23 @@ const GSheetSync = () => {
     };
 
     const toggleSelectAll = () => {
-        const visibleRows = results.filter(r => showSynced || r.status !== 'synced');
-        const visibleNewAndDiff = visibleRows.filter(r => r.status !== 'synced');
-        
-        if (selectedIds.length === visibleNewAndDiff.length) {
-            setSelectedIds([]);
+        if (activeTab === '1') {
+            const visibleRows = results.filter(r => showSynced || r.status !== 'synced');
+            const visibleToPush = visibleRows.filter(r => r.status !== 'synced');
+            
+            if (selectedIds.length === visibleToPush.length) {
+                setSelectedIds([]);
+            } else {
+                setSelectedIds(visibleToPush.map(r => r.id));
+            }
         } else {
-            setSelectedIds(visibleNewAndDiff.map(r => r.id));
+            // Tab đối soát: Chọn tất cả dòng bị lệch
+            const diffRows = results.filter(r => r.is_specialist_diff);
+            if (selectedIds.length === diffRows.length && diffRows.length > 0) {
+                setSelectedIds([]);
+            } else {
+                setSelectedIds(diffRows.map(r => r.id));
+            }
         }
     };
 
@@ -231,12 +320,40 @@ const GSheetSync = () => {
                                         <p className="text-muted mb-0 fs-12">Tìm thấy {results.length} góp ý trong hệ thống.</p>
                                     </div>
                                     <div className="d-flex gap-2">
-                                        <Button color="success" size="sm" onClick={handlePush} disabled={pushing || selectedIds.length === 0}>
+                                        <Button color="success" size="sm" onClick={() => handlePush('all')} disabled={pushing || selectedIds.length === 0}>
                                             {pushing ? <Spinner size="sm" /> : <><i className="ri-upload-cloud-line me-1"></i> Đẩy {selectedIds.length} dòng lên GG Sheet</>}
                                         </Button>
                                     </div>
                                 </CardHeader>
-                                <CardBody>
+                                <CardBody className="p-0">
+                                    <div className="bg-light-subtle px-3 pt-3 border-bottom">
+                                        <Nav tabs className="nav-tabs-custom nav-success border-bottom-0">
+                                            <NavItem>
+                                                <NavLink
+                                                    className={classnames({ active: activeTab === '1' })}
+                                                    onClick={() => toggleTab('1')}
+                                                    style={{ cursor: 'pointer' }}
+                                                >
+                                                    <i className="ri-file-text-line me-1 align-middle"></i> Nội dung & Giải trình
+                                                </NavLink>
+                                            </NavItem>
+                                            <NavItem>
+                                                <NavLink
+                                                    className={classnames({ active: activeTab === '2' })}
+                                                    onClick={() => toggleTab('2')}
+                                                    style={{ cursor: 'pointer' }}
+                                                >
+                                                    <i className="ri-user-settings-line me-1 align-middle"></i> Đối soát Phân công
+                                                    {results.some(r => r.is_specialist_diff) && (
+                                                        <Badge color="danger" pill className="ms-2">{results.filter(r => r.is_specialist_diff).length}</Badge>
+                                                    )}
+                                                </NavLink>
+                                            </NavItem>
+                                        </Nav>
+                                    </div>
+
+                                    <TabContent activeTab={activeTab} className="p-3">
+                                        <TabPane tabId="1">
                                     <Alert color="info" className="fs-12 border-0 shadow-none border-start border-3 border-info mb-4">
                                         <i className="ri-information-line me-2 fs-14 align-middle"></i>
                                         <strong>Nguyên tắc:</strong> Hệ thống tìm kiếm các dòng trong Google Sheet khớp về <b>Nội dung góp ý</b> và <b>Đơn vị góp ý</b>. 
@@ -273,10 +390,11 @@ const GSheetSync = () => {
                                                         />
                                                     </div>
                                                 </th>
-                                                <th style={{ width: "12%", minWidth: "100px" }}>Vị trí</th>
-                                                <th style={{ width: "15%", minWidth: "120px" }}>Đơn vị</th>
-                                                <th style={{ width: "32%", minWidth: "250px" }}>Nội dung góp ý</th>
-                                                <th style={{ width: "23%", minWidth: "250px" }}>Giải trình</th>
+                                                <th style={{ width: "10%", minWidth: "80px" }}>Vị trí</th>
+                                                <th style={{ width: "12%", minWidth: "100px" }}>Đơn vị</th>
+                                                <th style={{ width: "25%", minWidth: "200px" }}>Nội dung góp ý</th>
+                                                <th style={{ width: "20%", minWidth: "180px" }}>Giải trình</th>
+                                                <th style={{ width: "15%", minWidth: "140px" }}>Phân công</th>
                                                 <th style={{ width: "15%", minWidth: "140px" }}>Trạng thái Sheet</th>
                                             </tr>
                                             </thead>
@@ -326,6 +444,45 @@ const GSheetSync = () => {
                                                                 )}
                                                             </div>
                                                         </td>
+                                                        <td style={{ minWidth: "180px" }}>
+                                                            {savingIds[item.id] ? (
+                                                                <div className="text-center py-1">
+                                                                    <Spinner size="sm" color="primary" />
+                                                                </div>
+                                                            ) : (
+                                                                <Select
+                                                                    isMulti
+                                                                    options={specialistOptions}
+                                                                    value={(item.individual_assignments || []).map(u => ({
+                                                                        value: u.id,
+                                                                        label: u.full_name
+                                                                    }))}
+                                                                    placeholder={item.node_assignments?.length > 0 ? "Kế thừa từ Điều..." : "Phân công..."}
+                                                                    onChange={(val) => handleAssignmentChange(item.id, val)}
+                                                                    classNamePrefix="react-select"
+                                                                    menuPortalTarget={document.body}
+                                                                    styles={{ 
+                                                                        menuPortal: base => ({ ...base, zIndex: 9999 }),
+                                                                        control: (base) => ({
+                                                                            ...base,
+                                                                            fontSize: "12px",
+                                                                            minHeight: "30px"
+                                                                        }),
+                                                                        multiValue: (base) => ({
+                                                                            ...base,
+                                                                            backgroundColor: item.individual_assignments?.length > 0 ? "var(--vz-success-subtle)" : "var(--vz-info-subtle)",
+                                                                        })
+                                                                    }}
+                                                                />
+                                                            )}
+                                                            {(!item.individual_assignments || item.individual_assignments.length === 0) && item.node_assignments?.length > 0 && (
+                                                                <div className="mt-1">
+                                                                    <small className="text-muted italic fs-11">
+                                                                        Kế thừa: {item.node_assignments.map(u => u.full_name).join(", ")}
+                                                                    </small>
+                                                                </div>
+                                                            )}
+                                                        </td>
                                                         <td className="text-center">
                                                             {item.is_in_gs ? (
                                                                 <div className="d-flex flex-column align-items-center gap-1">
@@ -344,16 +501,107 @@ const GSheetSync = () => {
                                                     </tr>
                                                 );
                                             })}
-                                            {results.length === 0 && (
+                                            {results.filter(item => showSynced || item.status !== 'synced').length === 0 && (
                                                 <tr>
-                                                    <td colSpan="6" className="text-center py-5 text-muted italic">
-                                                        Dự thảo này chưa có nội dung góp ý nào trong hệ thống.
+                                                    <td colSpan="7" className="text-center py-5 text-muted italic">
+                                                        Không có dòng nào phù hợp với bộ lọc.
                                                     </td>
                                                 </tr>
                                             )}
                                             </tbody>
                                         </Table>
                                     </div>
+                                </TabPane>
+
+                                <TabPane tabId="2">
+                                    <Alert color="warning" className="fs-12 border-0 shadow-none border-start border-3 border-warning mb-4">
+                                        <i className="ri-user-search-line me-2 fs-14 align-middle"></i>
+                                        <strong>Đối soát Phân công:</strong> Hệ thống so khớp tên chuyên viên trên DB với văn bản tại cột "Cán bộ/Chuyên viên" trên Google Sheet.
+                                        Các dòng màu đỏ là các dòng có sự sai lệch personnel giữa hai bên.
+                                    </Alert>
+
+                                    <div className="d-flex justify-content-between align-items-center mb-3">
+                                        <div className="text-muted fs-13">
+                                            Tìm thấy <b>{results.filter(r => r.is_specialist_diff).length}</b> bản ghi có sự sai lệch phân công chuyên viên.
+                                        </div>
+                                        <div className="d-flex gap-2 text-end">
+                                            <Button 
+                                                color="danger" 
+                                                size="sm" 
+                                                className="fw-bold"
+                                                onClick={() => handlePush('specialist_only')} 
+                                                disabled={pushing || selectedIds.length === 0}
+                                            >
+                                                {pushing ? <Spinner size="sm" /> : <><i className="ri-user-follow-line me-1"></i> Cập nhật Phân công lên GSheet ({selectedIds.length})</>}
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    <div className="table-responsive table-card">
+                                        <Table className="align-middle table-hover table-bordered mb-0" style={{ tableLayout: 'fixed', minWidth: '1000px' }}>
+                                            <thead className="table-light text-muted text-center align-middle">
+                                            <tr>
+                                                <th style={{ width: "40px" }}>
+                                                    <div className="form-check d-flex justify-content-center">
+                                                        <Input 
+                                                            type="checkbox" 
+                                                            className="form-check-input"
+                                                            checked={results.filter(r => r.is_specialist_diff).length > 0 && selectedIds.length === results.filter(r => r.is_specialist_diff).length}
+                                                            onChange={toggleSelectAll}
+                                                        />
+                                                    </div>
+                                                </th>
+                                                <th style={{ width: "10%" }}>Vị trí</th>
+                                                <th style={{ width: "25%" }}>Nội dung góp ý</th>
+                                                <th style={{ width: "25%" }}>Phân công (Hệ thống)</th>
+                                                <th style={{ width: "25%" }}>Cán bộ (GSheet)</th>
+                                                <th style={{ width: "12%" }}>Trạng thái</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            {results.map((item) => {
+                                                const isDiff = item.is_specialist_diff;
+                                                return (
+                                                    <tr key={`assign-${item.id}`} className={classnames(isDiff ? "bg-danger-subtle" : "")}>
+                                                        <td className="text-center align-middle">
+                                                            <div className="form-check d-flex justify-content-center">
+                                                                <Input 
+                                                                    type="checkbox" 
+                                                                    className="form-check-input"
+                                                                    checked={selectedIds.includes(item.id)}
+                                                                    onChange={() => toggleSelectRow(item.id)}
+                                                                />
+                                                            </div>
+                                                        </td>
+                                                        <td className="white-space-normal fw-medium fs-12 text-primary">{item.node_label}</td>
+                                                        <td className="white-space-normal fs-12 text-muted">{item.content}</td>
+                                                        <td>
+                                                            <div className="d-flex flex-wrap gap-1">
+                                                                {item.assigned_users?.map((u, i) => (
+                                                                    <Badge key={i} color="info" outline className="border-info">{u.full_name}</Badge>
+                                                                )) || <span className="text-muted fs-11 italic">Chưa giao</span>}
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <div className={classnames("p-1 rounded fs-12", isDiff ? "text-danger fw-bold" : "text-success")}>
+                                                                {item.gs_specialist || <em className="text-muted">Trống</em>}
+                                                            </div>
+                                                        </td>
+                                                        <td className="text-center">
+                                                            {isDiff ? (
+                                                                <Badge color="danger"><i className="ri-error-warning-line me-1"></i> Sai lệch</Badge>
+                                                            ) : (
+                                                                <Badge color="success"><i className="ri-checkbox-circle-line me-1"></i> Khớp</Badge>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            </tbody>
+                                        </Table>
+                                    </div>
+                                </TabPane>
+                                </TabContent>
                                 </CardBody>
                             </Card>
                         </Col>

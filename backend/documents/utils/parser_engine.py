@@ -21,8 +21,8 @@ class ParserEngine:
             if not text:
                 continue
 
-            # 1. Nhận diện Chương
-            chapter_match = re.match(r'^(Chương\s+[IVXLCDM\d]+)[:\.]?\s*(.*)', text, re.IGNORECASE)
+            # 1. Nhận diện Chương (Chương I, Chương 1, Chương Một...)
+            chapter_match = re.match(r'^(Chương\s+([IVXLCDM\d]+|[a-zđăâêôơư]+))[:\.]?\s*(.*)', text, re.IGNORECASE)
             if chapter_match:
                 node = {
                     'node_type': 'Chương',
@@ -38,8 +38,8 @@ class ParserEngine:
                 self.index += 1
                 continue
 
-            # 2. Nhận diện Phụ lục
-            appendix_match = re.match(r'^(Phụ\s+lục\s*[IVXLCDM\d]*)[:\.]?\s*(.*)', text, re.IGNORECASE)
+            # 2. Nhận diện Phụ lục (Phụ lục I, Phụ lục 1, PHỤ LỤC...)
+            appendix_match = re.match(r'^(Phụ\s+lục\s*([IVXLCDM\d]*|[a-zđăâêôơư]*))[:\.]?\s*(.*)', text, re.IGNORECASE)
             if appendix_match:
                 node = {
                     'node_type': 'Phụ lục',

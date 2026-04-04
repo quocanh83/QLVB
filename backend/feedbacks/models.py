@@ -56,6 +56,15 @@ class Feedback(models.Model):
         target = self.node.node_label if self.node else f"Appendix: {self.appendix.name if self.appendix else 'Unknown'}"
         return f"Feedback by {self.user.username} on {target}"
 
+class FeedbackAssignment(models.Model):
+    feedback = models.ForeignKey(Feedback, on_delete=models.CASCADE, related_name='individual_assignments')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assigned_feedbacks')
+    assigned_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='given_feedback_assignments')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('feedback', 'user')
+
 class ConsultationResponse(models.Model):
     document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='responses', verbose_name="Dự thảo liên quan")
     agency = models.ForeignKey('core.Agency', on_delete=models.CASCADE, related_name='consultation_responses', verbose_name="Đơn vị góp ý")

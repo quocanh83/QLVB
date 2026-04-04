@@ -1,6 +1,6 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework import serializers
-from .models import User, Role
+from .models import User, Role, Department
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
@@ -20,7 +20,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['full_name'] = self.user.full_name
         data['avatar'] = self.user.avatar.url if self.user.avatar else None
         data['roles'] = list(self.user.roles.values_list('role_name', flat=True))
+        data['is_staff'] = self.user.is_staff
+        data['is_superuser'] = self.user.is_superuser
         return data
+
+class DepartmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Department
+        fields = '__all__'
 
 class RoleSerializer(serializers.ModelSerializer):
     class Meta:
@@ -29,14 +36,21 @@ class RoleSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     roles = RoleSerializer(many=True, read_only=True)
+    department = DepartmentSerializer(read_only=True)
     full_name = serializers.CharField(max_length=255, allow_blank=True, required=False)
     role_ids = serializers.PrimaryKeyRelatedField(
         queryset=Role.objects.all(), source='roles', many=True, write_only=True, required=False
     )
+    department_id = serializers.PrimaryKeyRelatedField(
+        queryset=Department.objects.all(), source='department', write_only=True, required=False, allow_null=True
+    )
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'full_name', 'avatar', 'roles', 'role_ids', 'group', 'sidebar_config']
+        fields = [
+            'id', 'username', 'email', 'full_name', 'avatar', 'roles', 'role_ids', 
+            'group', 'department', 'department_id', 'sidebar_config', 'is_staff', 'is_superuser'
+        ]
 
     def create(self, validated_data):
         roles_data = validated_data.pop('roles', [])

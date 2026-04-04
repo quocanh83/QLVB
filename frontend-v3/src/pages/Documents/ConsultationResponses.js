@@ -189,9 +189,10 @@ const ConsultationResponses = () => {
         try {
             await axios.delete(`/api/feedbacks/responses/${selectedResponse.id}/`, getAuthHeader());
             toast.success("Xóa văn bản thành công.");
-            fetchResponses();
+            fetchResponses(selectedDocId); // Fix: added selectedDocId
             setIsDeleteModal(false);
         } catch (e) {
+            console.error("Delete error:", e);
             toast.error("Lỗi khi xóa văn bản.");
         }
     };

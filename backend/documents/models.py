@@ -25,7 +25,7 @@ class Document(models.Model):
     agency_location = models.CharField(max_length=200, blank=True, null=True, help_text="Địa danh nơi đóng trụ sở")
     total_consulted_doc = models.IntegerField(default=0, help_text="Tổng số cơ quan, tổ chức, cá nhân được lấy ý kiến")
     total_feedbacks_doc = models.IntegerField(default=0, help_text="Tổng số ý kiến nhận được")
-    lead = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='led_documents')
+    leads = models.ManyToManyField(User, related_name='led_documents', blank=True, verbose_name="Cán bộ chủ trì")
     document_type = models.ForeignKey(DocumentType, on_delete=models.SET_NULL, null=True, blank=True, related_name='documents')
     google_sheets_url = models.URLField(max_length=1000, blank=True, null=True, help_text="Link Google Sheets của dự thảo")
     

@@ -42,10 +42,12 @@ import FeedbackIntake from "../pages/FeedbackIntake";
 import DraftExplanation from "../pages/DraftExplanation";
 import FeedbackList from "../pages/FeedbackList";
 import GSheetSync from "../pages/GSheetSync";
+import ProjectAssignment from "../pages/Documents/ProjectAssignment";
 
 import SystemSettings from "../pages/Settings";
 import DocumentTypeManagement from "../pages/DocumentTypeManagement";
 import UserManagement from "../pages/UserManagement";
+import DepartmentManagement from "../pages/DepartmentManagement";
 import Agencies from "../pages/Agencies";
 
 //Task
@@ -316,6 +318,7 @@ const authProtectedRoutes = [
   { path: "/draft-classification", component: <ClassificationList /> },
   { path: "/draft-consultation/:id?", component: <DraftConsultation /> },
   { path: "/consultation-responses/:id?", component: <ConsultationResponses /> },
+  { path: "/project-assignment", component: <ProjectAssignment /> },
   
   // QLVB - Reports
   { path: "/reports", component: <Reports /> },
@@ -323,11 +326,13 @@ const authProtectedRoutes = [
   { path: "/draft-explanation", component: <DraftExplanation /> },
   { path: "/feedbacks", component: <FeedbackList /> },
   { path: "/gsheet-sync", component: <GSheetSync /> },
+  { path: "/project-assignment", component: <ProjectAssignment /> },
 
   // QLVB - Settings
   { path: "/settings", component: <SystemSettings /> },
   { path: "/document-types", component: <DocumentTypeManagement /> },
   { path: "/user-management", component: <UserManagement /> },
+  { path: "/departments", component: <DepartmentManagement /> },
   { path: "/agencies", component: <Agencies /> },
 
   //Task
