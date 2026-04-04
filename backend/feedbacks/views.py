@@ -2,7 +2,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from django.db import models
 from rest_framework.decorators import action
-from .models import Feedback, Explanation, ActionLog, ConsultationResponse
+from .models import Feedback, Explanation, ActionLog, ConsultationResponse, FeedbackAssignment
 from documents.models import Document, DocumentNode, DocumentAppendix
 from django.contrib.contenttypes.models import ContentType
 from .serializers import FeedbackSerializer, ConsultationResponseSerializer
@@ -271,8 +271,10 @@ class FeedbackViewSet(viewsets.ModelViewSet):
             # Khởi tạo điểm là 0, chỉ nhận cột nếu điểm > 0 để tránh vơ nhầm cột STT
             col_scores = {'node': 0, 'agency': 0, 'content': 0, 'doc_number': 0, 'doc_date': 0, 'explanation': 0, 'reason': 0, 'note': 0}
             
+            import unicodedata
             for col in df.columns:
-                c = str(col).lower()
+                # Chuẩn chuẩn hóa Unicode NFC để so khớp tiếng Việt chính xác
+                c = unicodedata.normalize('NFC', str(col).lower().replace('\n', ' ').strip())
                 
                 # 1. Logic cho Điều/Khoản/Phụ lục
                 score_node = 0
@@ -310,8 +312,9 @@ class FeedbackViewSet(viewsets.ModelViewSet):
 
                 # 5. Logic cho Giải trình/Tiếp thu
                 score_exp = 0
-                if 'tiếp thu giải trình' in c: score_exp = 100
-                elif any(kw in c for kw in ['giải trình', 'tiếp thu']): score_exp = 50
+                if any(kw in c for kw in ['tiếp thu giải trình', 'giải trình, tiếp thu']): score_exp = 100
+                elif any(kw in c for kw in ['giải trình', 'tiếp thu']): score_exp = 80
+                elif any(kw in c for kw in ['xử lý', 'ý kiến', 'phương án']): score_exp = 50
                 if score_exp > col_scores['explanation']:
                     col_map['explanation'] = col
                     col_scores['explanation'] = score_exp
@@ -327,7 +330,7 @@ class FeedbackViewSet(viewsets.ModelViewSet):
 
             # Tìm cột Nội dung - CỰC KỲ QUAN TRỌNG
             for col in df.columns:
-                c = str(col).lower()
+                c = unicodedata.normalize('NFC', str(col).lower().replace('\n', ' ').strip())
                 if 'nội dung góp ý' in c:
                     col_map['content'] = col
                     break
@@ -370,7 +373,8 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                 raw_content = safe_str(row.get(col_map['content'], ''))
                 raw_reason = safe_str(row.get(col_map.get('reason'), ''))
                 raw_note = safe_str(row.get(col_map.get('note'), ''))
-                raw_explanation = safe_str(row.get(col_map.get('explanation'), ''))
+                exp_col = col_map.get('explanation')
+                raw_explanation = safe_str(row.get(exp_col)) if exp_col else ''
                 raw_doc_num = safe_str(row.get(col_map.get('doc_number'), ''))
                 
                 # Check ND 'OK' và Giải trình trống -> Skip (Giảm nhiễu cho người dùng)
@@ -448,7 +452,7 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                     "note": raw_note if raw_note.lower() not in ['nan', 'none'] else "",
                     "is_duplicate": is_duplicate,
                     "duplicate_id": duplicate_id,
-                    "import_mode": "explanation_only" if (is_duplicate and explanation_status in ["new", "conflict"]) else ("skip" if is_duplicate else "add_new"),
+                    "import_mode": "skip" if is_duplicate else "add_new",
                     "explanation_content": raw_explanation if explanation_status != "none" else "",
                     "explanation_status": explanation_status,
                     "existing_explanation": existing_exp_content,
@@ -1045,8 +1049,9 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                 label = re.split(r'[:.\n]', label)[0].strip()
                 
             results.append({
+                "id": n.id,
                 "unique_id": f"node-{n.id}",
-                "id": n.id, 
+                "value": f"node-{n.id}",
                 "label": label, 
                 "type": n.node_type
             })
@@ -1066,8 +1071,9 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                 display_name = "Phụ lục" + display_name[7:]
                 
             results.append({
-                "unique_id": f"app-{app.id}",
                 "id": app.id,
+                "unique_id": f"app-{app.id}",
+                "value": f"app-{app.id}",
                 "label": display_name,
                 "type": "Appendix"
             })
@@ -1598,24 +1604,28 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         appendices = DocumentAppendix.objects.filter(document_id=doc_id).order_by('created_at')
         appendix_map = {app.id: idx + 1 for idx, app in enumerate(appendices)}
 
-        def get_hierarchical_label(node):
-            if not node: return "Chung"
-            if node.node_type == 'Điều':
-                return node.node_label
-            if node.node_type in ['Khoản', 'Điểm']:
-                if node.parent:
-                    return f"{node.node_label} {get_hierarchical_label(node.parent)}"
-            return node.node_label
+        results = []
+        for fb in paginated_data:
+            node_label = "Chung"
+            node_path = "Chung"
+            if fb.appendix_id:
+                app_num = appendix_map.get(fb.appendix_id, "?")
+                node_label = f"Phụ lục {app_num}"
+                node_path = f"Phụ lục {app_num}: {fb.appendix.name}"
+            elif fb.node:
+                node_label = fb.node.node_label
+                node_path = self._get_full_node_path(fb.node)
 
             explanation_obj = fb.explanations.first()
 
-            # Lấy danh sách cán bộ được phân công (bao gồm kế thừa)
-            assigned_users = self._get_inherited_assignments(fb.node) if fb.node else []
+            # Lấy danh sách cán bộ được phân công (bao gồm quy tắc tự động và kế thừa)
+            assigned_users, _ = self._get_feedback_assignments(fb)
             
             results.append({
                 "id": fb.id,
                 "document_id": fb.document_id,
                 "node_id": fb.node_id,
+                "appendix_id": fb.appendix_id,
                 "node_label": node_label,
                 "node_path": node_path,
                 "agency": fb.agency_id,
@@ -1913,6 +1923,29 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         s = re.sub(r'\s+', ' ', s)
         return unicodedata.normalize('NFC', s).strip().lower()
 
+    def _get_feedback_assignments(self, fb):
+        """
+        Logic tính toán phân công chuyên viên tập trung với 3 mức ưu tiên:
+        1. Phân công cá nhân (FeedbackAssignment)
+        2. Quy tắc tự động (Thống nhất với nội dung dự thảo Nghị định -> Quốc Anh)
+        3. Phân công kế thừa (DocumentNodeAssignment)
+        """
+        # 1. Ưu tiên Phân công cá nhân
+        individual = [{"id": a.user_id, "full_name": a.user.full_name or a.user.username} 
+                     for a in fb.individual_assignments.all()]
+        if individual:
+            return individual, individual # Trả về cả list đầy đủ và list cá nhân để phân biệt
+
+        # 2. Quy tắc tự động
+        norm_content = self._normalize_text(fb.content)
+        if norm_content == "thống nhất với nội dung dự thảo nghị định":
+            auto_assigned = [{"id": 9, "full_name": "Quốc Anh"}]
+            return auto_assigned, []
+
+        # 3. Phân công kế thừa từ Điều/Khoản/Phụ lục
+        node_assigned = self._get_inherited_assignments(fb.node) if fb.node else []
+        return node_assigned, []
+
     @action(detail=False, methods=['post'])
     def assign_feedbacks(self, request):
         """
@@ -2009,12 +2042,15 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                 raw_exp = row[col_map['explanation']] if 'explanation' in col_map and len(row) > col_map['explanation'] else ""
                 raw_specialist = row[col_map['specialist']] if 'specialist' in col_map and len(row) > col_map['specialist'] else ""
 
+                raw_node = row[col_map['node']] if 'node' in col_map and len(row) > col_map['node'] else ""
+                
                 entry = {
                     "row": i + 2,
                     "content": raw_content,
                     "agency": raw_agency,
                     "explanation": raw_exp,
                     "specialist": raw_specialist,
+                    "node": raw_node,
                     "norm_content": self._normalize_text(raw_content),
                     "norm_agency": self._normalize_text(raw_agency)
                 }
@@ -2074,15 +2110,9 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                     is_exp_diff = self._normalize_text(exp_content) != self._normalize_text(gs_info["explanation"])
 
                 # Lấy danh sách cán bộ: Ưu tiên phân công riêng, nếu rỗng thì lấy kế thừa từ node
-                individual_assignments = [{"id": a.user_id, "full_name": a.user.full_name or a.user.username} for a in fb.individual_assignments.all()]
+                # Logic hiển thị theo thứ tự ưu tiên tập trung (Cá nhân > Tự động > Kế thừa)
+                final_assignments, individual_assignments = self._get_feedback_assignments(fb)
                 node_assignments = self._get_inherited_assignments(fb.node) if fb.node else []
-                
-                # Logic hiển thị: Nếu có phân công riêng thì dùng, không thì dùng kế thừa
-                # Quy tắc đặc biệt: Nếu nội dung là "Thống nhất với nội dung dự thảo Nghị định" -> Gán cho Quốc Anh (ID 9)
-                if norm_fb_content == "thống nhất với nội dung dự thảo nghị định":
-                    final_assignments = [{"id": 9, "full_name": "Quốc Anh"}]
-                else:
-                    final_assignments = individual_assignments if individual_assignments else node_assignments
 
                 gs_specialist = gs_info["specialist"] if gs_info else ""
                 is_specialist_diff = False
@@ -2100,9 +2130,20 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                                 is_specialist_diff = True
                                 break
                                 
+                # So sánh Vị trí (Node)
+                gs_node = gs_info["node"] if gs_info else ""
+                is_node_diff = False
+                node_label = self._get_full_node_path(fb.node) if fb.node else (f"Phụ lục: {fb.appendix.name}" if fb.appendix else "Chung")
+                
+                if gs_info and 'node' in col_map:
+                    # So sánh sau khi chuẩn hóa để bỏ qua sai sót khoảng trắng/chữ hoa
+                    is_node_diff = self._normalize_text(node_label) != self._normalize_text(gs_node)
+                    
                 results.append({
                     "id": fb.id,
-                    "node_label": self._get_full_node_path(fb.node) if fb.node else (f"Phụ lục: {fb.appendix.name}" if fb.appendix else "Chung"),
+                    "node_label": node_label,
+                    "gs_node": gs_node,
+                    "is_node_diff": is_node_diff,
                     "agency": fb.contributing_agency,
                     "content": fb.content,
                     "explanation": exp_content,
@@ -2199,18 +2240,13 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                         if col_nd and fb.content: cells_to_update.append(Cell(row=gs_row, col=col_nd, value="OK"))
                         if col_gt and exp_val: cells_to_update.append(Cell(row=gs_row, col=col_gt, value="OK"))
                     
+                    elif update_mode == 'node_only':
+                        if col_node: cells_to_update.append(Cell(row=gs_row, col=col_node, value=node_val))
+                    
                     if col_specialist:
-                        # Quy tắc đặc biệt: Nếu nội dung là "Thống nhất với nội dung dự thảo Nghị định" -> Gán cho Quốc Anh (ID 9)
-                        if self._normalize_text(fb.content) == "thống nhất với nội dung dự thảo nghị định":
-                            specialists_val = "Quốc Anh"
-                        else:
-                            # Lấy phân công: Ưu tiên phân công riêng
-                            individual = [{"id": a.user_id, "name": a.user.full_name or a.user.username} for a in fb.individual_assignments.all()]
-                            if individual:
-                                specialists_val = ", ".join([u['name'] for u in individual])
-                            else:
-                                assigned = self._get_inherited_assignments(fb.node) if fb.node else []
-                                specialists_val = ", ".join([u['full_name'] for u in assigned])
+                        # Thứ tự ưu tiên đồng bộ toàn hệ thống
+                        assigned_list, _ = self._get_feedback_assignments(fb)
+                        specialists_val = ", ".join([u['full_name'] for u in assigned_list])
                         cells_to_update.append(Cell(row=gs_row, col=col_specialist, value=specialists_val))
                     
                     # Logic cũ (Tự động điền trạng thái OK đã được cho vào trong block update_mode == 'all')
@@ -2224,16 +2260,9 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                     if col_note: row[col_note-1] = fb.note or ""
                     
                     if col_specialist:
-                        # Quy tắc đặc biệt: Nếu nội dung là "Thống nhất với nội dung dự thảo Nghị định" -> Gán cho Quốc Anh (ID 9)
-                        if self._normalize_text(fb.content) == "thống nhất với nội dung dự thảo nghị định":
-                            row[col_specialist-1] = "Quốc Anh"
-                        else:
-                            individual = [{"id": a.user_id, "name": a.user.full_name or a.user.username} for a in fb.individual_assignments.all()]
-                            if individual:
-                                row[col_specialist-1] = ", ".join([u['name'] for u in individual])
-                            else:
-                                assigned = self._get_inherited_assignments(fb.node) if fb.node else []
-                                row[col_specialist-1] = ", ".join([u['full_name'] for u in assigned])
+                        # Thứ tự ưu tiên đồng bộ toàn hệ thống
+                        assigned_list, _ = self._get_feedback_assignments(fb)
+                        row[col_specialist-1] = ", ".join([u['full_name'] for u in assigned_list])
                     
                     # Trạng thái OK cho dòng mới
                     if col_nd and fb.content: row[col_nd-1] = "OK"

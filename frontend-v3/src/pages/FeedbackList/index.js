@@ -218,7 +218,7 @@ const FeedbackList = () => {
             const res = await axios.get(`/api/feedbacks/get_document_nodes/?document_id=${docId}`, getAuthHeader());
             const data = res.data || res || [];
             if (Array.isArray(data)) {
-                setDocNodes(data.map(n => ({ value: n.id, label: n.label, type: n.type })));
+                setDocNodes(data.map(n => ({ value: n.value, label: n.label, type: n.type })));
             }
         } catch (e) {
             console.error("Lỗi khi tải danh sách Điều/Khoản để gắn lại.");
@@ -236,7 +236,12 @@ const FeedbackList = () => {
     const handleEditFeedback = (fb) => {
         setCurrentFeedback(fb);
         setEditContent(fb.content || '');
-        setEditNodeId(fb.node_id);
+        
+        let initialVal = null;
+        if (fb.node_id) initialVal = `node-${fb.node_id}`;
+        else if (fb.appendix_id) initialVal = `app-${fb.appendix_id}`;
+        
+        setEditNodeId(initialVal);
         setEditAgencyId(fb.agency);
         setEditDocNumber(fb.official_doc_number || '');
         setIsEditModalOpen(true);
@@ -249,9 +254,21 @@ const FeedbackList = () => {
         }
         setUpdating(true);
         try {
+            let nodeVal = null;
+            let appendixVal = null;
+            
+            if (editNodeId) {
+                if (editNodeId.startsWith('node-')) {
+                    nodeVal = parseInt(editNodeId.replace('node-', ''));
+                } else if (editNodeId.startsWith('app-')) {
+                    appendixVal = parseInt(editNodeId.replace('app-', ''));
+                }
+            }
+
             const payload = {
                 content: editContent,
-                node: editNodeId || null,
+                node: nodeVal,
+                appendix: appendixVal,
                 agency: editAgencyId || null,
                 contributing_agency: editAgencyId ? agencies.find(a => a.id === editAgencyId)?.name : (currentFeedback?.contributing_agency || "Cơ quan góp ý"),
                 official_doc_number: editDocNumber || "",
@@ -399,11 +416,7 @@ const FeedbackList = () => {
     };
 
     const handleOpenAssignModal = (fb) => {
-        if (!fb.node_id) {
-            toast.warning("Góp ý này không thuộc Điều/Khoản cụ thể nên không thể phân công.");
-            return;
-        }
-        setAssignTarget(fb.node_id);
+        setAssignTarget(fb.id); // SỬA: Lưu Feedback ID thay vì Node ID
         setAssignUserIds(fb.assigned_users ? fb.assigned_users.map(u => u.id) : []);
         setIsAssignModalOpen(true);
     };
@@ -412,14 +425,17 @@ const FeedbackList = () => {
         if (!selectedDoc || !assignTarget) return;
         setAssigningLoading(true);
         try {
-            await axios.post(`/api/documents/${selectedDoc.id}/assign_nodes/`, {
+            // SỬA: Gọi API phân công chuyên biệt cho từng góp ý
+            await axios.post(`/api/feedbacks/assign_feedbacks/`, {
+                document_id: selectedDoc.id,
                 assignments: [
                     {
-                        node_id: assignTarget,
+                        feedback_id: assignTarget,
                         user_ids: assignUserIds
                     }
                 ]
             }, getAuthHeader());
+            
             toast.success("Cập nhật phân công thành công!");
             setIsAssignModalOpen(false);
             fetchFeedbacks(selectedDoc.id, currentPage);
@@ -836,7 +852,7 @@ const FeedbackList = () => {
                         />
                         <div className="form-text mt-2 text-muted small">
                             <i className="ri-information-line me-1"></i>
-                            Phân công này sẽ áp dụng cho <b>tất cả</b> ý kiến thuộc cùng Điều/Khoản này.
+                            Phân công này sẽ chỉ áp dụng cho <b>duy nhất</b> nội dung góp ý đang chọn.
                         </div>
                     </div>
                 </ModalBody>

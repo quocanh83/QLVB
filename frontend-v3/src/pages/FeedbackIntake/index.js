@@ -1251,7 +1251,8 @@ const FeedbackIntake = () => {
                                             height: 100%;
                                         }
                                         .is-dup-cell {
-                                            background-color: rgba(255, 190, 84, 0.05) !important;
+                                            background-color: #fff9e1 !important; /* Vàng nhạt dễ thấy */
+                                            border-bottom: 1px dashed #ffeeba !important;
                                         }
                                     `}</style>
 

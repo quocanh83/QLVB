@@ -143,9 +143,25 @@ const GSheetSync = () => {
                     const newIndividual = eligibleSpecialists
                         .filter(u => userIds.includes(u.id))
                         .map(u => ({ id: u.id, full_name: u.full_name || u.username }));
-                    
-                    // Nếu rỗng thì fallback về node assignments theo logic backend
-                    const finalAssignments = newIndividual.length > 0 ? newIndividual : item.node_assignments;
+
+                    // Tái hiện logic ưu tiên của backend ngay tại frontend để UI mượt mà
+                    let finalAssignments = [];
+                    if (newIndividual.length > 0) {
+                        finalAssignments = newIndividual;
+                    } else {
+                        // Kiểm tra quy tắc Thống nhất
+                        const normContent = (item.content || "").toLowerCase()
+                            .replace(/<[^>]+>/g, ' ')
+                            .replace(/[^\w\s]/g, ' ')
+                            .replace(/\s+/g, ' ')
+                            .trim();
+                        
+                        if (normContent === "thống nhất với nội dung dự thảo nghị định") {
+                            finalAssignments = [{ id: 9, full_name: "Quốc Anh" }];
+                        } else {
+                            finalAssignments = item.node_assignments || [];
+                        }
+                    }
                     
                     return { 
                         ...item, 
@@ -234,13 +250,25 @@ const GSheetSync = () => {
             } else {
                 setSelectedIds(visibleToPush.map(r => r.id));
             }
-        } else {
-            // Tab đối soát: Chọn tất cả dòng bị lệch
+        } else if (activeTab === '2') {
+            // Tab đối soát chuyên viên: Chọn tất cả dòng bị lệch chuyên viên
             const diffRows = results.filter(r => r.is_specialist_diff);
-            if (selectedIds.length === diffRows.length && diffRows.length > 0) {
+            const diffIds = diffRows.map(r => r.id);
+            
+            if (selectedIds.length === diffIds.length) {
                 setSelectedIds([]);
             } else {
-                setSelectedIds(diffRows.map(r => r.id));
+                setSelectedIds(diffIds);
+            }
+        } else {
+            // Tab đối soát vị trí: Chọn tất cả dòng bị lệch vị trí
+            const diffRows = results.filter(r => r.is_node_diff);
+            const diffIds = diffRows.map(r => r.id);
+            
+            if (selectedIds.length === diffIds.length) {
+                setSelectedIds([]);
+            } else {
+                setSelectedIds(diffIds);
             }
         }
     };
@@ -316,7 +344,7 @@ const GSheetSync = () => {
                             <Card className="border-0 shadow-sm">
                                 <CardHeader className="bg-light-subtle py-3 d-flex align-items-center justify-content-between">
                                     <div>
-                                        <h6 className="card-title mb-0 fw-bold">Kết quả đối chiếu</h6>
+                        <h6 className="card-title mb-0 fw-bold">Kết quả đối chiếu</h6>
                                         <p className="text-muted mb-0 fs-12">Tìm thấy {results.length} góp ý trong hệ thống.</p>
                                     </div>
                                     <div className="d-flex gap-2">
@@ -334,7 +362,7 @@ const GSheetSync = () => {
                                                     onClick={() => toggleTab('1')}
                                                     style={{ cursor: 'pointer' }}
                                                 >
-                                                    <i className="ri-file-text-line me-1 align-middle"></i> Nội dung & Giải trình
+                                                    <i className="ri-file-text-line me-1 align-middle"></i> 1. Nội dung & Giải trình
                                                 </NavLink>
                                             </NavItem>
                                             <NavItem>
@@ -343,9 +371,21 @@ const GSheetSync = () => {
                                                     onClick={() => toggleTab('2')}
                                                     style={{ cursor: 'pointer' }}
                                                 >
-                                                    <i className="ri-user-settings-line me-1 align-middle"></i> Đối soát Phân công
-                                                    {results.some(r => r.is_specialist_diff) && (
+                                                    <i className="ri-user-settings-line me-1 align-middle"></i> 2. Đối soát Phân công
+                                                    {results.filter(r => r.is_specialist_diff).length > 0 && (
                                                         <Badge color="danger" pill className="ms-2">{results.filter(r => r.is_specialist_diff).length}</Badge>
+                                                    )}
+                                                </NavLink>
+                                            </NavItem>
+                                            <NavItem>
+                                                <NavLink
+                                                    className={classnames({ active: activeTab === '3' })}
+                                                    onClick={() => toggleTab('3')}
+                                                    style={{ cursor: 'pointer' }}
+                                                >
+                                                    <i className="ri-map-pin-line me-1 align-middle"></i> 3. Đối soát Vị trí
+                                                    {results.filter(r => r.is_node_diff).length > 0 && (
+                                                        <Badge color="warning" pill className="ms-2 text-dark">{results.filter(r => r.is_node_diff).length}</Badge>
                                                     )}
                                                 </NavLink>
                                             </NavItem>
@@ -600,8 +640,94 @@ const GSheetSync = () => {
                                             </tbody>
                                         </Table>
                                     </div>
-                                </TabPane>
-                                </TabContent>
+                                        </TabPane>
+
+                                        <TabPane tabId="3">
+                                            <Alert color="primary" className="fs-12 border-0 shadow-none border-start border-3 border-primary mb-4">
+                                                <i className="ri-map-pin-range-line me-2 fs-14 align-middle"></i>
+                                                <strong>Đối soát Vị trí (Điều/Khoản):</strong> Hệ thống so khớp vị trí (liên kết Điều/Khoản) trong DB với dữ liệu tại cột "Vị trí/Điều/Khoản" trên Google Sheet.
+                                                Các dòng màu vàng là các dòng có sự khác biệt về danh mục Điều/Khoản giữa hai bên.
+                                            </Alert>
+
+                                            <div className="d-flex justify-content-between align-items-center mb-3">
+                                                <div className="text-muted fs-13">
+                                                    Tìm thấy <b>{results.filter(r => r.is_node_diff).length}</b> bản ghi có sự sai lệch vị trí Điều/Khoản.
+                                                </div>
+                                                <div className="d-flex gap-2 text-end">
+                                                    <Button 
+                                                        color="info" 
+                                                        size="sm" 
+                                                        className="fw-bold"
+                                                        onClick={() => handlePush('node_only')} 
+                                                        disabled={pushing || selectedIds.length === 0}
+                                                    >
+                                                        {pushing ? <Spinner size="sm" /> : <><i className="ri-save-line me-1"></i> Cập nhật Vị trí lên GSheet ({selectedIds.length})</>}
+                                                    </Button>
+                                                </div>
+                                            </div>
+
+                                            <div className="table-responsive table-card">
+                                                <Table className="align-middle table-hover table-bordered mb-0" style={{ tableLayout: 'fixed', minWidth: '1000px' }}>
+                                                    <thead className="table-light text-muted text-center align-middle">
+                                                    <tr>
+                                                        <th style={{ width: "40px" }}>
+                                                            <div className="form-check d-flex justify-content-center">
+                                                                <Input 
+                                                                    type="checkbox" 
+                                                                    className="form-check-input"
+                                                                    checked={results.filter(r => r.is_node_diff).length > 0 && selectedIds.length === results.filter(r => r.is_node_diff).length}
+                                                                    onChange={toggleSelectAll}
+                                                                />
+                                                            </div>
+                                                        </th>
+                                                        <th style={{ width: "40%" }}>Nội dung góp ý</th>
+                                                        <th style={{ width: "25%" }}>Vị trí (Hệ thống)</th>
+                                                        <th style={{ width: "25%" }}>Vị trí (GSheet)</th>
+                                                        <th style={{ width: "10%" }}>Trạng thái</th>
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                    {results.map((item) => {
+                                                        const isNodeDiff = item.is_node_diff;
+                                                        return (
+                                                            <tr key={`node-${item.id}`} className={classnames(isNodeDiff ? "bg-info-subtle" : "")}>
+                                                                <td className="text-center align-middle">
+                                                                    <div className="form-check d-flex justify-content-center">
+                                                                        <Input 
+                                                                            type="checkbox" 
+                                                                            className="form-check-input"
+                                                                            checked={selectedIds.includes(item.id)}
+                                                                            onChange={() => toggleSelectRow(item.id)}
+                                                                        />
+                                                                    </div>
+                                                                </td>
+                                                                <td className="white-space-normal fs-12 text-muted">{item.content}</td>
+                                                                <td className="white-space-normal fw-bold fs-12 text-primary">{item.node_label}</td>
+                                                                <td className="white-space-normal fs-12">
+                                                                    <div className={classnames("p-1 rounded", isNodeDiff ? "text-danger fw-bold" : "text-success")}>
+                                                                        {item.gs_node || <em className="text-muted">Trống</em>}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="text-center">
+                                                                    {isNodeDiff ? (
+                                                                        <Badge color="warning"><i className="ri-error-warning-line me-1"></i> Khác biệt</Badge>
+                                                                    ) : (
+                                                                        <Badge color="success"><i className="ri-checkbox-circle-line me-1"></i> Khớp</Badge>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                    {results.filter(r => r.is_node_diff).length === 0 && (
+                                                        <tr>
+                                                            <td colSpan="5" className="text-center py-4 text-muted small">(Không có dữ liệu lệch vị trí)</td>
+                                                        </tr>
+                                                    )}
+                                                    </tbody>
+                                                </Table>
+                                            </div>
+                                        </TabPane>
+                                    </TabContent>
                                 </CardBody>
                             </Card>
                         </Col>
