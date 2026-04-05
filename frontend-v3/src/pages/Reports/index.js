@@ -421,6 +421,12 @@ const Reports = () => {
                                                                                 <h4 className="mb-0 fs-16 text-warning">{statsData.summary?.total_explained_no_acc || 0}</h4>
                                                                             </Card>
                                                                         </Col>
+                                                                        <Col>
+                                                                            <Card className="shadow-none border p-2 h-100 mb-0 border-danger-subtle bg-danger-subtle">
+                                                                                <h6 className="text-danger text-uppercase fw-semibold fs-11 mb-1">Cần xin ý kiến</h6>
+                                                                                <h4 className="mb-0 fs-16 text-danger fw-bold">{statsData.summary?.total_need_opinion || 0}</h4>
+                                                                            </Card>
+                                                                        </Col>
                                                                     </Row>
                                                                 </>
                                                             ) : (

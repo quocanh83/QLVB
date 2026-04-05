@@ -84,6 +84,7 @@ def _get_field_value(field_key, fb_idx, fb, explanation=None):
         'chuyen_vien': chuyen_vien,
         'trang_thai': status_tv,
         'status': status_tv,
+        'need_opinion': 'X' if fb.need_opinion else '',
     }
     
     # Fallback cho các trường tùy chỉnh khác (nếu có trong model Feedback)
@@ -183,7 +184,7 @@ def generate_from_v2_template(document, feedbacks, template_config=None, templat
 
     count_agreed_agencies = 0
     agreed_agencies = set()
-    AGREED_PHRASE = "thống nhất với nội dung dự thảo Nghị định"
+    AGREED_PHRASE = "thống nhất với nội dung dự thảo"
     
     # Lọc danh sách ý kiến "không thống nhất" để tính các chỉ số khác
     active_fbs = []
@@ -201,8 +202,11 @@ def generate_from_v2_template(document, feedbacks, template_config=None, templat
     count_partial = 0
     count_explained_only = 0
     count_pending = 0
+    count_need_opinion = 0
 
     for f in active_fbs:
+        if getattr(f, 'need_opinion', False):
+            count_need_opinion += 1
         exps = f.explanations.all()
         if not exps:
             count_pending += 1
@@ -225,6 +229,8 @@ def generate_from_v2_template(document, feedbacks, template_config=None, templat
     p_stats.add_run(f"\n- Số ý kiến tiếp thu một phần: {count_partial} ý kiến.").font.size = Pt(14)
     p_stats.add_run(f"\n- Số ý kiến đã giải trình (không bao gồm tiếp thu): {count_explained_only} ý kiến.").font.size = Pt(14)
     p_stats.add_run(f"\n- Số ý kiến chưa có giải trình: {count_pending} ý kiến.").font.size = Pt(14)
+    if count_need_opinion > 0:
+        p_stats.add_run(f"\n- Số ý kiến cần xin ý kiến lãnh đạo: {count_need_opinion} ý kiến.").font.size = Pt(14)
 
     p_res = doc.add_paragraph()
     p_res.paragraph_format.first_line_indent = Cm(1.27)

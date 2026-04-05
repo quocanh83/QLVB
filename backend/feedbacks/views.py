@@ -540,6 +540,7 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                     content = row.get('content', '')
                     reason = row.get('reason', '')
                     note = row.get('note', '')
+                    need_opinion = row.get('need_opinion', False)
                     duplicate_id = row.get('duplicate_id')
                     
                     # 1. Xử lý Feedback (Góp ý)
@@ -558,6 +559,7 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                             content=content,
                             reason=reason,
                             note=note,
+                            need_opinion=need_opinion,
                             user=request.user
                         )
                         feedback_obj = Feedback.objects.get(id=duplicate_id)
@@ -571,7 +573,8 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                             agency_id=agency_id,
                             content=content,
                             reason=reason,
-                            note=note
+                            note=note,
+                            need_opinion=need_opinion
                         )
                         created_count += 1
         
@@ -1162,7 +1165,8 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                     official_doc_number=global_doc_number or item.get('official_doc_number', ''),
                     content=item.get('content', ''),
                     reason=item.get('reason', ''),
-                    note=item.get('note', '')
+                    note=item.get('note', ''),
+                    need_opinion=item.get('need_opinion', False)
                 )
                 created_count += 1
                 
@@ -1472,18 +1476,22 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             except Document.DoesNotExist:
                 pass
 
+        # Count feedbacks needing leadership opinion
+        count_need_opinion = query.filter(need_opinion=True).count()
+
         return Response({
             'agency_stats': agency_stats_list,
             'category_stats': category_stats,
             'invited_category_stats': invited_category_stats,
             'available_categories': sorted(list(found_categories)),
             'summary': {
-                'total_fbs': total_fbs,
+                'total_fbs': query.count(),
+                'total_pending': count_pending,
                 'total_agreed': count_agreed,
                 'total_accepted': count_accepted,
                 'total_partial': count_partial,
                 'total_explained_no_acc': count_explained_no_acc,
-                'total_pending': count_pending
+                'total_need_opinion': count_need_opinion,
             }
         })
 
@@ -2092,6 +2100,8 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                     col_map['content'] = idx
                 elif 'specialist' not in col_map and any(kw in h for kw in ['cán bộ', 'chuyên viên', 'thụ lý', 'phân công']): 
                     col_map['specialist'] = idx
+                elif 'need_opinion' not in col_map and any(kw in h for kw in ['xin ý kiến', 'xyk', 'vấn đề còn ý kiến khác nhau']):
+                    col_map['need_opinion'] = idx
 
             if 'content' not in col_map:
                  # Thử tìm kiếm sâu hơn hoặc báo lỗi rõ ràng
@@ -2162,7 +2172,8 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                     "norm_content": norm_c,
                     "norm_agency": norm_a,
                     "robust_content": robust_c,
-                    "robust_agency": robust_a
+                    "robust_agency": robust_a,
+                    "need_opinion": row[col_map['need_opinion']].strip().lower() in ['x', 'v', '1', 'yes', 'cần'] if 'need_opinion' in col_map and len(row) > col_map['need_opinion'] else False
                 }
 
                 if norm_c or norm_a:
@@ -2308,9 +2319,12 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                     "gs_row": gs_info["row"] if gs_info else None,
                     "gs_content": gs_info["content"] if gs_info else "",
                     "gs_explanation": gs_info["explanation"] if gs_info else "",
+                    "need_opinion": fb.need_opinion,
+                    "gs_need_opinion": gs_info["need_opinion"] if gs_info else False,
                     "is_content_diff": is_content_diff,
                     "is_exp_diff": is_exp_diff,
-                    "status": "synced" if (gs_info and not (is_content_diff or is_exp_diff or is_node_diff or is_specialist_diff)) else ("diff" if (gs_info and (is_content_diff or is_exp_diff or is_node_diff or is_specialist_diff)) else "new_in_db")
+                    "is_opinion_diff": fb.need_opinion != (gs_info["need_opinion"] if gs_info else False) if gs_info and 'need_opinion' in col_map else False,
+                    "status": "synced" if (gs_info and not (is_content_diff or is_exp_diff or is_node_diff or is_specialist_diff or (fb.need_opinion != (gs_info["need_opinion"] if gs_info else False) if 'need_opinion' in col_map else False))) else ("diff" if (gs_info and (is_content_diff or is_exp_diff or is_node_diff or is_specialist_diff or (fb.need_opinion != (gs_info["need_opinion"] if gs_info else False) if 'need_opinion' in col_map else False))) else "new_in_db")
                 })
                 
             return Response({"feedbacks": results})
@@ -2423,6 +2437,12 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                     fb.content = gs_content.strip()
                     fb.save()
                 
+                # 3. Cập nhật Trạng thái "Cần xin ý kiến"
+                gs_need_opinion = item.get('need_opinion')
+                if gs_need_opinion is not None:
+                    fb.need_opinion = gs_need_opinion
+                    fb.save()
+                
                 updated_count += 1
                 
             return Response({"message": f"Đã cập nhật {updated_count} bản ghi từ Google Sheet vào hệ thống thành công."})
@@ -2481,7 +2501,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             raw_headers = worksheet.row_values(1)
             headers = [h.strip().lower() for h in raw_headers]
             
-            col_node = col_agency = col_content = col_reason = col_explanation = col_note = col_nd = col_gt = col_specialist = None
+            col_node = col_agency = col_content = col_reason = col_explanation = col_note = col_nd = col_gt = col_specialist = col_opinion = None
             
             for idx, h in enumerate(headers):
                 # Ưu tiên các cột trạng thái viết tắt trước để tránh bị hốt vào cột nội dung chính
@@ -2494,6 +2514,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                 elif not col_reason and any(kw in h for kw in ['lý do', 'cơ sở']): col_reason = idx + 1
                 elif not col_note and any(kw in h for kw in ['ghi chú', 'note']): col_note = idx + 1
                 elif not col_specialist and any(kw in h for kw in ['cán bộ', 'chuyên viên', 'thụ lý', 'phân công', 'specialist']): col_specialist = idx + 1
+                elif not col_opinion and any(kw in h for kw in ['xin ý kiến', 'xyk', 'vấn đề còn ý kiến khác nhau']): col_opinion = idx + 1
 
             if not col_content:
                 return Response({"error": "Google Sheet không có cột 'Nội dung góp ý' để định danh dữ liệu."}, status=400)
@@ -2526,6 +2547,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                         # Tự động điền trạng thái OK
                         if col_nd and fb.content: cells_to_update.append(Cell(row=gs_row, col=col_nd, value="OK"))
                         if col_gt and exp_val: cells_to_update.append(Cell(row=gs_row, col=col_gt, value="OK"))
+                        if col_opinion: cells_to_update.append(Cell(row=gs_row, col=col_opinion, value="X" if fb.need_opinion else ""))
                     
                     elif update_mode == 'node_only':
                         if col_node: cells_to_update.append(Cell(row=gs_row, col=col_node, value=node_val))
@@ -2545,6 +2567,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                     if col_reason: row[col_reason-1] = fb.reason or ""
                     if col_explanation: row[col_explanation-1] = exp_val
                     if col_note: row[col_note-1] = fb.note or ""
+                    if col_opinion: row[col_opinion-1] = "X" if fb.need_opinion else ""
                     
                     if col_specialist:
                         # Thứ tự ưu tiên đồng bộ toàn hệ thống

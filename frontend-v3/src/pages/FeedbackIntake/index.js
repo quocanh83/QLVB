@@ -57,7 +57,8 @@ const FeedbackIntake = () => {
         agency_id: null,
         content: '',
         reason: '',
-        note: ''
+        note: '',
+        need_opinion: false
     });
 
     // Quick Add Agency Modal State
@@ -455,7 +456,7 @@ const FeedbackIntake = () => {
         };
         
         setFeedbacks([newFeedback, ...feedbacks]);
-        setManualEntry({ ...manualEntry, content: '', reason: '', note: '' });
+        setManualEntry({ ...manualEntry, content: '', reason: '', note: '', need_opinion: false });
         toast.success("Đã thêm góp ý vào danh sách chờ.");
     };
 
@@ -796,6 +797,20 @@ const FeedbackIntake = () => {
                                                             />
                                                         </FormGroup>
                                                     </Col>
+                                                    <Col md={12}>
+                                                        <div className="form-check form-switch form-switch-md mb-3">
+                                                            <Input 
+                                                                type="checkbox" 
+                                                                className="form-check-input" 
+                                                                id="manual-need-opinion"
+                                                                checked={manualEntry.need_opinion}
+                                                                onChange={(e) => setManualEntry({ ...manualEntry, need_opinion: e.target.checked })}
+                                                            />
+                                                            <Label className="form-check-label fw-bold text-danger fs-14" htmlFor="manual-need-opinion">
+                                                                <i className="ri-error-warning-fill me-1"></i> Cần xin ý kiến lãnh đạo
+                                                            </Label>
+                                                        </div>
+                                                    </Col>
                                                 </Row>
                                                 <div className="text-end">
                                                     <Button color="success" className="px-4 shadow-none" onClick={handleAddManualToSession} disabled={!selectedNodeId || !manualEntry.content}>
@@ -818,6 +833,11 @@ const FeedbackIntake = () => {
                                                                 <span className="text-muted fs-12 fw-bold">{fb.contributing_agency}</span>
                                                             </div>
                                                             <p className="mb-0 fs-14 text-body">{fb.content}</p>
+                                                            {fb.need_opinion && (
+                                                                <div className="mt-1">
+                                                                    <Badge color="danger" className="text-uppercase fs-10">Cần xin ý kiến</Badge>
+                                                                </div>
+                                                            )}
                                                             <Button 
                                                                 color="soft-danger" 
                                                                 size="sm" 
@@ -962,8 +982,9 @@ const FeedbackIntake = () => {
                                                 <Table className="align-middle mb-0 table-hover">
                                                     <thead className="table-light fs-13">
                                                         <tr className="text-uppercase fw-bold">
-                                                            <th scope="col" style={{ width: '65%' }}>Nội dung góp ý</th>
-                                                            <th scope="col" style={{ width: '30%' }}>Điều/Khoản tương ứng</th>
+                                                            <th scope="col" style={{ width: '60%' }}>Nội dung góp ý</th>
+                                                            <th scope="col" style={{ width: '25%' }}>Điều/Khoản</th>
+                                                            <th scope="col" className="text-center" style={{ width: '10%' }}>Xin ý kiến</th>
                                                             <th scope="col" className="text-center" style={{ width: '5%' }}>Xóa</th>
                                                         </tr>
                                                     </thead>
@@ -996,6 +1017,16 @@ const FeedbackIntake = () => {
                                                                     />
                                                                 </td>
                                                                 <td className="text-center p-2">
+                                                                    <div className="form-check form-switch form-switch-md d-inline-block">
+                                                                        <Input 
+                                                                            className="form-check-input" 
+                                                                            type="checkbox" 
+                                                                            checked={fb.need_opinion}
+                                                                            onChange={(e) => updateFeedbackField(fb.key, 'need_opinion', e.target.checked)}
+                                                                        />
+                                                                    </div>
+                                                                </td>
+                                                                <td className="text-center p-2">
                                                                     <Button color="soft-danger" size="sm" className="btn-icon shadow-none" onClick={() => removeFeedback(fb.key)}>
                                                                         <i className="ri-delete-bin-line fs-16"></i>
                                                                     </Button>
@@ -1003,7 +1034,7 @@ const FeedbackIntake = () => {
                                                             </tr>
                                                         )) : (
                                                             <tr>
-                                                                <td colSpan="3" className="text-center py-5 text-muted bg-body-tertiary">
+                                                                <td colSpan="4" className="text-center py-5 text-muted bg-body-tertiary">
                                                                     <div className="py-5">
                                                                         <div className="mb-4">
                                                                             <i className="ri-file-word-line display-3 text-primary opacity-25"></i>
@@ -1120,10 +1151,11 @@ const FeedbackIntake = () => {
                                                     <Table className="align-middle mb-0 table-hover">
                                                         <thead className="table-light fs-13">
                                                             <tr className="text-uppercase fw-bold">
-                                                                <th scope="col" style={{ width: '45%' }}>Nội dung góp ý</th>
+                                                                <th scope="col" style={{ width: '40%' }}>Nội dung góp ý</th>
                                                                 <th scope="col" style={{ width: '25%' }}>Cơ quan góp ý</th>
                                                                 <th scope="col" style={{ width: '25%' }}>Điều/Khoản tương ứng</th>
-                                                                <th scope="col" className="text-center" style={{ width: '5%' }}>Thao tác</th>
+                                                                <th scope="col" className="text-center" style={{ width: '5%' }}>Xin ý kiến</th>
+                                                                <th scope="col" className="text-center" style={{ width: '5%' }}>Xóa</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -1169,6 +1201,16 @@ const FeedbackIntake = () => {
                                                                             menuPosition="fixed"
                                                                             styles={selectStyles}
                                                                         />
+                                                                    </td>
+                                                                    <td className="text-center p-2">
+                                                                        <div className="form-check form-switch form-switch-md d-inline-block">
+                                                                            <Input 
+                                                                                className="form-check-input" 
+                                                                                type="checkbox" 
+                                                                                checked={fb.need_opinion}
+                                                                                onChange={(e) => updateFeedbackField(fb.key, 'need_opinion', e.target.checked)}
+                                                                            />
+                                                                        </div>
                                                                     </td>
                                                                     <td className="text-center p-2">
                                                                         <Button color="soft-danger" size="sm" className="btn-icon shadow-none" onClick={() => removeFeedback(fb.key)}>
@@ -1332,12 +1374,13 @@ const FeedbackIntake = () => {
                                                 <Table className="table-hover mb-0 align-middle">
                                                     <thead className="table-light fs-11 text-uppercase fw-bold">
                                                     <tr>
-                                                        <th style={{ width: '10%' }}>Điều/Khoản</th>
-                                                        <th style={{ width: '15%' }}>Đơn vị</th>
+                                                        <th style={{ width: '8%' }}>Điều</th>
+                                                        <th style={{ width: '12%' }}>Đơn vị</th>
                                                         <th style={{ width: '20%' }}>Nội dung</th>
-                                                        <th style={{ width: '15%' }}>Lý do</th>
+                                                        <th style={{ width: '10%' }}>Lý do</th>
                                                         <th style={{ width: '10%' }}>Ghi chú</th>
                                                         <th style={{ width: '25%' }}>Xử lý Giải trình</th>
+                                                        <th style={{ width: '7%' }} className="text-center">Xin ý kiến</th>
                                                         <th style={{ width: '8%' }}>Lưu?</th>
                                                     </tr>
                                                 </thead>
@@ -1480,6 +1523,16 @@ const FeedbackIntake = () => {
                                                                             </div>
                                                                         </div>
                                                                     )}
+                                                                </td>
+                                                                <td className="text-center">
+                                                                    <div className="form-check form-switch form-switch-sm d-inline-block">
+                                                                        <Input 
+                                                                            className="form-check-input" 
+                                                                            type="checkbox" 
+                                                                            checked={fb.need_opinion}
+                                                                            onChange={(e) => updateFeedbackField(fb.key, 'need_opinion', e.target.checked)}
+                                                                        />
+                                                                    </div>
                                                                 </td>
                                                                 <td className="text-center">
                                                                     <Input 

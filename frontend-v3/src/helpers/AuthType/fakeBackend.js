@@ -80,9 +80,9 @@ import {
 let users = [
   {
     uid: 1,
-    username: "admin",
+    username: "qlvb_admin",
     role: "admin",
-    password: "123456",
+    password: "Admin@123",
     email: "admin@themesbrand.com",
   },
 ];
@@ -1431,58 +1431,58 @@ const fakeBackend = () => {
   });
 
 
-      // Kanban Board
-      mock.onGet(url.GET_TASKS).reply(() => {
-        return new Promise((resolve, reject) => {
-          setTimeout(() => {
-            if (tasklist) {
-              // Passing fake JSON data as response
-              resolve([200, tasklist]);
-            } else {
-              reject([400, "Cannot get tasks"]);
-            }
-          });
-        });
+  // Kanban Board
+  mock.onGet(url.GET_TASKS).reply(() => {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        if (tasklist) {
+          // Passing fake JSON data as response
+          resolve([200, tasklist]);
+        } else {
+          reject([400, "Cannot get tasks"]);
+        }
       });
-    
-      mock.onPost(url.ADD_TASKS).reply(user => {
-        return new Promise((resolve, reject) => {
-          setTimeout(() => {
-            if (user && user.data) {
-              // Passing fake JSON data as response
-              resolve([200, user.data]);
-            } else {
-              reject([400, "Cannot add user"]);
-            }
-          });
-        });
+    });
+  });
+
+  mock.onPost(url.ADD_TASKS).reply(user => {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        if (user && user.data) {
+          // Passing fake JSON data as response
+          resolve([200, user.data]);
+        } else {
+          reject([400, "Cannot add user"]);
+        }
       });
-    
-      mock.onPut(url.UPDATE_TASKS).reply((user) => {
-        return new Promise((resolve, reject) => {
-          setTimeout(() => {
-            if (user && user.data) {
-              // Passing fake JSON data as response
-              resolve([200, user.data]);
-            } else {
-              reject([400, "Cannot update user"]);
-            }
-          });
-        });
+    });
+  });
+
+  mock.onPut(url.UPDATE_TASKS).reply((user) => {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        if (user && user.data) {
+          // Passing fake JSON data as response
+          resolve([200, user.data]);
+        } else {
+          reject([400, "Cannot update user"]);
+        }
       });
-    
-      mock.onDelete(url.DELETE_TASKS).reply(config => {
-        return new Promise((resolve, reject) => {
-          setTimeout(() => {
-            if (config && config.headers) {
-              // Passing fake JSON data as response
-              resolve([200, config.headers.card]);
-            } else {
-              reject([400, "Cannot delete users"]);
-            }
-          });
-        });
+    });
+  });
+
+  mock.onDelete(url.DELETE_TASKS).reply(config => {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        if (config && config.headers) {
+          // Passing fake JSON data as response
+          resolve([200, config.headers.card]);
+        } else {
+          reject([400, "Cannot delete users"]);
+        }
       });
+    });
+  });
 
 };
 

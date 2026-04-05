@@ -286,7 +286,8 @@ const GSheetSync = () => {
                 return { 
                     id: item.id, 
                     content: item.gs_content,
-                    explanation: item.gs_explanation 
+                    explanation: item.gs_explanation,
+                    need_opinion: item.gs_need_opinion
                 };
             });
 
@@ -552,7 +553,8 @@ const GSheetSync = () => {
                                                 <th style={{ width: "25%", minWidth: "200px" }}>Nội dung góp ý</th>
                                                 <th style={{ width: "20%", minWidth: "180px" }}>Ý KIẾN GIẢI TRÌNH, TIẾP THU</th>
                                                 <th style={{ width: "15%", minWidth: "140px" }}>Phân công</th>
-                                                <th style={{ width: "15%", minWidth: "140px" }}>Trạng thái Sheet</th>
+                                                <th style={{ width: "6%", minWidth: "60px" }}>Xin ý kiến</th>
+                                                <th style={{ width: "12%", minWidth: "100px" }}>Trạng thái</th>
                                             </tr>
                                             </thead>
                                             <tbody>
@@ -639,6 +641,18 @@ const GSheetSync = () => {
                                                                     </small>
                                                                 </div>
                                                             )}
+                                                        </td>
+                                                        <td className="text-center">
+                                                            <div className="d-flex flex-column align-items-center">
+                                                                <div className={classnames("fs-14", item.need_opinion ? "text-danger" : "text-muted")}>
+                                                                    {item.need_opinion ? <i className="ri-checkbox-circle-fill"></i> : <i className="ri-checkbox-blank-circle-line"></i>}
+                                                                </div>
+                                                                {item.is_opinion_diff && (
+                                                                    <Badge color="warning" className="mt-1 fs-10">
+                                                                        Sheet: {item.gs_need_opinion ? "Cần" : "K"}
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
                                                         </td>
                                                         <td className="text-center">
                                                             {item.is_in_gs ? (

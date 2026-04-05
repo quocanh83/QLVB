@@ -43,6 +43,7 @@ class Feedback(models.Model):
         ('rejected', 'Từ chối'),
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    need_opinion = models.BooleanField(default=False, verbose_name="Cần xin ý kiến")
     
     explanations = GenericRelation(Explanation, related_query_name='feedback_obj')
 
