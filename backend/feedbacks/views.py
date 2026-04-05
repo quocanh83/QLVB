@@ -1953,12 +1953,21 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         except DocumentNode.DoesNotExist:
             return Response({"error": "Điều khoản mới không hợp lệ hoặc không thuộc dự thảo này."}, status=404)
 
+    def _get_short_label(self, label):
+        """Cắt bỏ tiêu đề dài sau dấu ':' hoặc ' -', chỉ giữ lại phần ngắn gọn.
+        Ví dụ: 'Phụ lục I: PHÂN LOẠI CÔNG TRÌNH...' -> 'Phụ lục I'
+        """
+        if not label:
+            return label
+        short = label.split(':')[0].split(' -')[0].strip()
+        return short if short else label
+
     def _get_full_node_path(self, node):
         if not node: return "Chung"
         path = []
         current = node
         while current:
-            path.insert(0, current.node_label)
+            path.insert(0, self._get_short_label(current.node_label))
             current = current.parent
         return ", ".join(path)
 
