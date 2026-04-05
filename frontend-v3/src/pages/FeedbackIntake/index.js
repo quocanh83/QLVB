@@ -58,7 +58,7 @@ const FeedbackIntake = () => {
         content: '',
         reason: '',
         note: '',
-        need_opinion: false
+        need_opinion: ''
     });
 
     // Quick Add Agency Modal State
@@ -456,7 +456,7 @@ const FeedbackIntake = () => {
         };
         
         setFeedbacks([newFeedback, ...feedbacks]);
-        setManualEntry({ ...manualEntry, content: '', reason: '', note: '', need_opinion: false });
+        setManualEntry({ ...manualEntry, content: '', reason: '', note: '', need_opinion: '' });
         toast.success("Đã thêm góp ý vào danh sách chờ.");
     };
 
@@ -798,19 +798,21 @@ const FeedbackIntake = () => {
                                                         </FormGroup>
                                                     </Col>
                                                     <Col md={12}>
-                                                        <div className="form-check form-switch form-switch-md mb-3">
-                                                            <Input 
-                                                                type="checkbox" 
-                                                                className="form-check-input" 
-                                                                id="manual-need-opinion"
-                                                                checked={manualEntry.need_opinion}
-                                                                onChange={(e) => setManualEntry({ ...manualEntry, need_opinion: e.target.checked })}
-                                                            />
-                                                            <Label className="form-check-label fw-bold text-danger fs-14" htmlFor="manual-need-opinion">
-                                                                <i className="ri-error-warning-fill me-1"></i> Cần xin ý kiến lãnh đạo
-                                                            </Label>
-                                                        </div>
-                                                    </Col>
+                                                       <FormGroup className="mb-3">
+                                                           <Label className="fs-13 fw-bold text-danger text-uppercase mb-1">
+                                                               <i className="ri-error-warning-fill me-1"></i> Nội dung cần xin ý kiến lãnh đạo
+                                                           </Label>
+                                                           <Input 
+                                                               type="textarea" 
+                                                               rows={2}
+                                                               className="form-control border-danger-subtle bg-danger-subtle text-body fs-13" 
+                                                               placeholder="Nhập nội dung cần xin ý kiến (nếu có)..."
+                                                               value={manualEntry.need_opinion}
+                                                               onChange={(e) => setManualEntry({ ...manualEntry, need_opinion: e.target.value })}
+                                                               disabled={!selectedNodeId}
+                                                           />
+                                                       </FormGroup>
+                                                   </Col>
                                                 </Row>
                                                 <div className="text-end">
                                                     <Button color="success" className="px-4 shadow-none" onClick={handleAddManualToSession} disabled={!selectedNodeId || !manualEntry.content}>
@@ -835,7 +837,9 @@ const FeedbackIntake = () => {
                                                             <p className="mb-0 fs-14 text-body">{fb.content}</p>
                                                             {fb.need_opinion && (
                                                                 <div className="mt-1">
-                                                                    <Badge color="danger" className="text-uppercase fs-10">Cần xin ý kiến</Badge>
+                                                                    <Badge color="danger" className="text-uppercase fs-10 d-block text-wrap text-start p-2 shadow-none">
+                                                                        <i className="ri-error-warning-line me-1"></i> Xin ý kiến: {fb.need_opinion}
+                                                                    </Badge>
                                                                 </div>
                                                             )}
                                                             <Button 
@@ -1016,15 +1020,15 @@ const FeedbackIntake = () => {
                                                                         styles={selectStyles}
                                                                     />
                                                                 </td>
-                                                                <td className="text-center p-2">
-                                                                    <div className="form-check form-switch form-switch-md d-inline-block">
-                                                                        <Input 
-                                                                            className="form-check-input" 
-                                                                            type="checkbox" 
-                                                                            checked={fb.need_opinion}
-                                                                            onChange={(e) => updateFeedbackField(fb.key, 'need_opinion', e.target.checked)}
-                                                                        />
-                                                                    </div>
+                                                                <td className="p-2">
+                                                                    <Input 
+                                                                        type="textarea" 
+                                                                        rows={2} 
+                                                                        className="form-control form-control-sm fs-12 border-danger-subtle bg-danger-subtle fb-table-input shadow-none" 
+                                                                        placeholder="..."
+                                                                        value={fb.need_opinion || ""}
+                                                                        onChange={(e) => updateFeedbackField(fb.key, 'need_opinion', e.target.value)}
+                                                                    />
                                                                 </td>
                                                                 <td className="text-center p-2">
                                                                     <Button color="soft-danger" size="sm" className="btn-icon shadow-none" onClick={() => removeFeedback(fb.key)}>
@@ -1202,15 +1206,15 @@ const FeedbackIntake = () => {
                                                                             styles={selectStyles}
                                                                         />
                                                                     </td>
-                                                                    <td className="text-center p-2">
-                                                                        <div className="form-check form-switch form-switch-md d-inline-block">
-                                                                            <Input 
-                                                                                className="form-check-input" 
-                                                                                type="checkbox" 
-                                                                                checked={fb.need_opinion}
-                                                                                onChange={(e) => updateFeedbackField(fb.key, 'need_opinion', e.target.checked)}
-                                                                            />
-                                                                        </div>
+                                                                    <td className="p-2">
+                                                                        <Input 
+                                                                            type="textarea" 
+                                                                            rows={2} 
+                                                                            className="form-control form-control-sm fs-12 border-danger-subtle bg-danger-subtle fb-table-input shadow-none" 
+                                                                            placeholder="..."
+                                                                            value={fb.need_opinion || ""}
+                                                                            onChange={(e) => updateFeedbackField(fb.key, 'need_opinion', e.target.value)}
+                                                                        />
                                                                     </td>
                                                                     <td className="text-center p-2">
                                                                         <Button color="soft-danger" size="sm" className="btn-icon shadow-none" onClick={() => removeFeedback(fb.key)}>
@@ -1524,15 +1528,22 @@ const FeedbackIntake = () => {
                                                                         </div>
                                                                     )}
                                                                 </td>
-                                                                <td className="text-center">
-                                                                    <div className="form-check form-switch form-switch-sm d-inline-block">
-                                                                        <Input 
-                                                                            className="form-check-input" 
-                                                                            type="checkbox" 
-                                                                            checked={fb.need_opinion}
-                                                                            onChange={(e) => updateFeedbackField(fb.key, 'need_opinion', e.target.checked)}
-                                                                        />
-                                                                    </div>
+                                                                <td className="p-1">
+                                                                    <Input 
+                                                                        type="textarea" 
+                                                                        rows={2} 
+                                                                        className={classnames("form-control form-control-sm fs-11 px-1 py-1 border-0 bg-transparent fb-table-input shadow-none", fb.need_opinion ? 'bg-danger-subtle' : '')} 
+                                                                        value={fb.need_opinion || ""}
+                                                                        placeholder="..."
+                                                                        onChange={(e) => updateFeedbackField(fb.key, 'need_opinion', e.target.value)}
+                                                                    />
+                                                                    {fb.is_opinion_diff && (
+                                                                        <div className="mt-1">
+                                                                            <Badge color="soft-warning" className="fs-9 d-block text-wrap text-start shadow-none">
+                                                                                Sheet: {fb.gs_need_opinion}
+                                                                            </Badge>
+                                                                        </div>
+                                                                    )}
                                                                 </td>
                                                                 <td className="text-center">
                                                                     <Input 

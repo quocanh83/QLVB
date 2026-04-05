@@ -1166,7 +1166,7 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                     content=item.get('content', ''),
                     reason=item.get('reason', ''),
                     note=item.get('note', ''),
-                    need_opinion=item.get('need_opinion', False)
+                    need_opinion=item.get('need_opinion', "")
                 )
                 created_count += 1
                 
@@ -1476,8 +1476,8 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             except Document.DoesNotExist:
                 pass
 
-        # Count feedbacks needing leadership opinion
-        count_need_opinion = query.filter(need_opinion=True).count()
+        # Count feedbacks needing leadership opinion (where need_opinion is documented)
+        count_need_opinion = query.exclude(need_opinion__isnull=True).exclude(need_opinion='').count()
 
         return Response({
             'agency_stats': agency_stats_list,
@@ -1728,10 +1728,14 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         status_filter = request.query_params.get('status')
         specialist = request.query_params.get('specialist')
         report_type = request.query_params.get('report_type', 'mau10')
+        only_opinion = request.query_params.get('only_opinion') == 'true'
         
         if not doc_id: return Response([])
         
         feedbacks = Feedback.objects.filter(document_id=doc_id).select_related('node', 'agency').prefetch_related('explanations', 'user').order_by('node__order_index')
+        
+        if only_opinion:
+            feedbacks = feedbacks.exclude(need_opinion__isnull=True).exclude(need_opinion='')
         
         if agency and agency != 'all':
             import unicodedata
@@ -1805,6 +1809,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                     "co_quan": (fb.agency.name if fb.agency else fb.contributing_agency) or "Khác",
                     "noi_dung_gop_y": fb.content,
                     "noi_dung_giai_trinh": explanation.content if explanation else "",
+                    "xin_y_kien": fb.need_opinion or "",
                 }
             results.append(row)
             
@@ -1815,6 +1820,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         doc_id = request.query_params.get('document_id')
         agency = request.query_params.get('agency')
         status_filter = request.query_params.get('status')
+        only_opinion = request.query_params.get('only_opinion') == 'true'
         
         # Xác thực qua token ở URL (Cho phép tải file trực tiếp từ trình duyệt)
         user = request.user
@@ -1836,6 +1842,9 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         try:
             document = Document.objects.get(id=doc_id)
             feedbacks = Feedback.objects.filter(document_id=doc_id).select_related('node', 'agency').prefetch_related('explanations').order_by('node__order_index')
+            
+            if only_opinion:
+                feedbacks = feedbacks.exclude(need_opinion__isnull=True).exclude(need_opinion='')
             
             if agency and agency != 'all':
                 import unicodedata
@@ -2096,12 +2105,12 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                     col_map['explanation'] = idx
                 elif 'agency' not in col_map and any(kw in h for kw in ['cơ quan', 'chủ thể', 'đơn vị', 'người']): 
                     col_map['agency'] = idx
+                elif 'need_opinion' not in col_map and any(kw in h for kw in ['xin ý kiến', 'xyk', 'cần xin ý kiến', 'vấn đề còn ý kiến khác nhau']):
+                    col_map['need_opinion'] = idx
                 elif 'content' not in col_map and any(kw in h for kw in ['nội dung', 'ý kiến', 'góp ý']): 
                     col_map['content'] = idx
                 elif 'specialist' not in col_map and any(kw in h for kw in ['cán bộ', 'chuyên viên', 'thụ lý', 'phân công']): 
                     col_map['specialist'] = idx
-                elif 'need_opinion' not in col_map and any(kw in h for kw in ['xin ý kiến', 'xyk', 'vấn đề còn ý kiến khác nhau']):
-                    col_map['need_opinion'] = idx
 
             if 'content' not in col_map:
                  # Thử tìm kiếm sâu hơn hoặc báo lỗi rõ ràng
@@ -2173,7 +2182,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                     "norm_agency": norm_a,
                     "robust_content": robust_c,
                     "robust_agency": robust_a,
-                    "need_opinion": row[col_map['need_opinion']].strip().lower() in ['x', 'v', '1', 'yes', 'cần'] if 'need_opinion' in col_map and len(row) > col_map['need_opinion'] else False
+                    "need_opinion": row[col_map['need_opinion']].strip() if 'need_opinion' in col_map and len(row) > col_map['need_opinion'] else ""
                 }
 
                 if norm_c or norm_a:
@@ -2319,12 +2328,12 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                     "gs_row": gs_info["row"] if gs_info else None,
                     "gs_content": gs_info["content"] if gs_info else "",
                     "gs_explanation": gs_info["explanation"] if gs_info else "",
-                    "need_opinion": fb.need_opinion,
-                    "gs_need_opinion": gs_info["need_opinion"] if gs_info else False,
+                    "need_opinion": fb.need_opinion or "",
+                    "gs_need_opinion": gs_info["need_opinion"] if gs_info else "",
                     "is_content_diff": is_content_diff,
                     "is_exp_diff": is_exp_diff,
-                    "is_opinion_diff": fb.need_opinion != (gs_info["need_opinion"] if gs_info else False) if gs_info and 'need_opinion' in col_map else False,
-                    "status": "synced" if (gs_info and not (is_content_diff or is_exp_diff or is_node_diff or is_specialist_diff or (fb.need_opinion != (gs_info["need_opinion"] if gs_info else False) if 'need_opinion' in col_map else False))) else ("diff" if (gs_info and (is_content_diff or is_exp_diff or is_node_diff or is_specialist_diff or (fb.need_opinion != (gs_info["need_opinion"] if gs_info else False) if 'need_opinion' in col_map else False))) else "new_in_db")
+                    "is_opinion_diff": (fb.need_opinion or "").strip() != (gs_info["need_opinion"] if gs_info else "").strip() if gs_info and 'need_opinion' in col_map else False,
+                    "status": "synced" if (gs_info and not (is_content_diff or is_exp_diff or is_node_diff or is_specialist_diff or ((fb.need_opinion or "").strip() != (gs_info["need_opinion"] if gs_info else "").strip() if 'need_opinion' in col_map else False))) else ("diff" if (gs_info and (is_content_diff or is_exp_diff or is_node_diff or is_specialist_diff or ((fb.need_opinion or "").strip() != (gs_info["need_opinion"] if gs_info else "").strip() if 'need_opinion' in col_map else False))) else "new_in_db")
                 })
                 
             return Response({"feedbacks": results})
@@ -2437,7 +2446,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                     fb.content = gs_content.strip()
                     fb.save()
                 
-                # 3. Cập nhật Trạng thái "Cần xin ý kiến"
+                # 3. Cập nhật Trạng thái "Cần xin ý kiến" (đã đổi sang TextField)
                 gs_need_opinion = item.get('need_opinion')
                 if gs_need_opinion is not None:
                     fb.need_opinion = gs_need_opinion
@@ -2508,13 +2517,13 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                 if not col_nd and h == 'nd': col_nd = idx + 1
                 elif not col_gt and h == 'gt': col_gt = idx + 1
                 elif not col_node and any(kw in h for kw in ['điều', 'khoản', 'mục', 'vị trí']): col_node = idx + 1
+                elif not col_opinion and any(kw in h for kw in ['xin ý kiến', 'xyk', 'cần xin ý kiến', 'vấn đề còn ý kiến khác nhau']): col_opinion = idx + 1
                 elif not col_explanation and any(kw in h for kw in ['giải trình', 'tiếp thu', 'ý kiến giải trình']): col_explanation = idx + 1
                 elif not col_agency and any(kw in h for kw in ['cơ quan', 'chủ thể', 'đơn vị', 'người']): col_agency = idx + 1
                 elif not col_content and any(kw in h for kw in ['nội dung', 'ý kiến', 'góp ý']): col_content = idx + 1
                 elif not col_reason and any(kw in h for kw in ['lý do', 'cơ sở']): col_reason = idx + 1
                 elif not col_note and any(kw in h for kw in ['ghi chú', 'note']): col_note = idx + 1
                 elif not col_specialist and any(kw in h for kw in ['cán bộ', 'chuyên viên', 'thụ lý', 'phân công', 'specialist']): col_specialist = idx + 1
-                elif not col_opinion and any(kw in h for kw in ['xin ý kiến', 'xyk', 'vấn đề còn ý kiến khác nhau']): col_opinion = idx + 1
 
             if not col_content:
                 return Response({"error": "Google Sheet không có cột 'Nội dung góp ý' để định danh dữ liệu."}, status=400)
@@ -2547,7 +2556,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                         # Tự động điền trạng thái OK
                         if col_nd and fb.content: cells_to_update.append(Cell(row=gs_row, col=col_nd, value="OK"))
                         if col_gt and exp_val: cells_to_update.append(Cell(row=gs_row, col=col_gt, value="OK"))
-                        if col_opinion: cells_to_update.append(Cell(row=gs_row, col=col_opinion, value="X" if fb.need_opinion else ""))
+                        if col_opinion: cells_to_update.append(Cell(row=gs_row, col=col_opinion, value=fb.need_opinion or ""))
                     
                     elif update_mode == 'node_only':
                         if col_node: cells_to_update.append(Cell(row=gs_row, col=col_node, value=node_val))
@@ -2567,7 +2576,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                     if col_reason: row[col_reason-1] = fb.reason or ""
                     if col_explanation: row[col_explanation-1] = exp_val
                     if col_note: row[col_note-1] = fb.note or ""
-                    if col_opinion: row[col_opinion-1] = "X" if fb.need_opinion else ""
+                    if col_opinion: row[col_opinion-1] = fb.need_opinion or ""
                     
                     if col_specialist:
                         # Thứ tự ưu tiên đồng bộ toàn hệ thống

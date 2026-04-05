@@ -84,7 +84,7 @@ def _get_field_value(field_key, fb_idx, fb, explanation=None):
         'chuyen_vien': chuyen_vien,
         'trang_thai': status_tv,
         'status': status_tv,
-        'need_opinion': 'X' if fb.need_opinion else '',
+        'need_opinion': fb.need_opinion or '',
     }
     
     # Fallback cho các trường tùy chỉnh khác (nếu có trong model Feedback)
@@ -205,7 +205,7 @@ def generate_from_v2_template(document, feedbacks, template_config=None, templat
     count_need_opinion = 0
 
     for f in active_fbs:
-        if getattr(f, 'need_opinion', False):
+        if getattr(f, 'need_opinion', None) and str(f.need_opinion).strip():
             count_need_opinion += 1
         exps = f.explanations.all()
         if not exps:

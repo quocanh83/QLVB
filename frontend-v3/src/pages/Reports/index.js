@@ -20,6 +20,7 @@ const Reports = () => {
     const [customAgency, setCustomAgency] = useState('all');
     const [customStatus, setCustomStatus] = useState('all');
     const [customSpecialist, setCustomSpecialist] = useState('all');
+    const [customOnlyOpinion, setCustomOnlyOpinion] = useState(false);
     const [specialists, setSpecialists] = useState([]);
     const [customAgenciesList, setCustomAgenciesList] = useState([]);
     const [customStatsData, setCustomStatsData] = useState([]);
@@ -95,11 +96,11 @@ const Reports = () => {
             fetchSubjectStats(selectedDocId);
         } else if (activeTab === '2') {
             fetchCustomAgencies(selectedDocId);
-            fetchCustomPreview(selectedDocId, customAgency, customStatus, customSpecialist);
+            fetchCustomPreview(selectedDocId, customAgency, customStatus, customSpecialist, customOnlyOpinion);
         } else if (activeTab === '4') {
             fetchPersonnelStats();
         }
-    }, [selectedDocId, activeTab, customAgency, customStatus, customSpecialist, reportMode]);
+    }, [selectedDocId, activeTab, customAgency, customStatus, customSpecialist, reportMode, customOnlyOpinion]);
 
     const fetchPersonnelStats = async () => {
         setIsPersonnelLoading(true);
@@ -140,13 +141,14 @@ const Reports = () => {
         } catch (e) { console.error(e); }
     };
 
-    const fetchCustomPreview = async (docId, agency, statusFilter, specialist) => {
+    const fetchCustomPreview = async (docId, agency, statusFilter, specialist, onlyOpinion) => {
         if (!docId) return;
         setIsCustomLoading(true);
         try {
             let url = `/api/feedbacks/custom_report_preview/?document_id=${docId}&status=${statusFilter}&report_type=${reportMode === 'mau10' ? 'mau_10' : 'custom'}`;
             if (agency && agency !== 'all') url += `&agency=${encodeURIComponent(agency)}`;
             if (specialist && specialist !== 'all') url += `&specialist=${specialist}`;
+            if (onlyOpinion) url += `&only_opinion=true`;
             const res = await axios.get(url, getAuthHeader());
             setCustomStatsData(res);
         } catch (error) { console.error(error); }
@@ -161,6 +163,7 @@ const Reports = () => {
             let url = `${baseUrl}/api/feedbacks/export_mau_10/?document_id=${selectedDocId}&status=${customStatus}`;
             if (customAgency && customAgency !== 'all') url += `&agency=${encodeURIComponent(customAgency)}`;
             if (customSpecialist && customSpecialist !== 'all') url += `&specialist=${customSpecialist}`;
+            if (customOnlyOpinion) url += `&only_opinion=true`;
             url += `&report_type=${typeParam}`;
 
             const auth = getAuthHeader();
@@ -571,6 +574,20 @@ const Reports = () => {
                                                         <option value="agreed">Thống nhất với dự thảo</option>
                                                     </Input>
                                                 </Col>
+                                                <Col lg={12}>
+                                                    <div className="form-check form-switch form-switch-md mb-2">
+                                                        <Input 
+                                                            type="checkbox" 
+                                                            className="form-check-input" 
+                                                            id="customOnlyOpinion" 
+                                                            checked={customOnlyOpinion}
+                                                            onChange={(e) => setCustomOnlyOpinion(e.target.checked)}
+                                                        />
+                                                        <label className="form-check-label fw-medium" htmlFor="customOnlyOpinion">
+                                                            Chỉ hiện các mục có nội dung "Cần xin ý kiến"
+                                                        </label>
+                                                    </div>
+                                                </Col>
                                             </Row>
 
                                             <div className="table-responsive table-card">
@@ -590,6 +607,7 @@ const Reports = () => {
                                                                     <th scope="col">Cơ quan</th>
                                                                     <th scope="col" style={{ maxWidth: "300px" }}>Nội dung góp ý</th>
                                                                     <th scope="col" style={{ maxWidth: "300px" }}>Giải trình</th>
+                                                                    <th scope="col">Xin ý kiến</th>
                                                                 </>
                                                             )}
                                                         </tr>
@@ -615,6 +633,7 @@ const Reports = () => {
                                                                             <td><span className="badge bg-info-subtle text-info">{r?.co_quan}</span></td>
                                                                             <td className="text-wrap" style={{ maxWidth: "300px" }}>{r?.noi_dung_gop_y}</td>
                                                                             <td className="text-wrap text-muted fst-italic" style={{ maxWidth: "300px" }}>{r?.noi_dung_giai_trinh || '---'}</td>
+                                                                            <td className="text-wrap">{r?.xin_y_kien || '---'}</td>
                                                                         </>
                                                                     )}
                                                                 </tr>

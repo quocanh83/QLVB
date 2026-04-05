@@ -562,14 +562,17 @@ const GSheetSync = () => {
                                                 const isMissingExpOnGs = item.is_in_gs && !item.gs_explanation && item.explanation;
                                                 const hasExpDiff = item.is_exp_diff;
 
+                                                const hasOpinionDiff = item.is_opinion_diff;
+                                                const hasAnyDiff = item.is_content_diff || hasExpDiff || hasOpinionDiff || item.is_node_diff || item.is_specialist_diff;
+
                                                 return (
-                                                    <tr key={item.id} className={classnames(item.is_in_gs ? "bg-success-subtle" : "", hasExpDiff ? "bg-danger-subtle opacity-100" : "")}>
+                                                    <tr key={item.id} className={classnames(item.is_in_gs ? (hasAnyDiff ? "bg-danger-subtle opacity-100" : "bg-success-subtle") : "")}>
                                                         <td className="text-center align-middle">
                                                             <div className="form-check d-flex justify-content-center">
                                                                 <Input 
                                                                     type="checkbox" 
                                                                     className="form-check-input"
-                                                                    disabled={item.is_in_gs && !hasExpDiff && !isMissingExpOnGs}
+                                                                    disabled={item.is_in_gs && !hasAnyDiff && !isMissingExpOnGs}
                                                                     checked={selectedIds.includes(item.id)}
                                                                     onChange={() => toggleSelectRow(item.id)}
                                                                 />
@@ -642,15 +645,16 @@ const GSheetSync = () => {
                                                                 </div>
                                                             )}
                                                         </td>
-                                                        <td className="text-center">
-                                                            <div className="d-flex flex-column align-items-center">
-                                                                <div className={classnames("fs-14", item.need_opinion ? "text-danger" : "text-muted")}>
-                                                                    {item.need_opinion ? <i className="ri-checkbox-circle-fill"></i> : <i className="ri-checkbox-blank-circle-line"></i>}
+                                                        <td className="text-start">
+                                                            <div className={classnames("p-2 border rounded fs-11 d-flex flex-column gap-1", hasOpinionDiff ? "bg-white border-danger shadow-sm" : "bg-light-subtle")}>
+                                                                <div className={classnames(item.need_opinion ? "text-danger fw-medium" : "text-muted italic")}>
+                                                                    DB: {item.need_opinion || "---"}
                                                                 </div>
-                                                                {item.is_opinion_diff && (
-                                                                    <Badge color="warning" className="mt-1 fs-10">
-                                                                        Sheet: {item.gs_need_opinion ? "Cần" : "K"}
-                                                                    </Badge>
+                                                                {hasOpinionDiff && (
+                                                                    <div className="mt-1 pt-1 border-top border-danger-subtle text-danger">
+                                                                        <i className="ri-error-warning-fill me-1"></i>
+                                                                        <strong>Sheet:</strong> {item.gs_need_opinion || "---"}
+                                                                    </div>
                                                                 )}
                                                             </div>
                                                         </td>
