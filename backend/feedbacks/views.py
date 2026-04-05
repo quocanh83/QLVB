@@ -2095,7 +2095,29 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             # 3. Reference data for labels
             from documents.models import DocumentAppendix
             appendices = DocumentAppendix.objects.filter(document_id=document_id)
-            appendix_map = {app.id: idx+1 for idx, app in enumerate(appendices)}
+            
+            def _to_roman(num):
+                val = [1000,900,500,400,100,90,50,40,10,9,5,4,1]
+                syms = ['M','CM','D','CD','C','XC','L','XL','X','IX','V','IV','I']
+                result = ''
+                for i, v in enumerate(val):
+                    while num >= v:
+                        result += syms[i]
+                        num -= v
+                return result
+            
+            # Lấy tên phụ lục dạng ngắn gọn: chỉ lấy phần trước ':' hoặc '-'
+            # Ví dụ: 'Phụ lục I: PHÂN LOẠI...' -> 'Phụ lục I'
+            appendix_map = {}
+            for idx, app in enumerate(appendices):
+                name = (app.name or '').strip()
+                # Cắt bỏ phần sau dấu ':' hoặc ' -' để lấy tên ngắn
+                short_name = name.split(':')[0].split(' -')[0].strip()
+                if short_name:
+                    appendix_map[app.id] = short_name
+                else:
+                    # Fallback: Phụ lục + số La Mã theo thứ tự
+                    appendix_map[app.id] = f"Ph\u1ee5 l\u1ee5c {_to_roman(idx + 1)}"
             
             # 4. Compare logic
             from difflib import SequenceMatcher
@@ -2248,8 +2270,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                 
                 # Rút gọn nhãn phụ lục cho đồng bộ
                 if fb.appendix_id:
-                    app_num = appendix_map.get(fb.appendix_id, "?")
-                    node_label = f"Phụ lục {app_num}"
+                    node_label = appendix_map.get(fb.appendix_id, f"Phụ lục ?")
                 else:
                     node_label = self._get_full_node_path(fb.node)
                 
@@ -2424,6 +2445,29 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             feedbacks = Feedback.objects.filter(id__in=all_fids).select_related('node', 'appendix').prefetch_related('explanations', 'individual_assignments', 'individual_assignments__user')
             feedback_dict = {fb.id: fb for fb in feedbacks}
             
+            # Build appendix_map cho gsheet_push (dùng La Mã, đồng bộ với gsheet_compare)
+            def _to_roman(num):
+                val = [1000,900,500,400,100,90,50,40,10,9,5,4,1]
+                syms = ['M','CM','D','CD','C','XC','L','XL','X','IX','V','IV','I']
+                result = ''
+                for i, v in enumerate(val):
+                    while num >= v:
+                        result += syms[i]
+                        num -= v
+                return result
+            
+            from documents.models import DocumentAppendix
+            _push_appendices = DocumentAppendix.objects.filter(document_id=document_id)
+            appendix_map = {}
+            for idx, app in enumerate(_push_appendices):
+                name = (app.name or '').strip()
+                # Cắt bỏ phần sau ':' hoặc ' -' để chỉ lấy 'Phụ lục I'
+                short_name = name.split(':')[0].split(' -')[0].strip()
+                if short_name:
+                    appendix_map[app.id] = short_name
+                else:
+                    appendix_map[app.id] = f"Ph\u1ee5 l\u1ee5c {_to_roman(idx + 1)}"
+            
             # Map headers to know where to write
             raw_headers = worksheet.row_values(1)
             headers = [h.strip().lower() for h in raw_headers]
@@ -2454,8 +2498,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                 if not fb: continue
                 
                 if fb.appendix_id:
-                    app_num = appendix_map.get(fb.appendix_id, "?")
-                    node_val = f"Phụ lục {app_num}"
+                    node_val = appendix_map.get(fb.appendix_id, "Phụ lục ?")
                 else:
                     node_val = self._get_full_node_path(fb.node) if fb.node else "Chung"
                 exp = fb.explanations.first()
