@@ -23,6 +23,22 @@ def clean_text(text):
     text = str(text)
     return re.sub(r'[^\x09\x0A\x0D\x20-\uD7FF\uE000-\uFFFD\U00010000-\U0010FFFF]', '', text)
 
+AGREED_PHRASES = [
+    "thống nhất",
+    "nhất trí",
+    "thống nhất với nội dung dự thảo nghị định",
+    "thống nhất với nội dung dự thảo",
+    "thống nhất với dự thảo nghị định",
+    "thống nhất với dự thảo",
+]
+
+def is_exact_agreement(content):
+    """Kiểm tra xem nội dung có phải là cụm từ đồng ý chính xác hay không"""
+    if not content: return False
+    # Xóa khoảng trắng và dấu chấm ở cuối nếu có
+    clean = content.strip().lower().rstrip('.')
+    return clean in AGREED_PHRASES
+
 def _set_cell_style(cell, text, bold=False, italic=False, size=12, align=None):
     """Định dạng văn bản trong ô bảng"""
     cell.text = ''
@@ -36,7 +52,7 @@ def _set_cell_style(cell, text, bold=False, italic=False, size=12, align=None):
     run.bold = bold
     run.italic = italic
 
-def _get_field_value(field_key, fb_idx, fb, explanation=None):
+def _get_field_value(field_key, fb_idx, fb, explanation=None, show_agreed_text=False):
     """Trích xuất dữ liệu dựa trên field_key (Tối ưu hóa mapping)"""
     # Lấy giải trình đầu tiên nếu không được truyền vào
     if explanation is None:
@@ -78,14 +94,22 @@ def _get_field_value(field_key, fb_idx, fb, explanation=None):
         'user_name': agency,
         'noi_dung_gop_y': fb.content or '',
         'content': fb.content or '',
-        'giai_trinh': "\n".join([f"- {ex.content}" for ex in explanations if ex.content]) if explanations else "Chưa có giải trình",
+    }
+    
+    # Logic hiển thị nội dung thống nhất chuẩn
+    if show_agreed_text:
+        if is_exact_agreement(fb.content):
+            mapping['noi_dung_gop_y'] = "Thống nhất với nội dung dự thảo Nghị định"
+            mapping['content'] = "Thống nhất với nội dung dự thảo Nghị định"
+
+    mapping.update({
         'noi_dung_giai_trinh': "\n".join([f"- {ex.content}" for ex in explanations if ex.content]) if explanations else "Chưa có giải trình",
         'explanations': "\n".join([f"- {ex.content}" for ex in explanations if ex.content]) if explanations else "Chưa có giải trình",
         'chuyen_vien': chuyen_vien,
         'trang_thai': status_tv,
         'status': status_tv,
         'need_opinion': fb.need_opinion or '',
-    }
+    })
     
     # Fallback cho các trường tùy chỉnh khác (nếu có trong model Feedback)
     if field_key not in mapping:
@@ -119,7 +143,7 @@ def _build_grouped_data(feedbacks):
 
     return [nodes_map[k] for k in node_order]
 
-def generate_from_v2_template(document, feedbacks, template_config=None, template_type='mau_10'):
+def generate_from_v2_template(document, feedbacks, template_config=None, template_type='mau_10', show_agreed_text=False):
     """
     Sinh báo cáo linh hoạt (Mẫu 10 hoặc Tùy chỉnh) sử dụng python-docx
     """
@@ -172,7 +196,6 @@ def generate_from_v2_template(document, feedbacks, template_config=None, templat
     p_intro.add_run(f"Căn cứ Luật Ban hành văn bản quy pháp luật, cơ quan lập đề xuất chính sách/cơ quan chủ trì soạn thảo đã tổ chức lấy ý kiến, tham vấn/phản biện xã hội đối với hồ sơ chính sách {document.project_name}.").font.size = Pt(12)
 
     # Thống kê chi tiết
-    import re
     if hasattr(feedbacks, 'prefetch_related'):
         fbs_list = list(feedbacks.prefetch_related('explanations'))
     else:
@@ -184,13 +207,11 @@ def generate_from_v2_template(document, feedbacks, template_config=None, templat
 
     count_agreed_agencies = 0
     agreed_agencies = set()
-    AGREED_PHRASE = "thống nhất với nội dung dự thảo"
     
     # Lọc danh sách ý kiến "không thống nhất" để tính các chỉ số khác
     active_fbs = []
     for f in fbs_list:
-        content_text = (f.content or "").lower()
-        if AGREED_PHRASE.lower() in content_text:
+        if is_exact_agreement(f.content):
             agency_name = f.contributing_agency or (f.agency.name if hasattr(f, 'agency') and f.agency else 'Ẩn danh')
             agreed_agencies.add(agency_name)
         else:
@@ -239,8 +260,6 @@ def generate_from_v2_template(document, feedbacks, template_config=None, templat
 
     # 4. Main Data Table
     fields = cfg.get('fields')
-    
-    # Mẫu 10 chuẩn 4 cột: Nhóm/Điều, Agency, Content, Explanation
     if not fields:
         fields = [
             {'field_key': 'noi_dung_du_thao', 'field_label': 'NHÓM VẤN ĐỀ / ĐIỀU / KHOẢN'},
@@ -255,7 +274,6 @@ def generate_from_v2_template(document, feedbacks, template_config=None, templat
     for i, f in enumerate(fields):
         _set_cell_style(table.cell(0, i), f['field_label'].upper(), bold=True, size=11, align=WD_ALIGN_PARAGRAPH.CENTER)
 
-    # Đổ dữ liệu và gộp dòng
     grouped_data = _build_grouped_data(feedbacks)
     stt_global = 1
     
@@ -267,9 +285,8 @@ def generate_from_v2_template(document, feedbacks, template_config=None, templat
             row = table.add_row()
             for col_idx, field in enumerate(fields):
                 f_key = field['field_key']
-                val = _get_field_value(f_key, stt_global, fb)
+                val = _get_field_value(f_key, stt_global, fb, show_agreed_text=show_agreed_text)
                 
-                # Logic gộp dòng cho các cột định danh (Điều/Khoản hoặc Nội dung dự thảo nếu nó đóng vai trò này)
                 if f_key in ['dieu_khoan', 'noi_dung_du_thao'] and not is_chung:
                     if fb_idx == 0:
                         first_row = row
@@ -285,14 +302,12 @@ def generate_from_v2_template(document, feedbacks, template_config=None, templat
                 if field['field_key'] in ['dieu_khoan', 'noi_dung_du_thao']:
                     first_row.cells[col_idx].merge(last_row.cells[col_idx])
 
-    # 5. Footer (Chữ ký)
     doc.add_paragraph()
     signer_name = cfg.get('footer_signer_name', '')
     signer_title = cfg.get('footer_signer_title', 'ĐẠI DIỆN CƠ QUAN CHỦ TRÌ')
     
     f_table = doc.add_table(rows=1, cols=2)
     f_table.width = Cm(25)
-    # Cột 1 trống, Cột 2 chứa chữ ký
     sign_cell = f_table.cell(0, 1)
     _set_cell_style(sign_cell, signer_title.upper(), bold=True, size=14, align=WD_ALIGN_PARAGRAPH.CENTER)
     
@@ -316,7 +331,6 @@ def _save_to_stream(doc):
     return file_stream
 
 def _get_template_path(template_type):
-    """Legacy helper cho Reports/views.py - Trả về đường dẫn template mặc định"""
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if template_type == 'custom':
         return os.path.join(base_dir, 'utils', 'template_truong_tu_chinh_v3.docx')

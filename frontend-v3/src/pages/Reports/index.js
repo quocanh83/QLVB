@@ -21,6 +21,7 @@ const Reports = () => {
     const [customStatus, setCustomStatus] = useState('all');
     const [customSpecialist, setCustomSpecialist] = useState('all');
     const [customOnlyOpinion, setCustomOnlyOpinion] = useState(false);
+    const [showAgreedText, setShowAgreedText] = useState(false);
     const [specialists, setSpecialists] = useState([]);
     const [customAgenciesList, setCustomAgenciesList] = useState([]);
     const [customStatsData, setCustomStatsData] = useState([]);
@@ -100,7 +101,7 @@ const Reports = () => {
         } else if (activeTab === '4') {
             fetchPersonnelStats();
         }
-    }, [selectedDocId, activeTab, customAgency, customStatus, customSpecialist, reportMode, customOnlyOpinion]);
+    }, [selectedDocId, activeTab, customAgency, customStatus, customSpecialist, reportMode, customOnlyOpinion, showAgreedText]);
 
     const fetchPersonnelStats = async () => {
         setIsPersonnelLoading(true);
@@ -145,7 +146,7 @@ const Reports = () => {
         if (!docId) return;
         setIsCustomLoading(true);
         try {
-            let url = `/api/feedbacks/custom_report_preview/?document_id=${docId}&status=${statusFilter}&report_type=${reportMode === 'mau10' ? 'mau_10' : 'custom'}`;
+            let url = `/api/feedbacks/custom_report_preview/?document_id=${docId}&status=${statusFilter}&report_type=${reportMode === 'mau10' ? 'mau_10' : 'custom'}&only_opinion=${onlyOpinion}&show_agreed_text=${showAgreedText}`;
             if (agency && agency !== 'all') url += `&agency=${encodeURIComponent(agency)}`;
             if (specialist && specialist !== 'all') url += `&specialist=${specialist}`;
             if (onlyOpinion) url += `&only_opinion=true`;
@@ -164,6 +165,7 @@ const Reports = () => {
             if (customAgency && customAgency !== 'all') url += `&agency=${encodeURIComponent(customAgency)}`;
             if (customSpecialist && customSpecialist !== 'all') url += `&specialist=${customSpecialist}`;
             if (customOnlyOpinion) url += `&only_opinion=true`;
+            if (showAgreedText) url += `&show_agreed_text=true`;
             url += `&report_type=${typeParam}`;
 
             const auth = getAuthHeader();
@@ -585,6 +587,18 @@ const Reports = () => {
                                                         />
                                                         <label className="form-check-label fw-medium" htmlFor="customOnlyOpinion">
                                                             Chỉ hiện các mục có nội dung "Cần xin ý kiến"
+                                                        </label>
+                                                    </div>
+                                                    <div className="form-check form-switch form-switch-md mb-2">
+                                                        <Input 
+                                                            type="checkbox" 
+                                                            className="form-check-input" 
+                                                            id="showAgreedText" 
+                                                            checked={showAgreedText}
+                                                            onChange={(e) => setShowAgreedText(e.target.checked)}
+                                                        />
+                                                        <label className="form-check-label fw-medium" htmlFor="showAgreedText">
+                                                            Hiển thị nội dung "Thống nhất với dự thảo" chuẩn
                                                         </label>
                                                     </div>
                                                 </Col>

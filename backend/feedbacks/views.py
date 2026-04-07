@@ -1729,10 +1729,16 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         specialist = request.query_params.get('specialist')
         report_type = request.query_params.get('report_type', 'mau10')
         only_opinion = request.query_params.get('only_opinion') == 'true'
+        show_agreed_text = request.query_params.get('show_agreed_text') == 'true'
         
         if not doc_id: return Response([])
         
         feedbacks = Feedback.objects.filter(document_id=doc_id).select_related('node', 'agency').prefetch_related('explanations', 'user').order_by('node__order_index')
+        
+        # Lọc bỏ các ý kiến thống nhất nếu không bật tùy chọn hiển thị
+        from .utils.v2_template_generator import is_exact_agreement
+        if not show_agreed_text:
+            feedbacks = [f for f in feedbacks if not is_exact_agreement(f.content)]
         
         if only_opinion:
             feedbacks = feedbacks.exclude(need_opinion__isnull=True).exclude(need_opinion='')
@@ -1797,7 +1803,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         for i, fb in enumerate(feedbacks, 1):
             explanation = fb.explanations.first()
             if fields:
-                row = { f.field_key: _get_field_value(f.field_key, i, fb, explanation) for f in fields }
+                row = { f.field_key: _get_field_value(f.field_key, i, fb, explanation, show_agreed_text=show_agreed_text) for f in fields }
             else:
                 # Fallback mac dinh
                 dieu_khoan = f"{fb.node.node_label}" if fb.node else ""
@@ -1821,6 +1827,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         agency = request.query_params.get('agency')
         status_filter = request.query_params.get('status')
         only_opinion = request.query_params.get('only_opinion') == 'true'
+        show_agreed_text = request.query_params.get('show_agreed_text') == 'true'
         
         # Xác thực qua token ở URL (Cho phép tải file trực tiếp từ trình duyệt)
         user = request.user
@@ -1842,6 +1849,11 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         try:
             document = Document.objects.get(id=doc_id)
             feedbacks = Feedback.objects.filter(document_id=doc_id).select_related('node', 'agency').prefetch_related('explanations').order_by('node__order_index')
+            
+            # Lọc bỏ các ý kiến thống nhất nếu không bật tùy chọn hiển thị
+            from .utils.v2_template_generator import is_exact_agreement
+            if not show_agreed_text:
+                feedbacks = [f for f in feedbacks if not is_exact_agreement(f.content)]
             
             if only_opinion:
                 feedbacks = feedbacks.exclude(need_opinion__isnull=True).exclude(need_opinion='')
@@ -1923,7 +1935,8 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                 document, 
                 feedbacks, 
                 template_config=template_config, 
-                template_type=report_type
+                template_type=report_type,
+                show_agreed_text=show_agreed_text
             )
             
             # Cấu hình tên file
