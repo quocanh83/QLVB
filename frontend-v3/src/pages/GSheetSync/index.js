@@ -33,6 +33,7 @@ const GSheetSync = () => {
     const [activeTab, setActiveTab] = useState('1');
     const [assignmentSyncMode, setAssignmentSyncMode] = useState('sheet'); // 'sheet' (DB -> Sheet) or 'db' (Sheet -> DB)
     const [dataSyncMode, setDataSyncMode] = useState('sheet'); // 'sheet' (DB -> Sheet) or 'db' (Sheet -> DB)
+    const [positionSyncMode, setPositionSyncMode] = useState('sheet'); // 'sheet' (DB -> Sheet) or 'db' (Sheet -> DB)
     
     const toggleTab = (tab) => {
         if (activeTab !== tab) setActiveTab(tab);
@@ -268,6 +269,34 @@ const GSheetSync = () => {
             handleCompare();
         } catch (e) {
             toast.error(e.response?.data?.error || "Lỗi khi cập nhật dữ liệu từ Google Sheet.");
+        } finally {
+            setPushing(false);
+        }
+    };
+
+    const handlePullPositions = async () => {
+        if (selectedIds.length === 0) {
+            toast.warning("Vui lòng chọn ít nhất một dòng để cập nhật.");
+            return;
+        }
+
+        setPushing(true);
+        try {
+            const pullItems = selectedIds.map(id => {
+                const item = results.find(r => r.id === id);
+                return { id: item.id, gs_node: item.gs_node };
+            });
+
+            const res = await axios.post('/api/feedbacks/gsheet_pull_positions/', {
+                document_id: selectedDocId,
+                pull_items: pullItems
+            }, getAuthHeader());
+            toast.success(res.data?.message || "Đã cập nhật vị trí từ Google Sheet vào DB thành công.");
+            
+            // Refresh comparison
+            handleCompare();
+        } catch (e) {
+            toast.error(e.response?.data?.error || "Lỗi khi cập nhật vị trí từ Google Sheet.");
         } finally {
             setPushing(false);
         }
@@ -840,7 +869,36 @@ const GSheetSync = () => {
                                                 <div className="text-muted fs-13">
                                                     Hiển thị <b>{results.filter(r => showPositionMatches || r.is_node_diff).length}</b> / {results.length} dòng.
                                                 </div>
-                                                <div className="d-flex gap-3 align-items-center">
+                                                <div className="d-flex gap-4 align-items-center flex-wrap">
+                                                    {/* Chế độ đối soát vị trí */}
+                                                    <div className="d-flex align-items-center gap-3 bg-light p-1 px-2 rounded-2 border border-dashed">
+                                                        <Label className="mb-0 fs-12 fw-bold text-muted text-uppercase me-1">Chế độ:</Label>
+                                                        <div className="form-check form-check-inline mb-0">
+                                                            <Input 
+                                                                className="form-check-input" 
+                                                                type="radio" 
+                                                                name="positionSyncMode" 
+                                                                id="modePositionSheet" 
+                                                                value="sheet"
+                                                                checked={positionSyncMode === 'sheet'} 
+                                                                onChange={() => setPositionSyncMode('sheet')}
+                                                            />
+                                                            <Label className="form-check-label fs-12 mb-0" htmlFor="modePositionSheet">Điều chỉnh Sheet</Label>
+                                                        </div>
+                                                        <div className="form-check form-check-inline mb-0">
+                                                            <Input 
+                                                                className="form-check-input" 
+                                                                type="radio" 
+                                                                name="positionSyncMode" 
+                                                                id="modePositionDb" 
+                                                                value="db"
+                                                                checked={positionSyncMode === 'db'} 
+                                                                onChange={() => setPositionSyncMode('db')}
+                                                            />
+                                                            <Label className="form-check-label fs-12 mb-0 fw-medium text-primary" htmlFor="modePositionDb">Điều chỉnh DB</Label>
+                                                        </div>
+                                                    </div>
+
                                                     <div className="form-check form-switch form-switch-right form-switch-md">
                                                         <Input 
                                                             className="form-check-input code-switcher" 
@@ -849,17 +907,30 @@ const GSheetSync = () => {
                                                             checked={showPositionMatches} 
                                                             onChange={(e) => setShowPositionMatches(e.target.checked)} 
                                                         />
-                                                        <Label className="form-check-label text-muted fs-12" htmlFor="show-position-matches-switch">Hiện các dòng đã khớp vị trí</Label>
+                                                        <Label className="form-check-label text-muted fs-12 mb-0" htmlFor="show-position-matches-switch">Hiện các dòng đã khớp</Label>
                                                     </div>
-                                                    <Button 
-                                                        color="info" 
-                                                        size="sm" 
-                                                        className="fw-bold"
-                                                        onClick={() => handlePush('node_only')} 
-                                                        disabled={pushing || selectedIds.length === 0}
-                                                    >
-                                                        {pushing ? <Spinner size="sm" /> : <><i className="ri-save-line me-1"></i> Cập nhật Vị trí lên GSheet ({selectedIds.length})</>}
-                                                    </Button>
+
+                                                    {positionSyncMode === 'sheet' ? (
+                                                        <Button 
+                                                            color="danger" 
+                                                            size="sm" 
+                                                            className="fw-bold px-3 shadow-none"
+                                                            onClick={() => handlePush('node_only')} 
+                                                            disabled={pushing || selectedIds.length === 0}
+                                                        >
+                                                            {pushing ? <Spinner size="sm" /> : <><i className="ri-save-line me-1"></i> Cập nhật Vị trí lên GSheet ({selectedIds.length})</>}
+                                                        </Button>
+                                                    ) : (
+                                                        <Button 
+                                                            color="success" 
+                                                            size="sm" 
+                                                            className="fw-bold px-3 shadow-none"
+                                                            onClick={handlePullPositions} 
+                                                            disabled={pushing || selectedIds.length === 0}
+                                                        >
+                                                            {pushing ? <Spinner size="sm" /> : <><i className="ri-download-cloud-2-line me-1"></i> Cập nhật Vị trí vào DB ({selectedIds.length})</>}
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             </div>
 

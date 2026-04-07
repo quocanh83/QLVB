@@ -2418,6 +2418,84 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             return Response({"error": str(e)}, status=500)
 
     @action(detail=False, methods=['post'])
+    def gsheet_pull_positions(self, request):
+        """Cập nhật Vị trí trong DB từ dữ liệu trên Google Sheet"""
+        document_id = request.data.get('document_id')
+        pull_items = request.data.get('pull_items', []) # [{id, gs_node}]
+        
+        if not document_id or not pull_items:
+            return Response({"error": "Thiếu document_id hoặc dữ liệu cập nhật."}, status=400)
+            
+        try:
+            from documents.models import DocumentNode, DocumentAppendix
+            from .models import Feedback
+            
+            # 1. Build node_map (norm_path -> node_id)
+            nodes = DocumentNode.objects.filter(document_id=document_id)
+            node_map = {}
+            for n in nodes:
+                path = self._get_full_node_path(n)
+                node_map[self._normalize_text(path)] = n.id
+                # Thử map thêm label ngắn lỡ người dùng gõ thiếu chương
+                node_map[self._normalize_text(self._get_short_label(n.node_label))] = n.id
+                
+            # 2. Build appendix_map (norm_name -> appendix_id)
+            def _to_roman(num):
+                val = [1000,900,500,400,100,90,50,40,10,9,5,4,1]
+                syms = ['M','CM','D','CD','C','XC','L','XL','X','IX','V','IV','I']
+                result = ''
+                for i, v in enumerate(val):
+                    while num >= v:
+                        result += syms[i]
+                        num -= v
+                return result
+                
+            appendices = DocumentAppendix.objects.filter(document_id=document_id)
+            appendix_map = {}
+            for idx, app in enumerate(appendices):
+                name = (app.name or '').strip()
+                short_name = name.split(':')[0].split(' -')[0].strip()
+                if short_name:
+                    appendix_map[self._normalize_text(short_name)] = app.id
+                else:
+                    appendix_map[self._normalize_text(f"Phụ lục {_to_roman(idx + 1)}")] = app.id
+
+            updated_count = 0
+            for item in pull_items:
+                fb_id = item.get('id')
+                gs_node = item.get('gs_node', '').strip()
+                
+                if not fb_id: continue
+                
+                fb = Feedback.objects.filter(id=fb_id).first()
+                if not fb: continue
+
+                norm_gs = self._normalize_text(gs_node)
+                
+                if norm_gs == self._normalize_text("Chung") or not norm_gs:
+                    fb.node_id = None
+                    fb.appendix_id = None
+                    fb.save()
+                    updated_count += 1
+                elif norm_gs in appendix_map:
+                    fb.appendix_id = appendix_map[norm_gs]
+                    fb.node_id = None
+                    fb.save()
+                    updated_count += 1
+                elif norm_gs in node_map:
+                    fb.node_id = node_map[norm_gs]
+                    fb.appendix_id = None
+                    fb.save()
+                    updated_count += 1
+            
+            return Response({"message": f"Đã cập nhật vị trí cho {updated_count} góp ý từ Google Sheet."})
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({"error": str(e)}, status=500)
+
+    @action(detail=False, methods=['post'])
     def gsheet_pull_data(self, request):
         """Cập nhật Nội dung và Giải trình trong DB từ dữ liệu trên Google Sheet"""
         document_id = request.data.get('document_id')
