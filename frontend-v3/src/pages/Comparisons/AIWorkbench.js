@@ -35,7 +35,7 @@ const AIWorkbench = ({ versionId, standaloneId, onHighlightReference }) => {
                 res = await axios.post(`/api/comparisons/versions/${versionId}/ai_check_references/`, {}, getAuthHeader());
             }
             // API returns AIResult instance, content is JSON string for reference_check
-            const data = JSON.parse(res.content);
+            const data = JSON.parse(res.data.content);
             setReferences(data.references || []);
             toast.success("Đã hoàn tất rà soát dẫn chiếu!");
         } catch (error) {
