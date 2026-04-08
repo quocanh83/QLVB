@@ -1,13 +1,25 @@
 from rest_framework import serializers
-from .models import ComparisonProject, DraftVersion, ComparisonNode, ComparisonMapping
+from .models import ComparisonProject, DraftVersion, ComparisonNode, ComparisonMapping, ComparisonAIResult, StandaloneReview
+
+class StandaloneReviewSerializer(serializers.ModelSerializer):
+    node_count = serializers.IntegerField(source='nodes.count', read_only=True)
+    class Meta:
+        model = StandaloneReview
+        fields = '__all__'
 
 class ComparisonNodeSerializer(serializers.ModelSerializer):
     class Meta:
         model = ComparisonNode
         fields = '__all__'
 
+class ComparisonAIResultSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ComparisonAIResult
+        fields = '__all__'
+
 class DraftVersionSerializer(serializers.ModelSerializer):
     node_count = serializers.IntegerField(source='nodes.count', read_only=True)
+    ai_results = ComparisonAIResultSerializer(many=True, read_only=True)
     
     class Meta:
         model = DraftVersion

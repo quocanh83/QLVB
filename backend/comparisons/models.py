@@ -33,6 +33,22 @@ class DraftVersion(models.Model):
     def __str__(self):
         return f"{self.version_label} - {self.project.name}"
 
+class StandaloneReview(models.Model):
+    name = models.CharField(max_length=500, verbose_name="Tên phiên bản rà soát")
+    file = models.FileField(upload_to='comparisons/standalone/', verbose_name="Tệp văn bản")
+    description = models.TextField(blank=True, null=True, verbose_name="Mô tả")
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='standalone_reviews')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = "Rà soát độc lập"
+        verbose_name_plural = "Rà soát độc lập"
+        ordering = ['-created_at']
+
 class ComparisonNode(models.Model):
     NODE_TYPE_CHOICES = (
         ('Chương', 'Chương'),
@@ -42,9 +58,10 @@ class ComparisonNode(models.Model):
         ('Phụ lục', 'Phụ lục'),
         ('Vấn đề khác', 'Vấn đề khác'),
     )
-    # Node có thể thuộc về Project (nếu là Base) hoặc thuộc về Version (nếu là Draft)
+    # Node có thể thuộc về Project (Base), Version (Draft) hoặc StandaloneReview
     project = models.ForeignKey(ComparisonProject, on_delete=models.CASCADE, related_name='base_nodes', null=True, blank=True)
     version = models.ForeignKey(DraftVersion, on_delete=models.CASCADE, related_name='nodes', null=True, blank=True)
+    standalone_review = models.ForeignKey(StandaloneReview, on_delete=models.CASCADE, related_name='nodes', null=True, blank=True)
     
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
     node_type = models.CharField(max_length=20, choices=NODE_TYPE_CHOICES)
@@ -73,3 +90,20 @@ class ComparisonMapping(models.Model):
         unique_together = ('version', 'base_node') 
         verbose_name = "Ánh xạ so sánh"
         verbose_name_plural = "Ánh xạ so sánh"
+
+class ComparisonAIResult(models.Model):
+    RESULT_TYPE_CHOICES = (
+        ('reference_check', 'Rà soát dẫn chiếu'),
+        ('automated_report', 'Báo cáo tự động'),
+    )
+    version = models.ForeignKey(DraftVersion, on_delete=models.CASCADE, related_name='ai_results', null=True, blank=True)
+    standalone_review = models.ForeignKey(StandaloneReview, on_delete=models.CASCADE, related_name='ai_results', null=True, blank=True)
+    result_type = models.CharField(max_length=50, choices=RESULT_TYPE_CHOICES)
+    content = models.TextField(verbose_name="Nội dung kết quả (JSON hoặc Markdown)")
+    agent_info = models.CharField(max_length=255, verbose_name="Thông tin Agent (Gemini, Qwen...)")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Kết quả Phân tích AI"
+        verbose_name_plural = "Kết quả Phân tích AI"
+        ordering = ['-created_at']

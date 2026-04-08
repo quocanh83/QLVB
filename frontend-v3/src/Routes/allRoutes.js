@@ -49,6 +49,9 @@ import ComparisonProjectDetail from "../pages/Comparisons/ComparisonProjectDetai
 import ComparisonWorkspace from "../pages/Comparisons/ComparisonWorkspace";
 import BaseNodeManager from "../pages/Comparisons/BaseNodeManager";
 
+import ReferenceDashboard from "../pages/ReferenceReview/ReferenceDashboard";
+import ReferenceDetail from "../pages/ReferenceReview/ReferenceDetail";
+
 import SystemSettings from "../pages/Settings";
 import DocumentTypeManagement from "../pages/DocumentTypeManagement";
 import UserManagement from "../pages/UserManagement";
@@ -339,6 +342,10 @@ const authProtectedRoutes = [
   { path: "/comparisons/:id/base-nodes", component: <BaseNodeManager /> },
   { path: "/comparisons/:id/v/:versionId/nodes", component: <BaseNodeManager /> },
   { path: "/comparisons/:projectId/v/:versionId", component: <ComparisonWorkspace /> },
+
+  // QLVB - Reference Reviews
+  { path: "/reference-reviews", component: <ReferenceDashboard /> },
+  { path: "/reference-reviews/:id", component: <ReferenceDetail /> },
 
   // QLVB - Settings
   { path: "/settings", component: <SystemSettings /> },

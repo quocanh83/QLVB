@@ -10,6 +10,7 @@ import { getAuthHeader } from '../../helpers/api_helper';
 import BreadCrumb from '../../Components/Common/BreadCrumb';
 import { toast, ToastContainer } from 'react-toastify';
 import SimpleBar from 'simplebar-react';
+import AIWorkbench from './AIWorkbench';
 import './Comparison.css';
 
 const ComparisonWorkspace = () => {
@@ -22,6 +23,7 @@ const ComparisonWorkspace = () => {
     const [mappingModal, setMappingModal] = useState(false);
     const [selectedBaseNode, setSelectedBaseNode] = useState(null);
     const [currentMappedId, setCurrentMappedId] = useState(null);
+    const [showAIWorkbench, setShowAIWorkbench] = useState(false);
 
     useEffect(() => {
         fetchWorkspaceData();
@@ -108,71 +110,85 @@ const ComparisonWorkspace = () => {
                         <Button color="success" outline className="me-2" onClick={handleExportWord}>
                             <i className="ri-file-word-line me-1"></i> Xuất Bảng Đối Chiếu
                         </Button>
+                        <Button color="info" className={showAIWorkbench ? "active" : ""} onClick={() => setShowAIWorkbench(!showAIWorkbench)}>
+                            <i className="ri-robot-3-line me-1"></i> Trợ lý AI
+                        </Button>
                     </div>
                 </div>
 
-                <Card className="comparison-card">
-                    <CardBody className="p-0">
-                        <div className="comparison-header bg-light border-bottom d-flex">
-                            <div className="col-6 p-2 border-end fw-bold text-center">VĂN BẢN GỐC (HÀNH CHÍNH)</div>
-                            <div className="col-6 p-2 fw-bold text-center text-primary">DỰ THẢO (CẬP NHẬT)</div>
-                        </div>
-                        
-                        <SimpleBar style={{ maxHeight: "calc(100vh - 250px)" }}>
-                            <div className="col-12 p-0">
-                                {data.rows.map((row, idx) => (
-                                    <div key={idx} className="comparison-row d-flex border-bottom">
-                                        {/* Cột Gốc */}
-                                        <div className="col-6 p-3 border-end base-cell">
-                                            {row.base_node ? (
-                                                <>
-                                                    <div className="d-flex justify-content-between align-items-start mb-2">
-                                                        <Badge color="secondary" outline>{row.base_node.node_label}</Badge>
-                                                        <Button size="sm" color="soft-primary" className="btn-icon rounded-circle" 
-                                                            onClick={() => {
-                                                                setSelectedBaseNode(row.base_node);
-                                                                setCurrentMappedId(row.draft_node ? row.draft_node.id : null);
-                                                                setMappingModal(true);
-                                                            }}>
-                                                            <i className="ri-links-line"></i>
-                                                        </Button>
-                                                    </div>
-                                                    <div className="node-content text-justify">
-                                                        {row.base_node.content}
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <div className="h-100 d-flex flex-column align-items-center justify-content-center bg-light-subtle rounded dashed-border p-3">
-                                                    <i className="ri-add-circle-line ri-2x text-muted mb-2"></i>
-                                                    <span className="text-muted italic small text-center">(Dòng mới - Không có trong bản gốc)</span>
+                <Row>
+                    <Col lg={showAIWorkbench ? 8 : 12}>
+                        <Card className="comparison-card">
+                            <CardBody className="p-0">
+                                <div className="comparison-header bg-light border-bottom d-flex">
+                                    <div className="col-6 p-2 border-end fw-bold text-center">VĂN BẢN GỐC (HÀNH CHÍNH)</div>
+                                    <div className="col-6 p-2 fw-bold text-center text-primary">DỰ THẢO (CẬP NHẬT)</div>
+                                </div>
+                                
+                                <SimpleBar style={{ maxHeight: "calc(100vh - 250px)" }}>
+                                    <div className="col-12 p-0">
+                                        {data.rows.map((row, idx) => (
+                                            <div key={idx} className="comparison-row d-flex border-bottom">
+                                                {/* Cột Gốc */}
+                                                <div className="col-6 p-3 border-end base-cell">
+                                                    {row.base_node ? (
+                                                        <>
+                                                            <div className="d-flex justify-content-between align-items-start mb-2">
+                                                                <Badge color="secondary" outline>{row.base_node.node_label}</Badge>
+                                                                <Button size="sm" color="soft-primary" className="btn-icon rounded-circle" 
+                                                                    onClick={() => {
+                                                                        setSelectedBaseNode(row.base_node);
+                                                                        setCurrentMappedId(row.draft_node ? row.draft_node.id : null);
+                                                                        setMappingModal(true);
+                                                                    }}>
+                                                                    <i className="ri-links-line"></i>
+                                                                </Button>
+                                                            </div>
+                                                            <div className="node-content text-justify">
+                                                                {row.base_node.content}
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <div className="h-100 d-flex flex-column align-items-center justify-content-center bg-light-subtle rounded dashed-border p-3">
+                                                            <i className="ri-add-circle-line ri-2x text-muted mb-2"></i>
+                                                            <span className="text-muted italic small text-center">(Dòng mới - Không có trong bản gốc)</span>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )}
-                                        </div>
 
-                                        {/* Cột Dự thảo */}
-                                        <div className="col-6 p-3 draft-cell">
-                                            {row.draft_node ? (
-                                                <>
-                                                    <div className="d-flex justify-content-between mb-2">
-                                                        <Badge color="primary">{row.draft_node.node_label}</Badge>
-                                                    </div>
-                                                    <div 
-                                                        className="node-content text-justify legislative-text"
-                                                        dangerouslySetInnerHTML={{ __html: row.diff_content }}
-                                                    />
-                                                </>
-                                            ) : (
-                                                <div className="h-100 d-flex align-items-center justify-content-center bg-light-subtle rounded dashed-border">
-                                                    <span className="text-muted italic small">(Không có nội dung tương ứng - Bãi bỏ)</span>
+                                                {/* Cột Dự thảo */}
+                                                <div className="col-6 p-3 draft-cell">
+                                                    {row.draft_node ? (
+                                                        <>
+                                                            <div className="d-flex justify-content-between mb-2">
+                                                                <Badge color="primary">{row.draft_node.node_label}</Badge>
+                                                            </div>
+                                                            <div 
+                                                                className="node-content text-justify legislative-text"
+                                                                dangerouslySetInnerHTML={{ __html: row.diff_content }}
+                                                            />
+                                                        </>
+                                                    ) : (
+                                                        <div className="h-100 d-flex align-items-center justify-content-center bg-light-subtle rounded dashed-border">
+                                                            <span className="text-muted italic small">(Không có nội dung tương ứng - Bãi bỏ)</span>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )}
-                                        </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
-                            </div>
-                        </SimpleBar>
-                    </CardBody>
-                </Card>
+                                </SimpleBar>
+                            </CardBody>
+                        </Card>
+                    </Col>
+                    {showAIWorkbench && (
+                        <Col lg={4}>
+                            <SimpleBar style={{ maxHeight: "calc(100vh - 180px)" }}>
+                                <AIWorkbench versionId={versionId} />
+                            </SimpleBar>
+                        </Col>
+                    )}
+                </Row>
 
                 {/* Modal để chọn ánh xạ thủ công */}
                 <Modal isOpen={mappingModal} toggle={() => setMappingModal(false)} className="modal-dialog-centered">

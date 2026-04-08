@@ -4,15 +4,18 @@ from rest_framework.decorators import action
 from django.db import transaction
 from django.utils import timezone
 from django.http import HttpResponse
-from .models import ComparisonProject, DraftVersion, ComparisonNode, ComparisonMapping
+from .models import ComparisonProject, DraftVersion, ComparisonNode, ComparisonMapping, ComparisonAIResult, StandaloneReview
 from .serializers import (
     ComparisonProjectSerializer, DraftVersionSerializer, 
-    ComparisonNodeSerializer, ComparisonMappingSerializer
+    ComparisonNodeSerializer, ComparisonMappingSerializer,
+    ComparisonAIResultSerializer, StandaloneReviewSerializer
 )
 from .utils.parser_engine import ComparisonParser
 from .utils.legislative_diff import legislative_diff
 from .utils.automap_service import automap_nodes
 from .utils.export_service import export_comparison_table
+from .utils.ai_service import UnifiedAIService
+from .utils.reference_export import export_reference_excel, export_reference_word
 
 class ComparisonProjectViewSet(viewsets.ModelViewSet):
     queryset = ComparisonProject.objects.all().order_by('-created_at')
@@ -321,7 +324,190 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
         serializer = ComparisonNodeSerializer(nodes, many=True)
         return Response(serializer.data)
 
+    @action(detail=True, methods=['post'])
+    def ai_check_references(self, request, pk=None):
+        """Action: Rà soát dẫn chiếu chéo sử dụng AI"""
+        version = self.get_object()
+        # Lấy toàn bộ text dự thảo
+        nodes = ComparisonNode.objects.filter(version=version).order_by('order_index')
+        text_parts = []
+        for n in nodes:
+            text_parts.append(f"{n.node_label}: {n.content}")
+        full_text = "\n".join(text_parts)
+
+        ai_service = UnifiedAIService()
+        result_json = ai_service.check_internal_references(full_text)
+        
+        if "error" in result_json:
+            return Response(result_json, status=500)
+
+        # Lưu kết quả
+        ai_res = ComparisonAIResult.objects.create(
+            version=version,
+            result_type='reference_check',
+            content=json.dumps(result_json, ensure_ascii=False),
+            agent_info=f"{ai_service.provider} ({ai_service.model_name or 'default'})"
+        )
+        return Response(ComparisonAIResultSerializer(ai_res).data)
+
+    @action(detail=True, methods=['post'])
+    def ai_generate_report(self, request, pk=None):
+        """Action: Đối chiếu & Tạo báo cáo tự động sử dụng AI"""
+        version = self.get_object()
+        summary_text = request.data.get('summary_text', '')
+        custom_request = request.data.get('custom_request', 'Tạo báo cáo tóm tắt nội dung mới')
+
+        # Lấy toàn bộ text dự thảo
+        nodes = ComparisonNode.objects.filter(version=version).order_by('order_index')
+        full_text = "\n".join([f"{n.node_label}: {n.content}" for n in nodes])
+
+        ai_service = UnifiedAIService()
+        report_md = ai_service.generate_automated_report(summary_text, full_text, custom_request)
+
+        if report_md.startswith("Lỗi"):
+            return Response({"error": report_md}, status=500)
+
+        # Lưu kết quả
+        ai_res = ComparisonAIResult.objects.create(
+            version=version,
+            result_type='automated_report',
+            content=report_md,
+            agent_info=f"{ai_service.provider} ({ai_service.model_name or 'default'})"
+        )
+        return Response(ComparisonAIResultSerializer(ai_res).data)
+
+    @action(detail=False, methods=['get'], url_path='export_ai_report/(?P<result_id>[^/.]+)')
+    def export_ai_report(self, request, result_id=None):
+        """Xuất báo cáo AI sang file Word (.docx)"""
+        import io
+        from docx import Document
+        from docx.shared import Pt
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+        ai_res = ComparisonAIResult.objects.get(id=result_id)
+        if ai_res.result_type != 'automated_report':
+            return Response({"error": "Chỉ hỗ trợ xuất báo cáo tự động."}, status=400)
+
+        doc = Document()
+        # Chuyển đổi Markdown đơn giản sang docx
+        lines = ai_res.content.split('\n')
+        for line in lines:
+            if line.startswith('###'):
+                p = doc.add_heading(line.replace('###', '').strip(), level=3)
+            elif line.startswith('##'):
+                p = doc.add_heading(line.replace('##', '').strip(), level=2)
+            elif line.startswith('#'):
+                p = doc.add_heading(line.replace('#', '').strip(), level=1)
+            elif line.startswith('*') or line.startswith('-'):
+                p = doc.add_paragraph(line[1:].strip(), style='List Bullet')
+            elif '|' in line and '--' not in line: # Bảng cơ bản
+                cells = [c.strip() for c in line.split('|') if c.strip()]
+                if cells:
+                    p = doc.add_paragraph(" | ".join(cells))
+            else:
+                p = doc.add_paragraph(line.strip())
+
+        stream = io.BytesIO()
+        doc.save(stream)
+        stream.seek(0)
+        
+        response = HttpResponse(
+            stream.read(),
+            content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        )
+        safe_name = f"Bao_cao_AI_{ai_res.id}.docx"
+        response['Content-Disposition'] = f'attachment; filename="{safe_name}"'
+        return response
+
+import json
 class ComparisonNodeViewSet(viewsets.ModelViewSet):
     queryset = ComparisonNode.objects.all().order_by('order_index')
     serializer_class = ComparisonNodeSerializer
+
+class StandaloneReviewViewSet(viewsets.ModelViewSet):
+    queryset = StandaloneReview.objects.all().order_by('-created_at')
+    serializer_class = StandaloneReviewSerializer
+
+    def perform_create(self, serializer):
+        review = serializer.save(uploaded_by=self.request.user)
+        # Tự động bóc tách sau khi tải lên
+        # Sử dụng đúng constructor và method của ComparisonParser
+        parser = ComparisonParser(review.file.path)
+        structure = parser.parse()
+        
+        def save_nodes_recursive(node_list, parent=None):
+            for node_data in node_list:
+                children = node_data.pop('children', [])
+                node = ComparisonNode.objects.create(
+                    standalone_review=review,
+                    parent=parent,
+                    **node_data
+                )
+                if children:
+                    save_nodes_recursive(children, parent=node)
+        
+        with transaction.atomic():
+            save_nodes_recursive(structure)
+
+    @action(detail=True, methods=['get'])
+    def data(self, request, pk=None):
+        review = self.get_object()
+        nodes = ComparisonNode.objects.filter(standalone_review=review).order_by('order_index')
+        ai_results = ComparisonAIResult.objects.filter(standalone_review=review)
+        
+        return Response({
+            "review": StandaloneReviewSerializer(review).data,
+            "nodes": ComparisonNodeSerializer(nodes, many=True).data,
+            "ai_results": ComparisonAIResultSerializer(ai_results, many=True).data
+        })
+
+    @action(detail=True, methods=['post'])
+    def ai_check(self, request, pk=None):
+        review = self.get_object()
+        nodes = ComparisonNode.objects.filter(standalone_review=review).order_by('order_index')
+        full_text = "\n".join([f"{n.node_label}: {n.content}" for n in nodes])
+
+        ai_service = UnifiedAIService()
+        result_json = ai_service.check_internal_references(full_text)
+        
+        if "error" in result_json:
+            return Response(result_json, status=500)
+
+        ai_res = ComparisonAIResult.objects.create(
+            standalone_review=review,
+            result_type='reference_check',
+            content=json.dumps(result_json, ensure_ascii=False),
+            agent_info=f"{ai_service.provider} ({ai_service.model_name or 'default'})"
+        )
+        return Response(ComparisonAIResultSerializer(ai_res).data)
+
+    @action(detail=True, methods=['get'])
+    def export_excel(self, request, pk=None):
+        review = self.get_object()
+        ai_result = ComparisonAIResult.objects.filter(standalone_review=review, result_type='reference_check').first()
+        if not ai_result:
+            return Response({"error": "Chưa có kết quả rà soát AI để xuất."}, status=400)
+            
+        output = export_reference_excel(review, ai_result)
+        response = HttpResponse(
+            output.read(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="Loi_dan_chieu_{review.id}.xlsx"'
+        return response
+
+    @action(detail=True, methods=['get'])
+    def export_word(self, request, pk=None):
+        review = self.get_object()
+        ai_result = ComparisonAIResult.objects.filter(standalone_review=review, result_type='reference_check').first()
+        if not ai_result:
+            return Response({"error": "Chưa có kết quả rà soát AI để xuất."}, status=400)
+            
+        output = export_reference_word(review, ai_result)
+        response = HttpResponse(
+            output.read(),
+            content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        )
+        response['Content-Disposition'] = f'attachment; filename="Bao_cao_dan_chieu_{review.id}.docx"'
+        return response
     permission_classes = [permissions.IsAuthenticated]

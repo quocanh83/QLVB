@@ -82,7 +82,7 @@ const useNavData = () => {
   const [sidebarJSONConfig, setSidebarJSONConfig] = useState(JSON.parse(localStorage.getItem('sidebarJSONConfig') || '[]'));
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const CURRENT_SIDEBAR_VERSION = "4.3.86";
+  const CURRENT_SIDEBAR_VERSION = "4.3.87";
 
   useEffect(() => {
     const fetchSidebarConfig = async () => {
@@ -285,6 +285,16 @@ const useNavData = () => {
       link: "/reports",
       badgeName: "Mới",
       badgeColor: "success",
+    },
+    {
+      label: "Rà soát Pháp lý",
+      isHeader: true,
+    },
+    {
+      id: "reference-reviews",
+      label: "Rà soát dẫn chiếu chéo",
+      icon: "ri-shield-check-line",
+      link: "/reference-reviews",
     },
     {
       label: "Hệ thống",
