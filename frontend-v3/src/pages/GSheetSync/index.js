@@ -12,6 +12,7 @@ import Select from 'react-select';
 import { getAuthHeader } from '../../helpers/api_helper';
 import classnames from 'classnames';
 import { useProfile } from "../../Components/Hooks/UserHooks";
+import FeatherIcon from "feather-icons-react";
 
 const GSheetSync = () => {
     const { userProfile } = useProfile();
@@ -382,51 +383,62 @@ const GSheetSync = () => {
 
                 <Row>
                     <Col lg={12}>
-                        <Card className="border-0 shadow-sm">
-                            <CardHeader className="bg-light-subtle py-3">
-                                <h6 className="card-title mb-0 fw-bold">
-                                    <i className="ri-google-fill align-bottom me-1 text-primary"></i>
+                        <Card className="border-0 shadow-sm modern-hover overflow-hidden">
+                            <CardHeader className="bg-modern-gradient py-3">
+                                <h6 className="card-title mb-0 fw-bold text-white d-flex align-items-center">
+                                    <FeatherIcon icon="file-text" className="icon-dual-light me-2" size="20" />
                                     Cấu hình đồng bộ
                                 </h6>
                             </CardHeader>
                             <CardBody className="p-4">
-                                <Row className="g-4">
-                                    <Col md={5}>
+                                <Row className="gy-3 align-items-start">
+                                    <Col md={4}>
                                         <FormGroup className="mb-0">
-                                            <Label className="fw-bold fs-12 text-muted text-uppercase mb-2">Dự thảo văn bản</Label>
+                                            <Label className="form-label text-uppercase fw-bold fs-11 text-muted mb-2">Dự thảo văn bản</Label>
                                             <Select
-                                                value={documents.find(d => d.id === selectedDocId) ? { value: selectedDocId, label: documents.find(d => d.id === selectedDocId).project_name } : null}
+                                                value={documents.find(doc => doc.value === selectedDocId)}
                                                 onChange={(opt) => setSelectedDocId(opt ? opt.value : null)}
-                                                options={documents.map(d => ({ value: d.id, label: d.project_name }))}
-                                                placeholder="Chọn dự thảo..."
-                                                isLoading={loading}
+                                                options={documents}
+                                                placeholder="Chọn văn bản..."
                                                 styles={selectStyles}
+                                                isClearable
                                             />
                                         </FormGroup>
                                     </Col>
-                                    <Col md={5}>
+                                    <Col md={6}>
                                         <FormGroup className="mb-0">
-                                            <Label className="fw-bold fs-12 text-muted text-uppercase mb-2">Link Google Sheet (Edit mode)</Label>
-                                            <InputGroup>
-                                                <Input 
-                                                    type="url" 
-                                                    className="form-control border-dashed" 
-                                                    placeholder="https://docs.google.com/spreadsheets/d/..."
-                                                    value={gsUrl}
-                                                    onChange={(e) => setGsUrl(e.target.value)}
-                                                />
-                                            </InputGroup>
-                                            <div className="fs-11 text-muted mt-1 italic">
-                                                Lưu ý: Sheet phải được chia sẻ quyền chỉnh sửa cho email service account của hệ thống.
-                                            </div>
+                                            <Label className="form-label text-uppercase fw-bold fs-11 text-muted mb-2">Link Google Sheet (Edit mode)</Label>
+                                            <Input 
+                                                type="text" 
+                                                className="form-control shadow-none"
+                                                placeholder="https://docs.google.com/spreadsheets/d/..." 
+                                                value={gsUrl} 
+                                                onChange={(e) => setGsUrl(e.target.value)}
+                                                style={{ height: '38px' }}
+                                            />
                                         </FormGroup>
                                     </Col>
-                                    <Col md={2} className="d-flex align-items-end">
-                                        <Button color="primary" className="w-100 fw-bold" onClick={handleCompare} disabled={comparing || !selectedDocId}>
-                                            {comparing ? <><Spinner size="sm" className="me-1" /> Đang quét...</> : "So sánh ngay"}
+                                    <Col md={2}>
+                                        <Label className="form-label d-block mb-2">&nbsp;</Label>
+                                        <Button 
+                                            color="primary" 
+                                            className="w-100 fw-bold shadow-sm d-flex align-items-center justify-content-center" 
+                                            onClick={handleCompare} 
+                                            disabled={comparing || !selectedDocId}
+                                            style={{ height: '38px' }}
+                                        >
+                                            {comparing ? <Spinner size="sm" /> : (
+                                                <>
+                                                    <FeatherIcon icon="search" size="16" className="me-2" />
+                                                    So sánh ngay
+                                                </>
+                                            )}
                                         </Button>
                                     </Col>
                                 </Row>
+                                <div className="mt-2 text-muted fs-11 italic">
+                                    Lưu ý: Sheet phải được chia sẻ quyền chỉnh sửa cho email service account của hệ thống.
+                                </div>
                             </CardBody>
                         </Card>
                     </Col>
@@ -436,14 +448,14 @@ const GSheetSync = () => {
                     <Row className="mt-3">
                         <Col lg={12}>
                             <Card className="border-0 shadow-sm">
-                                <CardHeader className="bg-light-subtle py-3 d-flex align-items-center justify-content-between">
+                                <CardHeader className="bg-white py-3 d-flex align-items-center justify-content-between border-bottom border-light">
                                     <div>
-                        <h6 className="card-title mb-0 fw-bold">Kết quả đối chiếu</h6>
+                                        <h6 className="card-title mb-0 fw-bold text-premium">Kết quả đối chiếu</h6>
                                         <p className="text-muted mb-0 fs-12">Tìm thấy {results.length} góp ý trong hệ thống.</p>
                                     </div>
                                     <div className="d-flex gap-2">
-                                        <Button color="success" size="sm" onClick={() => handlePush('all')} disabled={pushing || selectedIds.length === 0}>
-                                            {pushing ? <Spinner size="sm" /> : <><i className="ri-upload-cloud-line me-1"></i> Đẩy {selectedIds.length} dòng lên GG Sheet</>}
+                                        <Button color="success" size="sm" outline className="fw-bold px-3" onClick={() => handlePush('all')} disabled={pushing || selectedIds.length === 0}>
+                                            {pushing ? <Spinner size="sm" /> : <><FeatherIcon icon="upload-cloud" size="14" className="me-1" /> Đẩy {selectedIds.length} dòng lên GG Sheet</>}
                                         </Button>
                                     </div>
                                 </CardHeader>

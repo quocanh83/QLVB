@@ -24,8 +24,9 @@ const DocumentStatistics = ({ stats }) => {
             height: 345,
             type: "line",
             toolbar: { show: false },
+            foreColor: '#94a3b8', // Slate 400 for labels
         },
-        colors: ["#405189", "#0ab39c", "#f06548"],
+        colors: ["#6366f1", "#10b981", "#ef4444"], // Indigo, Emerald, Red
         dataLabels: { enabled: false },
         stroke: {
             width: [3, 4, 3],
@@ -34,47 +35,59 @@ const DocumentStatistics = ({ stats }) => {
         },
         xaxis: {
             categories: ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"],
+            axisBorder: { show: false },
+            axisTicks: { show: false },
         },
-        grid: { borderColor: "#f1f1f1" },
+        grid: { 
+            borderColor: "rgba(255, 255, 255, 0.05)",
+            row: { colors: ['transparent', 'transparent'], opacity: 0.5 },
+        },
+        tooltip: {
+            theme: 'dark',
+        },
+        legend: {
+            position: 'top',
+            horizontalAlign: 'right',
+        }
     };
 
     return (
         <Col xl={8}>
-            <Card className="card-height-100">
-                <CardHeader className="border-0 align-items-center d-flex">
+            <div className="premium-card-dark mb-4">
+                <div className="card-header border-0 align-items-center d-flex">
                     <h4 className="card-title mb-0 flex-grow-1">Thống kê Hồ sơ</h4>
                     <div>
-                        <button type="button" className="btn btn-soft-primary btn-sm">2026</button>
+                        <button type="button" className="btn btn-soft-light btn-sm text-white">2026</button>
                     </div>
-                </CardHeader>
-                <CardHeader className="p-0 border-0 bg-light-subtle">
+                </div>
+                <div className="p-0 border-0 bg-transparent">
                     <Row className="g-0 text-center">
                         <Col sm={4}>
-                            <div className="p-3 border border-dashed border-start-0 text-center">
-                                <h5 className="mb-1"><CountUp start={0} end={stats?.total || 0} duration={3} /></h5>
-                                <p className="text-muted mb-0">Tổng hồ sơ</p>
+                            <div className="p-3 border-end border-white-05">
+                                <h5 className="mb-1 text-white"><CountUp start={0} end={stats?.total || 0} duration={3} /></h5>
+                                <p className="label-modern mb-0" style={{ fontSize: '0.7rem' }}>Tổng hồ sơ</p>
                             </div>
                         </Col>
                         <Col sm={4}>
-                            <div className="p-3 border border-dashed text-center">
+                            <div className="p-3 border-end border-white-05">
                                 <h5 className="mb-1 text-success"><CountUp start={0} end={stats?.completed || 0} duration={3} /></h5>
-                                <p className="text-muted mb-0">Hoàn thành</p>
+                                <p className="label-modern mb-0" style={{ fontSize: '0.7rem' }}>Hoàn thành</p>
                             </div>
                         </Col>
                         <Col sm={4}>
-                            <div className="p-3 border border-dashed border-end-0 text-center">
+                            <div className="p-3">
                                 <h5 className="mb-1 text-danger"><CountUp start={0} end={stats?.overdue || 0} duration={3} /></h5>
-                                <p className="text-muted mb-0">Quá hạn</p>
+                                <p className="label-modern mb-0" style={{ fontSize: '0.7rem' }}>Quá hạn</p>
                             </div>
                         </Col>
                     </Row>
-                </CardHeader>
-                <CardBody className="p-0 pb-2">
+                </div>
+                <div className="card-body p-0 pb-2">
                     <div className="w-100">
                         <ReactApexChart options={options} series={series} type="line" height={345} className="apex-charts" />
                     </div>
-                </CardBody>
-            </Card>
+                </div>
+            </div>
         </Col>
     );
 };

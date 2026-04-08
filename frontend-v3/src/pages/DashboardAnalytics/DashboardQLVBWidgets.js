@@ -49,41 +49,40 @@ const DashboardQLVBWidgets = ({ stats }) => {
         <React.Fragment>
             {qlvbWidgets.map((widget, key) => (
                 <Col xl={3} md={6} key={key}>
-                    <Card className="card-animate overflow-hidden">
-                        <CardBody>
-                            <div className="d-flex align-items-center">
-                                <div className="flex-grow-1 overflow-hidden">
-                                    <p className="text-uppercase fw-medium text-muted text-truncate mb-3">{widget.label}</p>
-                                    <h4 className="fs-22 fw-semibold ff-secondary mb-0">
-                                        {widget.value}
-                                    </h4>
-                                </div>
-                                <div className="flex-shrink-0">
-                                    <ReactApexChart
-                                        options={{ ...chartOptions, colors: [getComputedStyle(document.documentElement).getPropertyValue(widget.color[0]).trim() || '#405189'] }}
-                                        series={widget.series}
-                                        type="area"
-                                        height={46}
-                                        width={80}
-                                        className="apex-charts"
-                                    />
-                                </div>
+                    <div className="premium-card-dark p-3 mb-4">
+                        <div className="d-flex align-items-center mb-3">
+                            <div className="flex-grow-1">
+                                <p className="label-modern mb-1">{widget.label}</p>
+                                <h4 className="stat-value-modern mb-0">
+                                    {widget.value}
+                                </h4>
                             </div>
-                            <div className="d-flex align-items-end justify-content-between mt-3">
-                                <div>
-                                    <span className="badge bg-light text-success mb-0">
-                                        <i className="ri-arrow-up-line align-middle"></i> 15%
-                                    </span>
-                                    <span className="text-muted ms-1">So với tháng trước</span>
-                                </div>
-                                <div className="avatar-sm flex-shrink-0">
-                                    <span className={`avatar-title bg-light rounded-circle fs-3 text-primary shadow`}>
+                            <div className="flex-shrink-0">
+                                <div className="avatar-sm">
+                                    <span className="avatar-title bg-white-10 rounded-circle text-white shadow-sm">
                                         <i className={`${widget.icon} fs-22`}></i>
                                     </span>
                                 </div>
                             </div>
-                        </CardBody>
-                    </Card>
+                        </div>
+                        <div className="d-flex align-items-center justify-content-between">
+                            <div className="flex-grow-1">
+                                <ReactApexChart
+                                    options={{ ...chartOptions, colors: [getComputedStyle(document.documentElement).getPropertyValue(widget.color[0]).trim() || '#405189'] }}
+                                    series={widget.series}
+                                    type="area"
+                                    height={40}
+                                    width="100%"
+                                    className="apex-charts"
+                                />
+                            </div>
+                            <div className="flex-shrink-0 ms-2">
+                                <span className="badge bg-success-subtle text-success border-none" style={{ fontSize: '0.75rem' }}>
+                                    <i className="ri-arrow-up-line align-middle"></i> 15%
+                                </span>
+                            </div>
+                        </div>
+                    </div>
                 </Col>
             ))}
         </React.Fragment>

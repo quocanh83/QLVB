@@ -17,10 +17,10 @@ import {
 export const initialState = {
   layoutType: layoutTypes.VERTICAL,
   leftSidebarType: leftSidebarTypes.DARK,
-  layoutModeType: layoutModeTypes.LIGHTMODE,
+  layoutModeType: layoutModeTypes.DARKMODE, // Permanent Dark Mode
   layoutWidthType: layoutWidthTypes.FLUID,
   layoutPositionType: layoutPositionTypes.FIXED,
-  topbarThemeType: topbarThemeTypes.LIGHT,
+  topbarThemeType: topbarThemeTypes.DARK, // Permanent Dark Topbar
   leftsidbarSizeType: leftsidbarSizeTypes.SMALLHOVER,
   leftSidebarViewType: leftSidebarViewTypes.DEFAULT,
   leftSidebarImageType: leftSidebarImageTypes.NONE,

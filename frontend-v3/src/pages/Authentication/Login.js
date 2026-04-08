@@ -15,8 +15,9 @@ import { useFormik } from "formik";
 import { loginUser, socialLogin, resetLoginFlag } from "../../slices/thunks";
 
 import logoLight from "../../assets/images/logo-light.png";
+import logoCustom from "../../assets/images/logo-qlvb-light.png";
 import { createSelector } from 'reselect';
-//import images
+import FeatherIcon from "feather-icons-react";
 
 const Login = (props) => {
     const dispatch = useDispatch();
@@ -94,129 +95,95 @@ const Login = (props) => {
             <ParticlesAuth>
                 <div className="auth-page-content">
                     <Container>
-                        <Row>
-                            <Col lg={12}>
-                                <div className="text-center mt-sm-5 mb-4 text-white-50">
-                                    <div>
-                                        <Link to="/" className="d-inline-block auth-logo">
-                                            <img src={logoLight} alt="" height="20" />
-                                        </Link>
-                                    </div>
-                                    <p className="mt-3 fs-15 fw-medium">Hệ thống Quản lý Văn bản V3.0</p>
-                                </div>
-                            </Col>
-                        </Row>
-
                         <Row className="justify-content-center">
-                            <Col md={8} lg={6} xl={5}>
-                                <Card className="mt-4">
-                                    <CardBody className="p-4">
-                                        <div className="text-center mt-2">
-                                            <h5 className="text-primary">Chào mừng trở lại !</h5>
-                                            <p className="text-muted">Đăng nhập để vào hệ thống QLVB.</p>
+                            <Col xs={12}>
+                                <div className="auth-card-minimalist-dark text-center">
+                                    <div className="mb-4">
+                                        <div className="mb-2 d-inline-block">
+                                            <img src={logoCustom} alt="QLVB" className="auth-logo-brand" />
                                         </div>
-                                        {error && error ? (<Alert color="danger"> {error} </Alert>) : null}
-                                        <div className="p-2 mt-4">
-                                            <Form
-                                                onSubmit={(e) => {
-                                                    e.preventDefault();
-                                                    validation.handleSubmit();
-                                                    return false;
-                                                }}
-                                                action="#">
+                                        <h2 className="text-white fw-extrabold ls-tight mb-1">QUẢN LÝ VĂN BẢN</h2>
+                                        <p className="text-unified opacity-50 text-uppercase tracking-widest" style={{ fontSize: '0.7rem' }}>Hệ thống xử lý văn bản thông minh</p>
+                                    </div>
 
-                                                <div className="mb-3">
-                                                    <Label htmlFor="username" className="form-label">Tên đăng nhập</Label>
+                                    <div className="mx-auto" style={{ maxWidth: '440px', textAlign: 'left' }}>
+                                        <Form
+                                            onSubmit={(e) => {
+                                                e.preventDefault();
+                                                validation.handleSubmit();
+                                                return false;
+                                            }}
+                                            action="#">
+
+                                            <div className="mb-3">
+                                                <Label htmlFor="username" className="label-unified">Tên đăng nhập</Label>
+                                                <Input
+                                                    name="username"
+                                                    className="form-control input-minimal-dark"
+                                                    placeholder="tài khoản"
+                                                    type="text"
+                                                    onChange={validation.handleChange}
+                                                    onBlur={validation.handleBlur}
+                                                    value={validation.values.username || ""}
+                                                    invalid={
+                                                        validation.touched.username && validation.errors.username ? true : false
+                                                    }
+                                                />
+                                            </div>
+
+                                            <div className="mb-3">
+                                                <div className="float-end">
+                                                    <Link to="/forgot-password" university-link="true" className="text-unified opacity-75 hover-white">Quên mật khẩu?</Link>
+                                                </div>
+                                                <Label className="label-unified" htmlFor="password-input">Mật khẩu</Label>
+                                                <div className="position-relative auth-pass-inputgroup">
                                                     <Input
-                                                        name="username"
-                                                        className="form-control"
-                                                        placeholder="Nhập tên đăng nhập"
-                                                        type="text"
+                                                        name="password"
+                                                        value={validation.values.password || ""}
+                                                        type={passwordShow ? "text" : "password"}
+                                                        className="form-control pe-5 input-minimal-dark"
+                                                        placeholder="••••••••"
                                                         onChange={validation.handleChange}
                                                         onBlur={validation.handleBlur}
-                                                        value={validation.values.username || ""}
                                                         invalid={
-                                                            validation.touched.username && validation.errors.username ? true : false
+                                                            validation.touched.password && validation.errors.password ? true : false
                                                         }
                                                     />
-                                                    {validation.touched.username && validation.errors.username ? (
-                                                        <FormFeedback type="invalid">Vui lòng nhập tên đăng nhập</FormFeedback>
-                                                    ) : null}
+                                                    <button className="btn btn-link position-absolute end-0 top-0 text-decoration-none text-white opacity-25" type="button" onClick={() => setPasswordShow(!passwordShow)}><i className="ri-eye-fill align-middle"></i></button>
                                                 </div>
+                                            </div>
 
-                                                <div className="mb-3">
-                                                    <div className="float-end">
-                                                        <Link to="/forgot-password" university-link="true" className="text-muted">Quên mật khẩu?</Link>
-                                                    </div>
-                                                    <Label className="form-label" htmlFor="password-input">Mật khẩu</Label>
-                                                    <div className="position-relative auth-pass-inputgroup mb-3">
-                                                        <Input
-                                                            name="password"
-                                                            value={validation.values.password || ""}
-                                                            type={passwordShow ? "text" : "password"}
-                                                            className="form-control pe-5"
-                                                            placeholder="Nhập mật khẩu"
-                                                            onChange={validation.handleChange}
-                                                            onBlur={validation.handleBlur}
-                                                            invalid={
-                                                                validation.touched.password && validation.errors.password ? true : false
-                                                            }
-                                                        />
-                                                        {validation.touched.password && validation.errors.password ? (
-                                                            <FormFeedback type="invalid">{validation.errors.password}</FormFeedback>
-                                                        ) : null}
-                                                        <button className="btn btn-link position-absolute end-0 top-0 text-decoration-none text-muted" type="button" id="password-addon" onClick={() => setPasswordShow(!passwordShow)}><i className="ri-eye-fill align-middle"></i></button>
-                                                    </div>
-                                                </div>
+                                            <div className="form-check mb-4 mt-n1">
+                                                <Input className="form-check-input border-secondary" style={{ marginTop: '0.35rem' }} type="checkbox" value="" id="auth-remember-check" />
+                                                <Label className="form-check-label text-unified" htmlFor="auth-remember-check">Duy trì đăng nhập</Label>
+                                            </div>
 
-                                                <div className="form-check">
-                                                    <Input className="form-check-input" type="checkbox" value="" id="auth-remember-check" />
-                                                    <Label className="form-check-label" htmlFor="auth-remember-check">Ghi nhớ đăng nhập</Label>
-                                                </div>
+                                            <div className="mt-4">
+                                                <Button disabled={error ? null : loading ? true : false} className="btn-premium-white w-100" type="submit">
+                                                    {loading ? <Spinner size="sm" className='me-2' /> : null}
+                                                    ĐĂNG NHẬP HỆ THỐNG
+                                                </Button>
+                                            </div>
 
-                                                <div className="mt-4">
-                                                    <Button color="success" disabled={error ? null : loading ? true : false} className="btn btn-success w-100" type="submit">
-                                                        {loading ? <Spinner size="sm" className='me-2'> Đang tải... </Spinner> : null}
-                                                        Đăng nhập
+                                            <div className="mt-4 text-center">
+                                                <div className="d-flex gap-4 justify-content-center">
+                                                    <Button variant="link" className="btn-social-minimal">
+                                                        <i className="ri-facebook-fill"></i>
+                                                    </Button>
+                                                    <Button variant="link" className="btn-social-minimal">
+                                                        <i className="ri-github-fill"></i>
+                                                    </Button>
+                                                    <Button variant="link" className="btn-social-minimal">
+                                                        <i className="ri-google-fill"></i>
                                                     </Button>
                                                 </div>
+                                            </div>
+                                        </Form>
+                                    </div>
+                                </div>
 
-                                                <div className="mt-4 text-center">
-                                                    <div className="signin-other-title">
-                                                        <h5 className="fs-13 mb-4 title">Đăng nhập bằng</h5>
-                                                    </div>
-                                                    <div>
-                                                    <Link
-                                                            to="#"
-                                                            className="btn btn-primary btn-icon me-1"
-                                                            onClick={e => {
-                                                                e.preventDefault();
-                                                                socialResponse("facebook");
-                                                            }}
-                                                            >
-                                                            <i className="ri-facebook-fill fs-16" />
-                                                        </Link>
-                                                        <Link
-                                                            to="#"
-                                                            className="btn btn-danger btn-icon me-1"
-                                                            onClick={e => {
-                                                                e.preventDefault();
-                                                                socialResponse("google");
-                                                            }}
-                                                            >
-                                                            <i className="ri-google-fill fs-16" />
-                                                        </Link>
-                                                        <Button color="dark" className="btn-icon"><i className="ri-github-fill fs-16"></i></Button>{" "}
-                                                        <Button color="info" className="btn-icon"><i className="ri-twitter-fill fs-16"></i></Button>
-                                                    </div>
-                                                </div>
-                                            </Form>
-                                        </div>
-                                    </CardBody>
-                                </Card>
-
-                                <div className="mt-4 text-center">
-                                    <p className="mb-0">Chưa có tài khoản? <Link to="/register" university-link="true" className="fw-semibold text-primary text-decoration-underline"> Đăng ký </Link> </p>
+                                <div className="mt-4 text-center px-4 pt-4 border-top border-white-10" style={{ maxWidth: '440px', margin: '0 auto' }}>
+                                    <p className="mb-0 text-unified">Bạn chưa có tài khoản? <Link to="/register" university-link="true" className="text-white fw-bold">Đăng ký ngay</Link></p>
                                 </div>
 
                             </Col>

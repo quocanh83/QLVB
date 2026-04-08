@@ -26,7 +26,9 @@ export const loginUser = (user, history) => async (dispatch) => {
       dispatch(apiError("Đăng nhập thất bại. Kiểm tra lại thông tin."));
     }
   } catch (error) {
-    dispatch(apiError(error));
+    // Return serializable error for Redux Toolkit
+    const errorMsg = error.response ? error.response.data : error.message;
+    dispatch(apiError(errorMsg));
   }
 };
 
@@ -45,7 +47,7 @@ export const logoutUser = () => async (dispatch) => {
     }
 
   } catch (error) {
-    dispatch(apiError(error));
+    dispatch(apiError(error.message));
   }
 };
 
@@ -69,7 +71,7 @@ export const socialLogin = (type, history) => async (dispatch) => {
     }
 
   } catch (error) {
-    dispatch(apiError(error));
+    dispatch(apiError(error.message));
   }
 };
 
@@ -78,6 +80,6 @@ export const resetLoginFlag = () => async (dispatch) =>{
     const response = dispatch(reset_login_flag());
     return response;
   } catch (error) {
-    dispatch(apiError(error));
+    dispatch(apiError(error.message));
   }
 };
