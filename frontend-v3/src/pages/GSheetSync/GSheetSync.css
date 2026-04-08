@@ -1,0 +1,100 @@
+/* GSheet Sync Readability Overhaul & Sticky Header */
+
+/* 1. Sticky Header */
+.table-sticky-header thead th {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background-color: #1e293b !important; /* Solid Slate 800 */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1) !important;
+    color: #f1f5f9 !important; /* Brighter Slate 100 */
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1rem 0.5rem !important;
+}
+
+/* Ensure the table isn't cut off */
+.table-responsive {
+    max-height: 80vh;
+    overflow-y: auto;
+    border-radius: 0.5rem;
+}
+
+/* 2. Enhanced Comparison Blocks */
+.bg-soft-danger-dark {
+    background-color: rgba(220, 38, 38, 0.15) !important; /* Red 600 at 15% */
+}
+
+.bg-soft-light-dark {
+    background-color: rgba(255, 255, 255, 0.08) !important; /* 8% White - clearly defines a box */
+}
+
+.bg-soft-warning-dark {
+    background-color: rgba(217, 119, 6, 0.15) !important; /* Amber 600 at 15% */
+}
+
+.border-light-subtle {
+    border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* 3. Row Status Backgrounds (High Contrast) */
+.bg-danger-subtle-dark {
+    background-color: rgba(220, 38, 38, 0.1) !important;
+}
+
+.bg-success-subtle-dark {
+    background-color: rgba(5, 150, 105, 0.1) !important; 
+}
+
+/* 4. Text & Readability */
+.text-vibrant-danger {
+    color: #ff8787 !important; /* Bright Red */
+}
+
+.text-vibrant-success {
+    color: #63e6be !important; /* Mint Green */
+}
+
+.text-vibrant-warning {
+    color: #ffd43b !important; /* Sunshine Yellow */
+}
+
+.white-space-normal {
+    white-space: normal !important;
+    line-height: 1.6 !important;
+}
+
+.fs-14 {
+    font-size: 14px !important;
+}
+
+.agency-label {
+    color: #94a3b8 !important; /* Slate 400 */
+    font-weight: 600;
+    margin-bottom: 4px;
+    display: block;
+}
+
+/* 5. Select Control Definition */
+.react-select-bright .react-select__control {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Scrollbar styling for modern look */
+.table-responsive::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+.table-responsive::-webkit-scrollbar-track {
+    background: transparent;
+}
+.table-responsive::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}

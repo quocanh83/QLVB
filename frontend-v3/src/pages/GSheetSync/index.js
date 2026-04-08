@@ -14,6 +14,8 @@ import classnames from 'classnames';
 import { useProfile } from "../../Components/Hooks/UserHooks";
 import FeatherIcon from "feather-icons-react";
 
+import './GSheetSync.css';
+
 const GSheetSync = () => {
     const { userProfile } = useProfile();
     const [documents, setDocuments] = useState([]);
@@ -44,39 +46,57 @@ const GSheetSync = () => {
     const selectStyles = {
         control: (base, state) => ({
             ...base,
-            background: "var(--vz-input-bg)",
-            borderColor: state.isFocused ? "var(--vz-input-focus-border-color)" : "var(--vz-input-border)",
-            color: "var(--vz-body-color)",
+            background: "rgba(255, 255, 255, 0.05)",
+            borderColor: state.isFocused ? "rgba(255, 255, 255, 0.2)" : "rgba(255, 255, 255, 0.1)",
+            color: "#fff",
+            borderRadius: "0.6rem",
+            padding: "2px",
+            boxShadow: state.isFocused ? "0 0 0 3px rgba(255, 255, 255, 0.03)" : "none",
+            "&:hover": {
+                borderColor: "rgba(255, 255, 255, 0.2)",
+            }
         }),
         menu: (base) => ({
             ...base,
-            background: "var(--vz-choices-bg, #ffffff)",
-            borderColor: "var(--vz-input-border)",
-            boxShadow: "0 5px 15px rgba(0,0,0,0.1)",
-            zIndex: 9999
+            background: "#1e293b",
+            borderColor: "rgba(255, 255, 255, 0.1)",
+            boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
+            zIndex: 9999,
+            borderRadius: "0.75rem",
+            padding: "4px"
         }),
         option: (base, state) => ({
             ...base,
             background: state.isSelected 
-                ? "var(--vz-primary)" 
+                ? "rgba(255, 255, 255, 0.1)" 
                 : state.isFocused 
-                    ? "var(--vz-primary-light, #eef1f6)" 
-                    : "var(--vz-choices-bg, #ffffff)",
-            color: state.isSelected 
-                ? "#fff" 
-                : state.isFocused 
-                    ? "var(--vz-primary, #405189)" 
-                    : "var(--vz-body-color)",
+                    ? "rgba(255, 255, 255, 0.05)" 
+                    : "transparent",
+            color: "#fff",
             padding: "10px 15px",
-            fontSize: "14px",
+            fontSize: "13px",
             fontWeight: "500",
             cursor: "pointer",
+            borderRadius: "0.5rem",
+            margin: "2px 0",
+            "&:active": {
+                background: "rgba(255, 255, 255, 0.1)",
+            }
         }),
         singleValue: (base) => ({
             ...base,
-            color: "var(--vz-body-color)",
-            fontSize: "14px",
+            color: "#fff",
+            fontSize: "13px",
             fontWeight: "500",
+        }),
+        input: (base) => ({
+            ...base,
+            color: "#fff",
+        }),
+        placeholder: (base) => ({
+            ...base,
+            color: "rgba(255, 255, 255, 0.4)",
+            fontSize: "13px"
         })
     };
 
@@ -87,7 +107,7 @@ const GSheetSync = () => {
 
     useEffect(() => {
         if (selectedDocId) {
-            const doc = documents.find(d => d.id === selectedDocId);
+            const doc = documents.find(d => d.value === selectedDocId);
             if (doc && doc.google_sheets_url) {
                 setGsUrl(doc.google_sheets_url);
             } else {
@@ -102,7 +122,13 @@ const GSheetSync = () => {
         setLoading(true);
         try {
             const res = await axios.get('/api/documents/', getAuthHeader());
-            setDocuments(Array.isArray(res.results || res) ? (res.results || res) : []);
+            const data = Array.isArray(res.results || res) ? (res.results || res) : [];
+            const mapped = data.map(d => ({
+                value: d.id,
+                label: d.project_name,
+                google_sheets_url: d.google_sheets_url
+            }));
+            setDocuments(mapped);
         } catch (e) {
             toast.error("Không thể tải danh sách dự thảo.");
         } finally {
@@ -402,6 +428,7 @@ const GSheetSync = () => {
                                                 placeholder="Chọn văn bản..."
                                                 styles={selectStyles}
                                                 isClearable
+                                                classNamePrefix="react-select"
                                             />
                                         </FormGroup>
                                     </Col>
@@ -536,7 +563,7 @@ const GSheetSync = () => {
                                                         checked={dataSyncMode === 'db'} 
                                                         onChange={() => setDataSyncMode('db')}
                                                     />
-                                                    <Label className="form-check-label fs-12 mb-0 fw-medium text-primary" htmlFor="modeDataDb">Điều chỉnh DB</Label>
+                                                    <Label className="form-check-label fs-12 mb-0 fw-medium text-info" htmlFor="modeDataDb">Điều chỉnh DB</Label>
                                                 </div>
                                             </div>
 
@@ -576,7 +603,7 @@ const GSheetSync = () => {
                                     </div>
 
                                     <div className="table-responsive table-card">
-                                        <Table className="align-middle table-hover table-bordered mb-0" style={{ tableLayout: 'fixed', minWidth: '1000px' }}>
+                                        <Table className="align-middle table-hover table-sticky-header mb-0" style={{ tableLayout: 'fixed', minWidth: '1000px' }}>
                                             <thead className="table-light text-muted text-center align-middle">
                                             <tr>
                                                 <th scope="col" style={{ width: "3%", minWidth: "40px" }}>
@@ -607,7 +634,7 @@ const GSheetSync = () => {
                                                 const hasAnyDiff = item.is_content_diff || hasExpDiff || hasOpinionDiff || item.is_node_diff || item.is_specialist_diff;
 
                                                 return (
-                                                    <tr key={item.id} className={classnames(item.is_in_gs ? (hasAnyDiff ? "bg-danger-subtle opacity-100" : "bg-success-subtle") : "")}>
+                                                    <tr key={item.id} className={classnames(item.is_in_gs ? (hasAnyDiff ? "bg-danger-subtle-dark" : "bg-success-subtle-dark") : "")}>
                                                         <td className="text-center align-middle">
                                                             <div className="form-check d-flex justify-content-center">
                                                                 <Input 
@@ -620,27 +647,29 @@ const GSheetSync = () => {
                                                             </div>
                                                         </td>
                                                         <td className="white-space-normal">
-                                                            <span className="fw-bold text-primary fs-12">{item.node_label}</span>
+                                                            <span className="fs-14 fw-bold text-vibrant-warning">{item.node_label}</span>
                                                         </td>
                                                         <td className="white-space-normal">
-                                                            <span className="fs-12 fw-medium text-dark">{item.agency}</span>
+                                                            <span className="fs-14 fw-semibold text-vibrant-success label-modern">{item.agency}</span>
                                                         </td>
                                                         <td>
-                                                            <div className={classnames("p-2 border rounded fs-12 mb-1", item.is_content_diff ? "bg-white border-danger shadow-sm" : "bg-light-subtle")}>
-                                                                <div className="fw-medium text-dark">DB: {item.content}</div>
+                                                            <div className={classnames("p-3 border rounded fs-14 mb-1", item.is_content_diff ? "bg-soft-danger-dark border-danger shadow-sm" : "bg-soft-light-dark border-light-subtle")}>
+                                                                <div className="agency-label text-info opacity-75">Hệ thống (DB):</div>
+                                                                <div className="fw-medium text-white">{item.content}</div>
                                                                 {item.is_content_diff && (
-                                                                    <div className="mt-2 pt-2 border-top border-danger-subtle text-danger">
+                                                                    <div className="mt-2 pt-2 border-top border-danger-subtle text-vibrant-danger">
                                                                         <i className="ri-error-warning-fill me-1"></i>
-                                                                        <strong>Sheet:</strong> {item.gs_content}
+                                                                        <strong>GSheet:</strong> {item.gs_content}
                                                                     </div>
                                                                 )}
                                                             </div>
                                                         </td>
                                                         <td>
-                                                            <div className={classnames("p-2 border rounded fs-12", hasExpDiff ? "bg-white border-danger shadow-sm" : isMissingExpOnGs ? "bg-warning-subtle border-warning shadow-sm" : "bg-light-subtle")}>
-                                                                <div className="fw-medium text-dark italic">DB: {item.explanation || <em className="text-muted">Trống</em>}</div>
+                                                            <div className={classnames("p-3 border rounded fs-14", hasExpDiff ? "bg-soft-danger-dark border-danger shadow-sm" : isMissingExpOnGs ? "bg-soft-warning-dark border-warning shadow-sm" : "bg-soft-light-dark border-light-subtle")}>
+                                                                <div className="agency-label text-info opacity-75">Hệ thống (DB):</div>
+                                                                <div className="fw-medium text-white italic">{item.explanation || <em className="text-white-50">Trống</em>}</div>
                                                                 {hasExpDiff && (
-                                                                    <div className="mt-2 pt-2 border-top border-danger-subtle text-danger">
+                                                                    <div className="mt-2 pt-2 border-top border-danger-subtle text-vibrant-danger">
                                                                         <i className="ri-error-warning-fill me-1"></i>
                                                                         <strong>Sheet:</strong> {item.gs_explanation || <em className="text-muted">Trống</em>}
                                                                     </div>
@@ -668,12 +697,42 @@ const GSheetSync = () => {
                                                                         menuPortal: base => ({ ...base, zIndex: 9999 }),
                                                                         control: (base) => ({
                                                                             ...base,
+                                                                            background: "rgba(255, 255, 255, 0.05)",
+                                                                            borderColor: "rgba(255, 255, 255, 0.1)",
+                                                                            color: "#fff",
                                                                             fontSize: "12px",
-                                                                            minHeight: "30px"
+                                                                            minHeight: "30px",
+                                                                            borderRadius: "0.4rem"
                                                                         }),
                                                                         multiValue: (base) => ({
                                                                             ...base,
-                                                                            backgroundColor: item.individual_assignments?.length > 0 ? "var(--vz-success-subtle)" : "var(--vz-info-subtle)",
+                                                                            backgroundColor: item.individual_assignments?.length > 0 ? "rgba(10, 179, 156, 0.2)" : "rgba(41, 156, 219, 0.2)",
+                                                                            borderRadius: "4px"
+                                                                        }),
+                                                                        multiValueLabel: (base) => ({
+                                                                            ...base,
+                                                                            color: "#fff",
+                                                                        }),
+                                                                        multiValueRemove: (base) => ({
+                                                                            ...base,
+                                                                            color: "#fff",
+                                                                            "&:hover": {
+                                                                                backgroundColor: "rgba(255, 255, 255, 0.1)",
+                                                                                color: "#fff"
+                                                                            }
+                                                                        }),
+                                                                        menu: (base) => ({
+                                                                            ...base,
+                                                                            background: "#1e293b",
+                                                                            border: "1px solid rgba(255, 255, 255, 0.1)",
+                                                                            boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
+                                                                        }),
+                                                                        option: (base, state) => ({
+                                                                            ...base,
+                                                                            background: state.isFocused ? "rgba(255, 255, 255, 0.05)" : "transparent",
+                                                                            color: "#fff",
+                                                                            cursor: "pointer",
+                                                                            fontSize: "12px"
                                                                         })
                                                                     }}
                                                                 />
@@ -692,7 +751,7 @@ const GSheetSync = () => {
                                                                     DB: {item.need_opinion || "---"}
                                                                 </div>
                                                                 {hasOpinionDiff && (
-                                                                    <div className="mt-1 pt-1 border-top border-danger-subtle text-danger">
+                                                                    <div className="mt-2 pt-2 border-top border-warning-subtle text-vibrant-warning">
                                                                         <i className="ri-error-warning-fill me-1"></i>
                                                                         <strong>Sheet:</strong> {item.gs_need_opinion || "---"}
                                                                     </div>

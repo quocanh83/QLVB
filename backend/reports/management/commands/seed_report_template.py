@@ -20,21 +20,21 @@ class Command(BaseCommand):
         )
 
         if created:
-            self.stdout.write(self.style.SUCCESS(f'✓ Đã tạo mẫu: {template.name}'))
+            self.stdout.write(self.style.SUCCESS('[OK] Template created.'))
         else:
-            self.stdout.write(self.style.WARNING(f'⚠ Mẫu đã tồn tại: {template.name}'))
+            self.stdout.write(self.style.WARNING('[!] Template already exists.'))
 
         # Tạo 5 trường mặc định cho mẫu 10
         default_fields = [
             ('stt', 'TT', 1.0, 0),
-            ('noi_dung_du_thao', 'Nội dung dự thảo', 4.0, 1),
+            ('noi_dung_du_thao', 'Nhóm vấn đề/Điều/Khoản', 4.0, 1),
             ('noi_dung_gop_y', 'Nội dung góp ý', 4.0, 2),
             ('don_vi_gop_y', 'Đơn vị góp ý', 3.0, 3),
             ('giai_trinh', 'Ý kiến giải trình, tiếp thu', 4.5, 4),
         ]
 
         for field_key, field_label, width, order in default_fields:
-            obj, field_created = ReportFieldConfig.objects.get_or_create(
+            obj, field_created = ReportFieldConfig.objects.update_or_create(
                 template=template,
                 field_key=field_key,
                 defaults={
@@ -59,18 +59,18 @@ class Command(BaseCommand):
             }
         )
         if c_created:
-            self.stdout.write(self.style.SUCCESS(f'✓ Đã tạo mẫu tuỳ chỉnh: {custom_tpl.name}'))
+            self.stdout.write(self.style.SUCCESS('[OK] Custom template created.'))
         else:
             # Cập nhật tên nếu đã tồn tại mẫu cũ
             custom_tpl.name = 'Báo cáo Tuỳ chỉnh (V3 - Đầy đủ 7 cột)'
             custom_tpl.save()
-            self.stdout.write(self.style.WARNING(f'⚠ Đã cập nhật tên mẫu tuỳ chỉnh: {custom_tpl.name}'))
+            self.stdout.write(self.style.WARNING('[!] Custom template updated.'))
 
         
         # Tạo 7 trường mặc định cho mẫu Tuỳ chỉnh V3
         custom_fields = [
             ('stt', 'STT', 1.0, 0),
-            ('dieu_khoan', 'Điều/Khoản', 3.0, 1),
+            ('dieu_khoan', 'Nhóm vấn đề/Điều/Khoản', 3.0, 1),
             ('user_name', 'Cơ quan góp ý', 3.0, 2),
             ('content', 'Nội dung góp ý', 5.0, 3),
             ('explanations', 'Nội dung giải trình', 5.0, 4),
@@ -79,7 +79,7 @@ class Command(BaseCommand):
         ]
 
         for field_key, field_label, width, order in custom_fields:
-            ReportFieldConfig.objects.get_or_create(
+            ReportFieldConfig.objects.update_or_create(
                 template=custom_tpl,
                 field_key=field_key,
                 defaults={
@@ -91,4 +91,4 @@ class Command(BaseCommand):
                 }
             )
 
-        self.stdout.write(self.style.SUCCESS('\n✓ Hoàn tất seed dữ liệu mẫu báo cáo!'))
+        self.stdout.write(self.style.SUCCESS('\n[DONE] Seeding completed.'))

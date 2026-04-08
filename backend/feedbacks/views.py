@@ -1755,6 +1755,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
         if status_filter and status_filter != 'all':
             import re
             AGREED_REGEX = r'thống\s+nhất\s+với\s+nội\s+dung\s+dự\s+thảo\s+Nghị\s+định'
+            selected_statuses = status_filter.split(',')
             
             new_feedbacks = []
             for fb in feedbacks:
@@ -1762,19 +1763,23 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                 exp_text = " ".join([e.content for e in exps if e.content]).lower()
                 content_text = (fb.content or "").lower()
                 
-                match = False
-                if status_filter == 'pending' or status_filter == 'unresolved':
-                    match = not exps
-                elif status_filter == 'explained':
-                    match = exps and 'tiếp thu' not in exp_text
-                elif status_filter == 'accepted' or status_filter == 'resolved':
-                    match = exps and 'tiếp thu' in exp_text
-                elif status_filter == 'partially_accepted':
-                    match = exps and 'tiếp thu một phần' in exp_text
-                elif status_filter == 'agreed':
-                    match = re.search(AGREED_REGEX, content_text, re.IGNORECASE)
+                # Check each selected status
+                is_match = False
+                for s in selected_statuses:
+                    if s == 'pending' or s == 'unresolved':
+                        if not exps: is_match = True
+                    elif s == 'explained':
+                        if exps and 'tiếp thu' not in exp_text: is_match = True
+                    elif s == 'accepted' or s == 'resolved':
+                        if exps and 'tiếp thu' in exp_text: is_match = True
+                    elif s == 'partially_accepted':
+                        if exps and 'tiếp thu một phần' in exp_text: is_match = True
+                    elif s == 'agreed':
+                        if re.search(AGREED_REGEX, content_text, re.IGNORECASE): is_match = True
+                    
+                    if is_match: break
                 
-                if match:
+                if is_match:
                     new_feedbacks.append(fb)
             feedbacks = new_feedbacks
 
@@ -1815,6 +1820,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                     "co_quan": (fb.agency.name if fb.agency else fb.contributing_agency) or "Khác",
                     "noi_dung_gop_y": fb.content,
                     "noi_dung_giai_trinh": explanation.content if explanation else "",
+                    "giai_trinh": explanation.content if explanation else "",
                     "xin_y_kien": fb.need_opinion or "",
                 }
             results.append(row)
@@ -1870,6 +1876,7 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
             if status_filter and status_filter != 'all':
                 import re
                 AGREED_REGEX = r'thống\s+nhất\s+với\s+nội\s+dung\s+dự\s+thảo\s+Nghị\s+định'
+                selected_statuses = status_filter.split(',')
                 
                 new_feedbacks = []
                 for fb in feedbacks:
@@ -1877,19 +1884,22 @@ FORMAT TRẢ LỜI CỐ ĐỊNH:
                     exp_text = " ".join([e.content for e in exps if e.content]).lower()
                     content_text = (fb.content or "").lower()
                     
-                    match = False
-                    if status_filter == 'pending' or status_filter == 'unresolved':
-                        match = not exps
-                    elif status_filter == 'explained':
-                        match = exps and 'tiếp thu' not in exp_text
-                    elif status_filter == 'accepted' or status_filter == 'resolved':
-                        match = exps and 'tiếp thu' in exp_text
-                    elif status_filter == 'partially_accepted':
-                        match = exps and 'tiếp thu một phần' in exp_text
-                    elif status_filter == 'agreed':
-                        match = re.search(AGREED_REGEX, content_text, re.IGNORECASE)
+                    is_match = False
+                    for s in selected_statuses:
+                        if s == 'pending' or s == 'unresolved':
+                            if not exps: is_match = True
+                        elif s == 'explained':
+                            if exps and 'tiếp thu' not in exp_text: is_match = True
+                        elif s == 'accepted' or s == 'resolved':
+                            if exps and 'tiếp thu' in exp_text: is_match = True
+                        elif s == 'partially_accepted':
+                            if exps and 'tiếp thu một phần' in exp_text: is_match = True
+                        elif s == 'agreed':
+                            if re.search(AGREED_REGEX, content_text, re.IGNORECASE): is_match = True
+                        
+                        if is_match: break
                     
-                    if match:
+                    if is_match:
                         new_feedbacks.append(fb)
                 feedbacks = new_feedbacks
             

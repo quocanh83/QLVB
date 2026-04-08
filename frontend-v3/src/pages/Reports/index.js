@@ -18,7 +18,7 @@ const Reports = () => {
     const [selectedDocId, setSelectedDocId] = useState('');
     const [reportMode, setReportMode] = useState('mau10');
     const [customAgency, setCustomAgency] = useState('all');
-    const [customStatus, setCustomStatus] = useState('all');
+    const [customStatus, setCustomStatus] = useState(['pending', 'explained', 'accepted', 'partially_accepted', 'agreed']);
     const [customSpecialist, setCustomSpecialist] = useState('all');
     const [customOnlyOpinion, setCustomOnlyOpinion] = useState(false);
     const [showAgreedText, setShowAgreedText] = useState(false);
@@ -146,7 +146,8 @@ const Reports = () => {
         if (!docId) return;
         setIsCustomLoading(true);
         try {
-            let url = `/api/feedbacks/custom_report_preview/?document_id=${docId}&status=${statusFilter}&report_type=${reportMode === 'mau10' ? 'mau_10' : 'custom'}&only_opinion=${onlyOpinion}&show_agreed_text=${showAgreedText}`;
+            const statusStr = Array.isArray(statusFilter) ? statusFilter.join(',') : statusFilter;
+            let url = `/api/feedbacks/custom_report_preview/?document_id=${docId}&status=${statusStr}&report_type=${reportMode === 'mau10' ? 'mau_10' : 'custom'}&only_opinion=${onlyOpinion}&show_agreed_text=${showAgreedText}`;
             if (agency && agency !== 'all') url += `&agency=${encodeURIComponent(agency)}`;
             if (specialist && specialist !== 'all') url += `&specialist=${specialist}`;
             if (onlyOpinion) url += `&only_opinion=true`;
@@ -161,7 +162,8 @@ const Reports = () => {
         try {
             const typeParam = reportMode === 'mau10' ? 'mau_10' : 'custom';
             const baseUrl = api.API_URL || '';
-            let url = `${baseUrl}/api/feedbacks/export_mau_10/?document_id=${selectedDocId}&status=${customStatus}`;
+            const statusStr = Array.isArray(customStatus) ? customStatus.join(',') : customStatus;
+            let url = `${baseUrl}/api/feedbacks/export_mau_10/?document_id=${selectedDocId}&status=${statusStr}`;
             if (customAgency && customAgency !== 'all') url += `&agency=${encodeURIComponent(customAgency)}`;
             if (customSpecialist && customSpecialist !== 'all') url += `&specialist=${customSpecialist}`;
             if (customOnlyOpinion) url += `&only_opinion=true`;
@@ -565,16 +567,56 @@ const Reports = () => {
                                                         {specialists.map(s => <option key={s.id} value={s.id}>{s.username}</option>)}
                                                     </Input>
                                                 </Col>
-                                                <Col lg={2}>
-                                                    <label className="form-label text-muted text-uppercase fw-semibold fs-12">Trạng thái giải trình</label>
-                                                    <Input type="select" value={customStatus} onChange={(e) => setCustomStatus(e.target.value)}>
-                                                        <option value="all">Tất cả Ý kiến</option>
-                                                        <option value="pending">Chưa giải trình</option>
-                                                        <option value="explained">Đã giải trình</option>
-                                                        <option value="accepted">Đã tiếp thu</option>
-                                                        <option value="partially_accepted">Tiếp thu một phần</option>
-                                                        <option value="agreed">Thống nhất với dự thảo</option>
-                                                    </Input>
+                                                <Col lg={12}>
+                                                    <label className="form-label text-muted text-uppercase fw-semibold fs-12 mb-3">Trạng thái giải trình</label>
+                                                    <div className="d-flex flex-wrap gap-4 align-items-center p-3 rounded bg-light-subtle border border-dashed">
+                                                        <div className="form-check form-check-inline">
+                                                            <Input 
+                                                                type="checkbox" 
+                                                                className="form-check-input" 
+                                                                id="status-all"
+                                                                checked={customStatus.length === 5}
+                                                                onChange={(e) => {
+                                                                    if (e.target.checked) {
+                                                                        setCustomStatus(['pending', 'explained', 'accepted', 'partially_accepted', 'agreed']);
+                                                                    } else {
+                                                                        setCustomStatus([]);
+                                                                    }
+                                                                }}
+                                                            />
+                                                            <label className="form-check-label fw-bold text-uppercase fs-11" htmlFor="status-all">Tất cả</label>
+                                                        </div>
+                                                        {[
+                                                            { id: 'pending', label: 'Chưa giải trình', color: '#f06548' },
+                                                            { id: 'explained', label: 'Đã giải trình', color: '#f7b84b' },
+                                                            { id: 'accepted', label: 'Đã tiếp thu', color: '#0ab39c' },
+                                                            { id: 'partially_accepted', label: 'Tiếp thu một phần', color: '#299cdb' },
+                                                            { id: 'agreed', label: 'Thống nhất', color: '#405189' },
+                                                        ].map(opt => (
+                                                            <div className="form-check form-check-inline" key={opt.id}>
+                                                                <Input 
+                                                                    type="checkbox" 
+                                                                    className="form-check-input" 
+                                                                    id={`status-${opt.id}`}
+                                                                    checked={customStatus.includes(opt.id)}
+                                                                    onChange={(e) => {
+                                                                        if (e.target.checked) {
+                                                                            setCustomStatus([...customStatus, opt.id]);
+                                                                        } else {
+                                                                            setCustomStatus(customStatus.filter(s => s !== opt.id));
+                                                                        }
+                                                                    }}
+                                                                />
+                                                                <label 
+                                                                    className="form-check-label fw-medium" 
+                                                                    htmlFor={`status-${opt.id}`}
+                                                                    style={{ color: opt.color }}
+                                                                >
+                                                                    {opt.label}
+                                                                </label>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </Col>
                                                 <Col lg={12}>
                                                     <div className="form-check form-switch form-switch-md mb-2">
@@ -617,7 +659,7 @@ const Reports = () => {
                                                             ) : (
                                                                 <>
                                                                     <th scope="col" style={{ width: "50px" }}>TT</th>
-                                                                    <th scope="col">Điều/Khoản</th>
+                                                                    <th scope="col">Nhóm vấn đề/Điều/Khoản</th>
                                                                     <th scope="col">Cơ quan</th>
                                                                     <th scope="col" style={{ maxWidth: "300px" }}>Nội dung góp ý</th>
                                                                     <th scope="col" style={{ maxWidth: "300px" }}>Giải trình</th>

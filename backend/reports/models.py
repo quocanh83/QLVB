@@ -38,7 +38,7 @@ class ReportFieldConfig(models.Model):
     """Cấu hình từng cột/trường dữ liệu trong bảng báo cáo"""
     DEFAULT_FIELDS = [
         ('stt', 'TT'),
-        ('noi_dung_du_thao', 'Nội dung dự thảo'),
+        ('noi_dung_du_thao', 'Nhóm vấn đề/Điều/Khoản'),
         ('noi_dung_gop_y', 'Nội dung góp ý'),
         ('don_vi_gop_y', 'Đơn vị góp ý'),
         ('giai_trinh', 'Ý kiến giải trình, tiếp thu'),

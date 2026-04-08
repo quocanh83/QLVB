@@ -105,6 +105,7 @@ def _get_field_value(field_key, fb_idx, fb, explanation=None, show_agreed_text=F
     mapping.update({
         'noi_dung_giai_trinh': "\n".join([f"- {ex.content}" for ex in explanations if ex.content]) if explanations else "Chưa có giải trình",
         'explanations': "\n".join([f"- {ex.content}" for ex in explanations if ex.content]) if explanations else "Chưa có giải trình",
+        'giai_trinh': "\n".join([f"- {ex.content}" for ex in explanations if ex.content]) if explanations else "Chưa có giải trình",
         'chuyen_vien': chuyen_vien,
         'trang_thai': status_tv,
         'status': status_tv,
@@ -262,7 +263,7 @@ def generate_from_v2_template(document, feedbacks, template_config=None, templat
     fields = cfg.get('fields')
     if not fields:
         fields = [
-            {'field_key': 'noi_dung_du_thao', 'field_label': 'NHÓM VẤN ĐỀ / ĐIỀU / KHOẢN'},
+            {'field_key': 'noi_dung_du_thao', 'field_label': 'Nhóm vấn đề/Điều/Khoản'},
             {'field_key': 'don_vi_gop_y', 'field_label': 'CHỦ THỂ GÓP Ý'},
             {'field_key': 'noi_dung_gop_y', 'field_label': 'NỘI DUNG GÓP Ý'},
             {'field_key': 'giai_trinh', 'field_label': 'Ý KIẾN TIẾP THU, GIẢI TRÌNH'},
