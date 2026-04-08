@@ -271,6 +271,14 @@ const useNavData = () => {
       link: "/gsheet-sync",
     },
     {
+      id: "comparisons",
+      label: "So sánh văn bản",
+      icon: "ri-arrow-left-right-line",
+      link: "/comparisons",
+      badgeName: "Mới",
+      badgeColor: "info",
+    },
+    {
       id: "reports",
       label: "Báo cáo tổng hợp",
       icon: "ri-bar-chart-2-line",

@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'feedbacks',
     'reports',
     'core',
+    'comparisons',
     'django.contrib.humanize',
 ]
 

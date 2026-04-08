@@ -44,6 +44,11 @@ import FeedbackList from "../pages/FeedbackList";
 import GSheetSync from "../pages/GSheetSync";
 import ProjectAssignment from "../pages/Documents/ProjectAssignment";
 
+import ComparisonDashboard from "../pages/Comparisons/ComparisonDashboard";
+import ComparisonProjectDetail from "../pages/Comparisons/ComparisonProjectDetail";
+import ComparisonWorkspace from "../pages/Comparisons/ComparisonWorkspace";
+import BaseNodeManager from "../pages/Comparisons/BaseNodeManager";
+
 import SystemSettings from "../pages/Settings";
 import DocumentTypeManagement from "../pages/DocumentTypeManagement";
 import UserManagement from "../pages/UserManagement";
@@ -327,6 +332,13 @@ const authProtectedRoutes = [
   { path: "/feedbacks", component: <FeedbackList /> },
   { path: "/gsheet-sync", component: <GSheetSync /> },
   { path: "/project-assignment", component: <ProjectAssignment /> },
+
+  // QLVB - Comparisons
+  { path: "/comparisons", component: <ComparisonDashboard /> },
+  { path: "/comparisons/:id", component: <ComparisonProjectDetail /> },
+  { path: "/comparisons/:id/base-nodes", component: <BaseNodeManager /> },
+  { path: "/comparisons/:id/v/:versionId/nodes", component: <BaseNodeManager /> },
+  { path: "/comparisons/:projectId/v/:versionId", component: <ComparisonWorkspace /> },
 
   // QLVB - Settings
   { path: "/settings", component: <SystemSettings /> },
