@@ -40,7 +40,8 @@ const AIWorkbench = ({ versionId, standaloneId, onHighlightReference }) => {
             toast.success("Đã hoàn tất rà soát dẫn chiếu!");
         } catch (error) {
             console.error("AI Check Error", error);
-            toast.error("Lỗi khi rà soát dẫn chiếu AI");
+            const msg = error.response?.data?.error || "Lỗi khi rà soát dẫn chiếu AI";
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -66,7 +67,8 @@ const AIWorkbench = ({ versionId, standaloneId, onHighlightReference }) => {
             toast.success("Đã tạo báo cáo thành công!");
         } catch (error) {
             console.error("AI Report Error", error);
-            toast.error("Lỗi khi tạo báo cáo AI");
+            const msg = error.response?.data?.error || "Lỗi khi tạo báo cáo AI";
+            toast.error(msg);
         } finally {
             setLoading(false);
         }

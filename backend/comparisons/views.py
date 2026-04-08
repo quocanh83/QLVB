@@ -471,7 +471,8 @@ class StandaloneReviewViewSet(viewsets.ModelViewSet):
         result_json = ai_service.check_internal_references(full_text)
         
         if "error" in result_json:
-            return Response(result_json, status=500)
+            error_msg = result_json.get("error", "Lỗi không xác định từ AI")
+            return Response({"error": error_msg}, status=500)
 
         ai_res = ComparisonAIResult.objects.create(
             standalone_review=review,
