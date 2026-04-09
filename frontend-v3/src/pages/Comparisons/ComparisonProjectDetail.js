@@ -140,8 +140,7 @@ const ComparisonProjectDetail = () => {
     };
 
     const handleExportMappings = (versionId) => {
-        const authData = JSON.parse(localStorage.getItem("authUser"));
-        const token = authData ? authData.token : "";
+        const token = localStorage.getItem("access_token");
         const apiBase = axios.defaults.baseURL || "";
         const url = `${apiBase}/api/comparisons/versions/${versionId}/export_mappings/?token=${token}`;
         window.open(url, '_blank');

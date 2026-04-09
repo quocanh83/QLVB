@@ -416,6 +416,22 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
         import pandas as pd
         import io
         from django.http import HttpResponse
+        from rest_framework_simplejwt.authentication import JWTAuthentication
+
+        # Hỗ trợ xác thực qua query param để window.open hoạt động
+        if not request.user.is_authenticated:
+            query_token = request.query_params.get('token')
+            if query_token:
+                try:
+                    auth = JWTAuthentication()
+                    validated_token = auth.get_validated_token(query_token)
+                    user = auth.get_user(validated_token)
+                    request.user = user
+                except Exception as e:
+                    print(f"Query token auth error: {e}")
+
+        if not request.user.is_authenticated:
+               return Response({"detail": "Authentication credentials were not provided."}, status=401)
 
         version = self.get_object()
         mappings = ComparisonMapping.objects.filter(version=version).select_related('base_node', 'draft_node')
