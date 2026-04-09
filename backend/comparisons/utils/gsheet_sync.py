@@ -9,10 +9,19 @@ def normalize_label(l):
     # Chuyển thường, bỏ dấu chấm, bỏ mọi khoảng trắng
     return str(l).lower().replace('.', '').replace(' ', '').strip()
 
+def extract_norm_label(text):
+    """Trích xuất nhãn chuẩn hoá từ nội dung ô (Ví dụ: 'Điều 1. Phạm vi...' -> 'dieu1')"""
+    if not text: return ""
+    # Tìm "Điều X" hoặc "Phụ lục X" ở đầu chuỗi (cho phép dấu cách/dấu chấm)
+    m = re.search(r'^(?:Điều|điều|Phụ lục|phụ lục)\s+(\d+|[A-Z]+)', str(text).strip(), re.IGNORECASE)
+    if m:
+        return normalize_label(m.group(0))
+    return normalize_label(str(text)[:20])
+
 def sync_explanation_from_gsheet(sheet_url):
     """
-    Kết nối Google Sheet và trích xuất dữ liệu thuyết minh.
-    Trả về báo cáo dictionary { nhãn_chuẩn_hoá: nội_dung_thuyết_minh }
+    Kết nối Google Sheet và trích xuất dữ liệu 3 cột. 
+    Trả về bộ { nhãn: { base, draft, exp } }
     """
     key_path = os.path.join(settings.BASE_DIR, 'google_keys.json')
     if not os.path.exists(key_path):
@@ -37,40 +46,29 @@ def sync_explanation_from_gsheet(sheet_url):
 
         for i, row in enumerate(all_values):
             if i == 0: continue # Bỏ qua dòng tiêu đề
-            if len(row) >= 1:
-                label_val = str(row[0]).strip()
-                # Lấy nội dung cột C và làm sạch triệt để
-                exp_val = str(row[2]).strip() if len(row) >= 3 else ""
+            
+            # Cột A: Gốc, B: Dự thảo, C: Thuyết minh
+            base_val = str(row[0]).strip() if len(row) >= 1 else ""
+            draft_val = str(row[1]).strip() if len(row) >= 2 else ""
+            exp_val = str(row[2]).strip() if len(row) >= 3 else ""
+            
+            # Ưu tiên lấy nhãn từ cột Gốc hoặc Dự thảo
+            norm_key = extract_norm_label(base_val) or extract_norm_label(draft_val)
+            
+            if not norm_key:
+                continue
                 
-                # Nếu cả nhãn và nội dung đều trống, hoặc chỉ có nhãn mà nội dung rỗng -> Bỏ qua
-                if not label_val or not exp_val:
-                    continue
-                
-                # Chuẩn hoá nhãn để làm key chính xác
-                norm_key = normalize_label(label_val)
-                
-                if norm_key in results:
-                    # Gộp nội dung nếu trùng nhãn và dòng mới có dữ liệu
-                    existing = results[norm_key].strip()
-                    if existing:
-                        results[norm_key] = f"{existing}\n{exp_val}"
-                    else:
-                        results[norm_key] = exp_val
-                else:
-                    results[norm_key] = exp_val
+            if norm_key not in results:
+                results[norm_key] = {
+                    'base': base_val,
+                    'draft': draft_val,
+                    'exp': exp_val
+                }
         
         return results
         
     except gspread.exceptions.PermissionDenied:
-        # Thử lấy email từ tệp cấu hình để hướng dẫn người dùng
-        try:
-            with open(key_path, 'r') as f:
-                import json
-                key_data = json.load(f)
-                email = key_data.get('client_email', 'của tài khoản dịch vụ')
-                raise Exception(f"Quyền truy cập GSheet bị từ chối. Hãy Share quyền Editor cho email: {email}")
-        except:
-            raise Exception("Quyền truy cập GSheet bị từ chối. Hãy Share quyền cho Email dịch vụ.")
+        raise Exception("Quyền truy cập GSheet bị từ chối.")
     except Exception as e:
         raise Exception(f"Lỗi truy xuất GSheet: {str(e)}")
 

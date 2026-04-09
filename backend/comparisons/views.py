@@ -519,15 +519,15 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'])
     def gsheet_compare_explanation(self, request, pk=None):
-        """So sánh thuyết minh giữa Hệ thống và Google Sheet cho TOÀN BỘ hàng so sánh"""
+        """So sánh dữ liệu 3 cột (Gốc, Dự thảo, Thuyết minh) giữa Hệ thống và Google Sheet"""
         version = self.get_object()
         if not version.explanation_sheet_url:
             return Response({"error": "Chưa cài đặt URL Google Sheet Thuyết minh."}, status=400)
             
         from .utils.gsheet_sync import sync_explanation_from_gsheet, normalize_label
         try:
-            # Lấy dữ liệu từ gsheet (Đã được chuẩn hoá key trong util)
-            gsheet_data = sync_explanation_from_gsheet(version.explanation_sheet_url)
+            # Lấy dữ liệu 3 cột từ gsheet
+            gsheet_rows = sync_explanation_from_gsheet(version.explanation_sheet_url)
             
             # Sử dụng logic trộn hàng chuẩn của hệ thống
             rows = self._get_interleaved_rows(version)
@@ -537,31 +537,42 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
                 b_node = r.get("base_node")
                 d_node = r.get("draft_node")
                 
-                # Xác định node chính để lấy nhãn và thuyết minh (Dự thảo ưu tiên hơn Gốc)
                 primary_node = d_node if d_node else b_node
                 if not primary_node: continue
                 
-                # Nhãn hiển thị
                 label = primary_node.get("node_label")
-                node_id = primary_node.get("id")
-                
-                # Lấy thuyết minh từ hệ thống (Dòng so sánh này đã có display_explanation từ build_row)
-                db_content = r.get("display_explanation") or ""
-                
-                # Khớp với GSheet
                 norm_label = normalize_label(label)
-                gsheet_content = gsheet_data.get(norm_label, "")
+                
+                # Dữ liệu trong hệ thống
+                db_base = b_node.get("content") if b_node else ""
+                db_draft = d_node.get("content") if d_node else ""
+                db_exp = r.get("display_explanation") or ""
+                
+                # Dữ liệu trên GSheet
+                gs_data = gsheet_rows.get(norm_label, {})
+                gs_base = gs_data.get('base', '')
+                gs_draft = gs_data.get('draft', '')
+                gs_exp = gs_data.get('exp', '')
                 
                 status_val = "match"
-                if not db_content and gsheet_content: status_val = "missing_db"
-                elif db_content and not gsheet_content: status_val = "missing_gsheet"
-                elif db_content.strip() != gsheet_content.strip(): status_val = "mismatch"
+                if not gs_data:
+                    status_val = "missing_gsheet"
+                else:
+                    # Kiểm tra xem có bất kỳ sự sai lệch nào trong 3 cột không?
+                    # Ưu tiên báo lệch thuyết minh trước
+                    if db_exp.strip() != gs_exp.strip():
+                        status_val = "mismatch"
+                    elif db_base.strip() != gs_base.strip() or db_draft.strip() != gs_draft.strip():
+                        # Nếu gốc hoặc dự thảo lệch, cũng báo mismatch để người dùng cập nhật lại 3 cột
+                        status_val = "mismatch"
                 
                 comparison.append({
-                    "id": node_id,
+                    "id": primary_node.get("id"),
                     "label": label,
-                    "db_content": db_content,
-                    "gsheet_content": gsheet_content,
+                    "db_content": db_exp, # Giữ nguyên key cũ để tương thích FE ban đầu
+                    "gsheet_content": gs_exp,
+                    "db_data": {"base": db_base, "draft": db_draft, "exp": db_exp},
+                    "gs_data": {"base": gs_base, "draft": gs_draft, "exp": gs_exp},
                     "status": status_val
                 })
             

@@ -138,15 +138,13 @@ const ExplanationSyncModal = ({ isOpen, toggle, versionId, onSyncSuccess }) => {
 
     return (
         <Modal isOpen={isOpen} toggle={toggle} size="xl" centered scrollable>
-            <ModalHeader toggle={toggle} className="bg-light">
-                <i className="ri-google-line me-2 text-warning"></i> 
-                Đồng bộ Thuyết minh Hai chiều (Hệ thống {"<=>"} GSheet)
+                Đồng bộ 3 cột [A: Gốc - B: Dự thảo - C: Thuyết minh]
             </ModalHeader>
             <ModalBody className="p-0">
                 <div className="p-3 border-bottom bg-light-subtle">
                     <div className="d-flex gap-2 align-items-end">
                         <div className="flex-grow-1">
-                            <label className="form-label small fw-bold text-uppercase">Link Google Sheet Thuyết minh (Cột A: Điều, Cột C: Thuyết minh)</label>
+                            <label className="form-label small fw-bold text-uppercase">Link Google Sheet [A: GỐC, B: DỰ THẢO, C: THUYẾT MINH]</label>
                             <input 
                                 type="url" 
                                 className="form-control" 
@@ -191,8 +189,8 @@ const ExplanationSyncModal = ({ isOpen, toggle, versionId, onSyncSuccess }) => {
                                         </div>
                                     </th>
                                     <th>Điều / Nhãn</th>
-                                    <th>Nội dung trong Hệ thống</th>
-                                    <th>Nội dung trên GSheet</th>
+                                    <th>Thuyết minh HT</th>
+                                    <th>Thuyết minh GSheet</th>
                                     <th>Trạng thái</th>
                                 </tr>
                             </thead>
