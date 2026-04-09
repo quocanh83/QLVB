@@ -39,16 +39,23 @@ def sync_explanation_from_gsheet(sheet_url):
             if i == 0: continue # Bỏ qua dòng tiêu đề
             if len(row) >= 1:
                 label_val = str(row[0]).strip()
+                # Lấy nội dung cột C và làm sạch triệt để
                 exp_val = str(row[2]).strip() if len(row) >= 3 else ""
                 
-                if not label_val:
+                # Nếu cả nhãn và nội dung đều trống, hoặc chỉ có nhãn mà nội dung rỗng -> Bỏ qua
+                if not label_val or not exp_val:
                     continue
                 
                 # Chuẩn hoá nhãn để làm key chính xác
                 norm_key = normalize_label(label_val)
                 
                 if norm_key in results:
-                    results[norm_key] += f"\n{exp_val}"
+                    # Gộp nội dung nếu trùng nhãn và dòng mới có dữ liệu
+                    existing = results[norm_key].strip()
+                    if existing:
+                        results[norm_key] = f"{existing}\n{exp_val}"
+                    else:
+                        results[norm_key] = exp_val
                 else:
                     results[norm_key] = exp_val
         
