@@ -119,3 +119,37 @@ class ComparisonParser:
         }
         self.index += 1
         return node
+
+class ExplanationParser:
+    def __init__(self, file_path_or_obj):
+        try:
+            self.doc = docx.Document(file_path_or_obj)
+        except Exception as e:
+            raise Exception(f"Lỗi khi đọc file Word: {str(e)}")
+
+    def parse_to_dict(self):
+        """
+        Bóc tách các bảng trong Word: Cột 1 là số Điều, Cột 2 là Thuyết minh.
+        Trả về dictionary { số_điều_chuỗi: nội_dung_thuyết_minh }
+        """
+        results = {}
+        for table in self.doc.tables:
+            for row in table.rows:
+                # Bảng thuyết minh phải có ít nhất 2 cột
+                if len(row.cells) >= 2:
+                    c1 = row.cells[0].text.strip()
+                    c2 = row.cells[1].text.strip()
+                    
+                    if not c1:
+                        continue
+                        
+                    # Tìm số Điều (Ví dụ: "Điều 1", "Điều 1." -> "1")
+                    match = re.search(r'[\u0110\u0111]i\u1ec1u\s+(\d+)', c1, re.IGNORECASE)
+                    if match:
+                        article_num = match.group(1)
+                        # Nếu đã có dữ liệu rồi thì cộng dồn (trường hợp 1 điều chia nhiều hàng)
+                        if article_num in results:
+                            results[article_num] += f"\n{c2}"
+                        else:
+                            results[article_num] = c2
+        return results

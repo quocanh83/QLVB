@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
     Container, Row, Col, Card, CardBody, CardHeader, Button, 
     Table, Modal, ModalHeader, ModalBody, ModalFooter,
-    Form, FormGroup, Label, Input, Badge, ListGroup, ListGroupItem
+    Form, FormGroup, Label, Input, Badge, ListGroup, ListGroupItem,
+    Dropdown, DropdownToggle, DropdownMenu, DropdownItem, FormText
 } from 'reactstrap';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
@@ -31,6 +32,13 @@ const ComparisonProjectDetail = () => {
     const [editDesc, setEditDesc] = useState('');
     const [editBaseDoc, setEditBaseDoc] = useState('');
     const [editDraftDoc, setEditDraftDoc] = useState('');
+    
+    // Explanation state
+    const [activeVersionId, setActiveVersionId] = useState(null);
+    const [activeVersionEx, setActiveVersionEx] = useState(null);
+    const [gsheetModal, setGsheetModal] = useState(false);
+    const [gsheetUrl, setGsheetUrl] = useState("");
+    const fileInputRef = React.useRef(null);
 
     useEffect(() => {
         fetchProject();
@@ -144,6 +152,48 @@ const ComparisonProjectDetail = () => {
         const apiBase = axios.defaults.baseURL || "";
         const url = `${apiBase}/api/comparisons/versions/${versionId}/export_mappings/?token=${token}`;
         window.open(url, '_blank');
+    };
+
+    const handleOpenGsheetModal = (v) => {
+        setActiveVersionEx(v);
+        setGsheetUrl(v.explanation_sheet_url || "");
+        setGsheetModal(true);
+    };
+
+    const handleSyncGsheet = async () => {
+        if (!gsheetUrl) return toast.error("Vui lòng nhập URL Google Sheet");
+        try {
+            await axios.post(`/api/comparisons/versions/${activeVersionEx.id}/sync_gsheet_explanation/`, { sheet_url: gsheetUrl }, getAuthHeader());
+            toast.success("Đồng bộ thành công!");
+            setGsheetModal(false);
+            fetchProject();
+        } catch (err) {
+            toast.error("Đồng bộ thất bại: " + (err.response?.data?.error || err.message));
+        }
+    };
+
+    const handleFileChange = async (e, versionId) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const config = getAuthHeader();
+        config.headers['Content-Type'] = 'multipart/form-data';
+
+        try {
+            await axios.post(`/api/comparisons/versions/${versionId}/upload_explanation/`, formData, config);
+            toast.success("Cập nhật thuyết minh thành công!");
+            e.target.value = null;
+        } catch (err) {
+            toast.error("Cập nhật thất bại: " + (err.response?.data?.error || err.message));
+        }
+    };
+
+    const triggerFileUpload = (vId) => {
+        setActiveVersionEx({id: vId});
+        if (fileInputRef.current) fileInputRef.current.click();
     };
 
     const toggleEditModal = () => {
@@ -289,16 +339,30 @@ const ComparisonProjectDetail = () => {
                                                         </td>
                                                         <td>{new Date(v.created_at).toLocaleString('vi-VN')}</td>
                                                         <td className="text-end">
-                                                            <div className="d-flex justify-content-end gap-2">
-                                                                <Button size="sm" color="soft-success" onClick={() => handleExportMappings(v.id)} title="Xuất bộ nhớ ánh xạ ra Excel">
-                                                                    <i className="ri-file-excel-line me-1"></i> Xuất bộ nhớ
-                                                                </Button>
+                                                                <Dropdown isOpen={activeVersionId === v.id} toggle={() => setActiveVersionId(activeVersionId === v.id ? null : v.id)}>
+                                                                    <DropdownToggle size="sm" color="soft-info" className="btn-icon">
+                                                                        <i className="ri-more-2-fill"></i>
+                                                                    </DropdownToggle>
+                                                                    <DropdownMenu className="dropdown-menu-end">
+                                                                        <DropdownItem onClick={() => handleExportMappings(v.id)}>
+                                                                            <i className="ri-file-excel-line me-2 align-middle text-success"></i> Xuất bộ nhớ Excel
+                                                                        </DropdownItem>
+                                                                        <DropdownItem onClick={() => triggerFileUpload(v.id)}>
+                                                                            <i className="ri-file-word-line me-2 align-middle text-primary"></i> Nạp Thuyết minh (Word)
+                                                                        </DropdownItem>
+                                                                        <DropdownItem onClick={() => handleOpenGsheetModal(v)}>
+                                                                            <i className="ri-google-line me-2 align-middle text-warning"></i> Đồng bộ GSheet
+                                                                        </DropdownItem>
+                                                                        <DropdownItem divider />
+                                                                        <DropdownItem onClick={() => handleDeleteVersion(v.id)} className="text-danger">
+                                                                            <i className="ri-delete-bin-fill me-2 align-middle"></i> Xóa phiên bản
+                                                                        </DropdownItem>
+                                                                    </DropdownMenu>
+                                                                </Dropdown>
+                                                                
                                                                 <Link to={`/comparisons/${id}/v/${v.id}`} className="btn btn-sm btn-primary">
                                                                     <i className="ri-arrow-left-right-line me-1"></i> So sánh
                                                                 </Link>
-                                                                <Button size="sm" color="soft-danger" onClick={() => handleDeleteVersion(v.id)}>
-                                                                    <i className="ri-delete-bin-fill"></i>
-                                                                </Button>
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -405,6 +469,39 @@ const ComparisonProjectDetail = () => {
                             <Button color="primary" type="submit" disabled={submitting}>Lưu thay đổi</Button>
                         </ModalFooter>
                     </Form>
+                </Modal>
+
+                {/* --- Explanation UI Components --- */}
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  style={{ display: "none" }} 
+                  accept=".docx" 
+                  onChange={(e) => handleFileChange(e, activeVersionEx?.id)} 
+                />
+
+                <Modal isOpen={gsheetModal} toggle={() => setGsheetModal(!gsheetModal)} centered>
+                    <ModalHeader toggle={() => setGsheetModal(!gsheetModal)}>Đồng bộ Thuyết minh từ Google Sheets</ModalHeader>
+                    <ModalBody>
+                        <div className="mb-3">
+                            <Label className="form-label">Link Google Sheet</Label>
+                            <Input 
+                                type="url" 
+                                placeholder="https://docs.google.com/spreadsheets/d/..." 
+                                value={gsheetUrl}
+                                onChange={(e) => setGsheetUrl(e.target.value)}
+                            />
+                            <FormText color="muted">
+                                Đảm bảo bạn đã chia sẻ quyền Viewer cho Email công vụ của hệ thống (Service Account).
+                            </FormText>
+                        </div>
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button color="light" onClick={() => setGsheetModal(false)}>Hủy</Button>
+                        <Button color="warning" onClick={handleSyncGsheet}>
+                           <i className="ri-refresh-line me-1"></i> Bắt đầu Đồng bộ
+                        </Button>
+                    </ModalFooter>
                 </Modal>
 
                 <ToastContainer />

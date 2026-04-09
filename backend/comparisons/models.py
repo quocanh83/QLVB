@@ -23,6 +23,7 @@ class DraftVersion(models.Model):
     file_path = models.FileField(upload_to='comparisons/drafts/', verbose_name="Tệp dự thảo")
     user_note = models.TextField(blank=True, null=True, verbose_name="Ghi chú người dùng")
     version_label = models.CharField(max_length=255, verbose_name="Nhãn phiên bản")
+    explanation_sheet_url = models.URLField(blank=True, null=True, verbose_name="Link Google Sheet thuyết minh")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -67,6 +68,7 @@ class ComparisonNode(models.Model):
     node_type = models.CharField(max_length=20, choices=NODE_TYPE_CHOICES)
     node_label = models.CharField(max_length=255)
     content = models.TextField()
+    explanation = models.TextField(blank=True, null=True, verbose_name="Thuyết minh so sánh")
     order_index = models.IntegerField(default=0)
 
     class Meta:

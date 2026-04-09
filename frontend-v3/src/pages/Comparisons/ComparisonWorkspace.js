@@ -92,6 +92,10 @@ const ComparisonWorkspace = () => {
 
     if (loading) return <div className="page-content text-center py-5"><div className="spinner-border text-primary"></div></div>;
 
+    // Check if we need a 3-column layout
+    const hasExplanations = rows.some(r => r.draft_node && r.draft_node.explanation);
+    const colClass = hasExplanations ? "col-4" : "col-6";
+
     return (
         <div className="page-content">
             <Container fluid>
@@ -138,7 +142,7 @@ const ComparisonWorkspace = () => {
                                         {data.rows.map((row, idx) => (
                                             <div key={idx} className="comparison-row d-flex border-bottom">
                                                 {/* Cột Gốc */}
-                                                <div className="col-6 p-3 border-end base-cell">
+                                                <div className={`${colClass} p-3 border-end base-cell`}>
                                                     {row.base_node ? (
                                                         <>
                                                             <div className="d-flex justify-content-between align-items-start mb-2">
@@ -169,7 +173,7 @@ const ComparisonWorkspace = () => {
                                                 </div>
 
                                                 {/* Cột Dự thảo */}
-                                                <div className="col-6 p-3 draft-cell">
+                                                <div className={`${colClass} p-3 border-end draft-cell`}>
                                                     {row.draft_node ? (
                                                         <>
                                                             <div className="d-flex justify-content-between mb-2">
@@ -179,7 +183,7 @@ const ComparisonWorkspace = () => {
                                                                     <Badge color="primary">{formatNodeLabel(row.draft_node.node_label)}</Badge>
                                                                 )}
                                                             </div>
-                                                            <div 
+                                                             <div 
                                                                 className="node-content text-justify legislative-text"
                                                                 dangerouslySetInnerHTML={{ __html: row.diff_content }}
                                                             />
@@ -190,6 +194,26 @@ const ComparisonWorkspace = () => {
                                                         </div>
                                                     )}
                                                 </div>
+
+                                                {/* Cột Thuyết minh (Chỉ hiện khi có dữ liệu) */}
+                                                {hasExplanations && (
+                                                    <div className="col-4 p-3 explanation-cell">
+                                                        {row.draft_node && row.draft_node.explanation ? (
+                                                            <>
+                                                                <div className="mb-2">
+                                                                    <Badge color="warning" outline className="text-uppercase">Thuyết minh</Badge>
+                                                                </div>
+                                                                <div className="node-content text-justify text-muted small bg-warning-subtle p-2 rounded border-start border-3 border-warning" style={{ whiteSpace: 'pre-wrap' }}>
+                                                                    {row.draft_node.explanation}
+                                                                </div>
+                                                            </>
+                                                        ) : (
+                                                            <div className="h-100 d-flex align-items-center justify-content-center bg-light-subtle rounded dashed-border p-3">
+                                                                <span className="text-muted italic small text-center">(Không có thuyết minh)</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         ))}
                                     </div>

@@ -191,6 +191,21 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
                 full_text += f"\n{child.node_label} {child_text}"
         return full_text.strip()
 
+    def _get_full_explanation(self, node):
+        """Gộp thuyết minh của node và tất cả các mục con"""
+        full_exp = node.explanation if node.explanation else ""
+        
+        # Nếu là Chương, không gộp Điều con
+        if node.node_type == 'Chương':
+            return full_exp.strip()
+            
+        children = ComparisonNode.objects.filter(parent=node).order_by('order_index')
+        for child in children:
+            child_exp = self._get_full_explanation(child)
+            if child_exp:
+                full_exp += f"\n{child.node_label} {child_exp}"
+        return full_exp.strip()
+
     def _get_interleaved_rows(self, version):
         """Logic trộn hàng (Gốc làm chuẩn): Hiển thị đúng thứ tự gốc, không lặp lại"""
         project = version.project
@@ -243,12 +258,15 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
     def _build_row(self, b_node, d_node):
         b_full = self._get_full_content(b_node) if b_node else ""
         d_full = self._get_full_content(d_node) if d_node else ""
+        d_exp = self._get_full_explanation(d_node) if d_node else ""
+        
         return {
             "base_node": {
                 "id": b_node.id, "node_label": b_node.node_label, "content": b_full, "node_type": b_node.node_type
             } if b_node else None,
             "draft_node": {
-                "id": d_node.id, "node_label": d_node.node_label, "content": d_full, "node_type": d_node.node_type
+                "id": d_node.id, "node_label": d_node.node_label, "content": d_full, "node_type": d_node.node_type,
+                "explanation": d_exp
             } if d_node else None,
             "diff_content": legislative_diff(b_full, d_full) if d_node and b_node else (d_full if d_node else "")
         }
@@ -410,6 +428,69 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
             agent_info=f"{ai_service.provider} ({ai_service.model_name or 'default'})"
         )
         return Response(ComparisonAIResultSerializer(ai_res).data)
+
+    @action(detail=True, methods=['post'])
+    def upload_explanation(self, request, pk=None):
+        """Action: Nạp thuyết minh từ file Word (.docx)"""
+        version = self.get_object()
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response({"error": "Vui lòng tải lên tệp thuyết minh (.docx)."}, status=400)
+            
+        from .utils.parser_engine import ExplanationParser
+        try:
+            parser = ExplanationParser(file_obj)
+            exp_dict = parser.parse_to_dict()
+            
+            # Cập nhật thuyết minh cho các Điều tương ứng
+            count = 0
+            # Chỉ khớp với type='Điều' như yêu cầu
+            nodes = ComparisonNode.objects.filter(version=version, node_type='Điều')
+            for node in nodes:
+                # Trích xuất số điều từ nhãn (Ví dụ: "Điều 1" -> "1")
+                m = re.search(r'\d+', node.node_label)
+                if m:
+                    num = m.group()
+                    if num in exp_dict:
+                        node.explanation = exp_dict[num]
+                        node.save()
+                        count += 1
+            
+            return Response({"message": f"Đã cập nhật thuyết minh cho {count} Điều từ file Word."})
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+    @action(detail=True, methods=['post'])
+    def sync_gsheet_explanation(self, request, pk=None):
+        """Action: Đồng bộ thuyết minh từ Google Sheets"""
+        version = self.get_object()
+        sheet_url = request.data.get('sheet_url')
+        if not sheet_url:
+            return Response({"error": "Vui lòng nhập đường dẫn Google Sheet."}, status=400)
+            
+        from .utils.gsheet_sync import sync_explanation_from_gsheet
+        try:
+            exp_dict = sync_explanation_from_gsheet(sheet_url)
+            
+            # Lưu lại link GSheet
+            version.explanation_sheet_url = sheet_url
+            version.save()
+            
+            # Cập nhật thuyết minh
+            count = 0
+            nodes = ComparisonNode.objects.filter(version=version, node_type='Điều')
+            for node in nodes:
+                m = re.search(r'\d+', node.node_label)
+                if m:
+                    num = m.group()
+                    if num in exp_dict:
+                        node.explanation = exp_dict[num]
+                        node.save()
+                        count += 1
+                        
+            return Response({"message": f"Đã đồng bộ thuyết minh cho {count} Điều từ Google Sheet."})
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
 
     @action(detail=True, methods=['get'])
     def export_mappings(self, request, pk=None):
