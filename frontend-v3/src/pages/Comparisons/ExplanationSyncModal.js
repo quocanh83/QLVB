@@ -138,6 +138,8 @@ const ExplanationSyncModal = ({ isOpen, toggle, versionId, onSyncSuccess }) => {
 
     return (
         <Modal isOpen={isOpen} toggle={toggle} size="xl" centered scrollable>
+            <ModalHeader toggle={toggle} className="bg-light">
+                <i className="ri-google-line me-2 text-warning"></i> 
                 Đồng bộ 3 cột [A: Gốc - B: Dự thảo - C: Thuyết minh]
             </ModalHeader>
             <ModalBody className="p-0">
