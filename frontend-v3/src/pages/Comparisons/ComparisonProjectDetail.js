@@ -127,7 +127,7 @@ const ComparisonProjectDetail = () => {
     };
 
     const handleDeleteVersion = async (versionId) => {
-        if (!window.confirm("Bạn có chắc chắn muốn xóa phiên bản dự thảo này? Dữ liệu so sánh liên quan cũng sẽ bị bộ xóa.")) return;
+        if (!window.confirm("Bạn có chắc chắn muốn xóa phiên bản dự thảo này? Dữ liệu so sánh liên quan cũng sẽ bị xóa.")) return;
         
         try {
             await axios.delete(`/api/comparisons/versions/${versionId}/`, getAuthHeader());
@@ -137,6 +137,14 @@ const ComparisonProjectDetail = () => {
             console.error("Error deleting version", error);
             toast.error("Lỗi khi xóa phiên bản");
         }
+    };
+
+    const handleExportMappings = (versionId) => {
+        const authData = JSON.parse(localStorage.getItem("authUser"));
+        const token = authData ? authData.token : "";
+        const apiBase = axios.defaults.baseURL || "";
+        const url = `${apiBase}/api/comparisons/versions/${versionId}/export_mappings/?token=${token}`;
+        window.open(url, '_blank');
     };
 
     const toggleEditModal = () => {
@@ -283,6 +291,9 @@ const ComparisonProjectDetail = () => {
                                                         <td>{new Date(v.created_at).toLocaleString('vi-VN')}</td>
                                                         <td className="text-end">
                                                             <div className="d-flex justify-content-end gap-2">
+                                                                <Button size="sm" color="soft-success" onClick={() => handleExportMappings(v.id)} title="Xuất bộ nhớ ánh xạ ra Excel">
+                                                                    <i className="ri-file-excel-line me-1"></i> Xuất bộ nhớ
+                                                                </Button>
                                                                 <Link to={`/comparisons/${id}/v/${v.id}`} className="btn btn-sm btn-primary">
                                                                     <i className="ri-arrow-left-right-line me-1"></i> So sánh
                                                                 </Link>

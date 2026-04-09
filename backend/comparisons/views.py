@@ -410,6 +410,42 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
         )
         return Response(ComparisonAIResultSerializer(ai_res).data)
 
+    @action(detail=True, methods=['get'])
+    def export_mappings(self, request, pk=None):
+        """Xuất bộ nhớ ánh xạ (Mapping Memory) ra file Excel"""
+        import pandas as pd
+        import io
+        from django.http import HttpResponse
+
+        version = self.get_object()
+        mappings = ComparisonMapping.objects.filter(version=version).select_related('base_node', 'draft_node')
+        
+        data = []
+        for m in mappings:
+            data.append({
+                'Loại mục': m.base_node.node_type,
+                'Nhãn Gốc': m.base_node.node_label,
+                'Nội dung Gốc': m.base_node.content[:200] + '...' if len(m.base_node.content) > 200 else m.base_node.content,
+                'Nhãn Dự thảo': m.draft_node.node_label,
+                'Nội dung Dự thảo': m.draft_node.content[:200] + '...' if len(m.draft_node.content) > 200 else m.draft_node.content,
+            })
+            
+        if not data:
+            return Response({"error": "Chưa có dữ liệu ánh xạ để xuất."}, status=400)
+
+        df = pd.DataFrame(data)
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Mapping Memory')
+        
+        output.seek(0)
+        response = HttpResponse(
+            output.read(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="Mapping_Memory_{version.id}.xlsx"'
+        return response
+
     @action(detail=False, methods=['get'], url_path='export_ai_report/(?P<result_id>[^/.]+)')
     def export_ai_report(self, request, result_id=None):
         """Xuất báo cáo AI sang file Word (.docx)"""
