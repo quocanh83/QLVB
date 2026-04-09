@@ -60,16 +60,16 @@ class ComparisonParser:
                     self.current_chapter['content'] = text
                     continue
 
-            # 6. Nhận diện Khoản
-            clause_match = re.match(r'^(\d+)\.\s*(.*)', text)
+            # 6. Nhận diện Khoản (Hỗ trợ cả "1.", "Khoản 1.", "Khoản 1:")
+            clause_match = re.match(r'^(?:Khoản\s+)?(\d+)[\.\:]\s*(.*)', text, re.IGNORECASE)
             if clause_match and self.current_article:
                 node = self._create_node('Khoản', f"{clause_match.group(1)}.", clause_match.group(2).strip())
                 self.current_article['children'].append(node)
                 self.current_clause = node
                 continue
 
-            # 7. Nhận diện Điểm
-            point_match = re.match(r'^([a-zđ])\)\s*(.*)', text, re.IGNORECASE)
+            # 7. Nhận diện Điểm (Hỗ trợ cả "a)", "Điểm a.", "Điểm a:")
+            point_match = re.match(r'^(?:Điểm\s+)?([a-zđ])[\)\.\:]\s*(.*)', text, re.IGNORECASE)
             if point_match and self.current_clause:
                 node = self._create_node('Điểm', f"{point_match.group(1)})", point_match.group(2).strip())
                 self.current_clause['children'].append(node)
