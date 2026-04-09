@@ -509,7 +509,7 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
                         
             return Response({"message": f"Đã đồng bộ thuyết minh cho {count} mục từ Google Sheet."})
         except Exception as e:
-            return Response({"error": str(e)}, status=500)
+            return Response({"error": str(e)}, status=400)
 
     @action(detail=True, methods=['get'])
     def gsheet_compare_explanation(self, request, pk=None):
@@ -554,7 +554,7 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
             
             return Response(comparison)
         except Exception as e:
-            return Response({"error": str(e)}, status=500)
+            return Response({"error": str(e)}, status=400)
 
     @action(detail=True, methods=['post'])
     def gsheet_sync_selected_explanation(self, request, pk=None):
@@ -588,7 +588,7 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
             push_explanations_to_gsheet(version.explanation_sheet_url, items_to_push)
             return Response({"message": f"Đã đẩy {len(items_to_push)} mục lên Google Sheet thành công."})
         except Exception as e:
-            return Response({"error": str(e)}, status=500)
+            return Response({"error": str(e)}, status=400)
 
 
     @action(detail=True, methods=['get'])

@@ -12,7 +12,7 @@ def sync_explanation_from_gsheet(sheet_url):
     # Đường dẫn tệp key mặc định của hệ thống
     key_path = os.path.join(settings.BASE_DIR, 'google_keys.json')
     if not os.path.exists(key_path):
-        raise Exception(f"Không tìm thấy tệp cấu hình Google: {key_path}. Vui lòng liên hệ quản trị viên.")
+        raise Exception("Hệ thống chưa cấu hình tệp google_keys.json trên server.")
 
     scopes = [
         'https://www.googleapis.com/auth/spreadsheets',
@@ -26,11 +26,10 @@ def sync_explanation_from_gsheet(sheet_url):
         # Trích xuất Sheet ID từ URL
         match = re.search(r'/spreadsheets/d/([a-zA-Z0-9-_]+)', sheet_url)
         if not match:
-            raise Exception("Đường dẫn Google Sheet không hợp lệ. Vui lòng kiểm tra lại URL.")
+            raise Exception("URL Google Sheet không hợp lệ. Vui lòng kiểm tra lại đường dẫn.")
         
         sheet_id = match.group(1)
         spreadsheet = client.open_by_key(sheet_id)
-        # Lấy trang tính đầu tiên
         worksheet = spreadsheet.get_worksheet(0)
         
         all_values = worksheet.get_all_values()
@@ -38,28 +37,33 @@ def sync_explanation_from_gsheet(sheet_url):
 
         for i, row in enumerate(all_values):
             if i == 0: continue # Bỏ qua dòng tiêu đề
-            if len(row) >= 3:
-                c1 = str(row[0]).strip() # Cột A: Số Điều
-                c2 = str(row[2]).strip() # Cột C: Thuyết minh
+            if len(row) >= 1:
+                label_val = str(row[0]).strip()
+                # Thuyết minh nằm ở cột C (index 2), nếu dòng ngắn hơn thì lấy rỗng
+                exp_val = str(row[2]).strip() if len(row) >= 3 else ""
                 
-                if not c1:
+                if not label_val:
                     continue
                 
                 # Tìm số thứ tự Điều (Ví dụ: "Điều 1" -> "1")
-                m = re.search(r'[\u0110\u0111]i\u1ec1u\s+(\d+)', c1, re.IGNORECASE)
+                # Hỗ trợ cả Đ hoa và đ thường
+                m = re.search(r'(?:Điều|điều)\s+(\d+)', label_val, re.IGNORECASE)
                 if m:
                     article_num = m.group(1)
                     if article_num in results:
-                        results[article_num] += f"\n{c2}"
+                        results[article_num] += f"\n{exp_val}"
                     else:
-                        results[article_num] = c2
+                        results[article_num] = exp_val
+                else:
+                    # Nếu không khớp "Điều X", lấy toàn bộ nhãn làm key
+                    results[label_val] = exp_val
         
         return results
         
     except gspread.exceptions.PermissionDenied:
-        raise Exception("Quyền truy cập bị từ chối. Hãy đảm bảo bạn đã Share quyền Viewer cho email trong google_keys.json.")
+        raise Exception("Quyền truy cập GSheet bị từ chối. Hãy Share quyền cho Email dịch vụ trong google_keys.json.")
     except Exception as e:
-        raise Exception(f"Lỗi đồng bộ GSheet: {str(e)}")
+        raise Exception(f"Lỗi truy xuất GSheet: {str(e)}")
 
 def push_explanations_to_gsheet(sheet_url, items_to_push):
     """
