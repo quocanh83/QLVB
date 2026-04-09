@@ -712,8 +712,8 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
                 items_to_push.append({
                     'id': f"node_{primary.get('id')}",
                     'label': primary.get("node_label"),
-                    'base_content': b_n.get("content") if b_n else "",
-                    'draft_content': d_n.get("content") if d_n else "",
+                    'base_content': f"{b_n.get('node_label')}\n{b_n.get('content')}".strip() if b_n else "",
+                    'draft_content': f"{d_n.get('node_label')}\n{d_n.get('content')}".strip() if d_n else "",
                     'explanation': r.get("display_explanation") or ""
                 })
             
