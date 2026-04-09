@@ -37,9 +37,9 @@ def sync_explanation_from_gsheet(sheet_url):
         results = {}
 
         for row in all_values:
-            if len(row) >= 2:
-                c1 = str(row[0]).strip()
-                c2 = str(row[1]).strip()
+            if len(row) >= 3:
+                c1 = str(row[0]).strip() # Cột A: Số Điều
+                c2 = str(row[2]).strip() # Cột C: Thuyết minh
                 
                 if not c1:
                     continue
