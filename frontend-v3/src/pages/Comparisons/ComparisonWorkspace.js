@@ -188,9 +188,12 @@ const ComparisonWorkspace = () => {
                     <Col lg={showAIWorkbench ? 8 : 12}>
                         <Card className="comparison-card">
                             <CardBody className="p-0">
-                                <div className="comparison-header bg-light border-bottom d-flex">
-                                    <div className="col-6 p-2 border-end fw-bold text-center">VĂN BẢN GỐC (HÀNH CHÍNH)</div>
-                                    <div className="col-6 p-2 fw-bold text-center text-primary">DỰ THẢO (CẬP NHẬT)</div>
+                                <div className="comparison-header bg-dark text-white border-bottom d-flex">
+                                    <div className={`${colClass} p-2 border-end fw-bold text-center text-uppercase`}>VĂN BẢN GỐC</div>
+                                    <div className={`${colClass} p-2 border-end fw-bold text-center text-uppercase text-info`}>VĂN BẢN DỰ THẢO</div>
+                                    {hasExplanations && (
+                                        <div className="col-4 p-2 fw-bold text-center text-uppercase text-warning">THUYẾT MINH SO SÁNH</div>
+                                    )}
                                 </div>
                                 
                                 <SimpleBar style={{ maxHeight: "calc(100vh - 250px)" }}>
