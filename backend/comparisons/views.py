@@ -634,9 +634,9 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
                 label = primary_node.get("node_label")
                 norm_label = normalize_label(label)
                 
-                # Dữ liệu trong hệ thống
-                db_base = b_node.get("content") if b_node else ""
-                db_draft = d_node.get("content") if d_node else ""
+                # Dữ liệu trong hệ thống (Gộp nhãn Điều vào nội dung)
+                db_base = f"{b_node.get('node_label')}\n{b_node.get('content')}".strip() if b_node else ""
+                db_draft = f"{d_node.get('node_label')}\n{d_node.get('content')}".strip() if d_node else ""
                 db_exp = r.get("display_explanation") or ""
                 
                 # Dữ liệu trên GSheet - Ưu tiên khớp theo ID trước, sau đó mới đến Nhãn
