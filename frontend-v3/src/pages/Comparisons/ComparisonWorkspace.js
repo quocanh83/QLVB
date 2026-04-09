@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
     Container, Row, Col, Card, CardBody, Button, 
-    Table, Badge, Modal, ModalHeader, ModalBody,
-    Input, Label, Dropdown, DropdownToggle, DropdownMenu, DropdownItem
+    Table, Badge, Modal, ModalHeader, ModalBody, ModalFooter,
+    Input, Label, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, FormText
 } from 'reactstrap';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -24,6 +24,11 @@ const ComparisonWorkspace = () => {
     const [selectedBaseNode, setSelectedBaseNode] = useState(null);
     const [currentMappedId, setCurrentMappedId] = useState(null);
     const [showAIWorkbench, setShowAIWorkbench] = useState(false);
+
+    // Explanation re-upload state
+    const [gsheetModal, setGsheetModal] = useState(false);
+    const [gsheetUrl, setGsheetUrl] = useState("");
+    const fileInputRef = React.useRef(null);
 
     const formatNodeLabel = (label) => {
         if (!label) return "";
@@ -85,6 +90,39 @@ const ComparisonWorkspace = () => {
         window.open(url, '_blank');
     };
 
+    const handleSyncGsheet = async (url) => {
+        const targetUrl = url || gsheetUrl;
+        if (!targetUrl) return toast.error("Vui lòng nhập URL Google Sheet");
+        try {
+            await axios.post(`/api/comparisons/versions/${versionId}/sync_gsheet_explanation/`, { sheet_url: targetUrl }, getAuthHeader());
+            toast.success("Đồng bộ Thuyết minh thành công!");
+            setGsheetModal(false);
+            fetchWorkspaceData();
+        } catch (err) {
+            toast.error("Đồng bộ thất bại: " + (err.response?.data?.error || err.message));
+        }
+    };
+
+    const handleFileChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append("file", file);
+        const config = getAuthHeader();
+        config.headers['Content-Type'] = 'multipart/form-data';
+
+        try {
+            await axios.post(`/api/comparisons/versions/${versionId}/upload_explanation/`, formData, config);
+            toast.success("Cập nhật Thuyết minh từ file Word thành công!");
+            e.target.value = null;
+            fetchWorkspaceData();
+        } catch (err) {
+            toast.error("Cập nhật thất bại: " + (err.response?.data?.error || err.message));
+        }
+    };
+
+
     const filteredNodes = allDraftNodes.filter(node => 
         node.node_label.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (node.content && node.content.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -119,9 +157,27 @@ const ComparisonWorkspace = () => {
                         }}>
                             <i className="ri-add-line me-1"></i> Thêm hàng so sánh
                         </Button>
-                        <Button color="success" outline className="me-2" onClick={handleExportWord}>
-                            <i className="ri-file-word-line me-1"></i> Xuất Bảng Đối Chiếu
+                        <Button color="success" outline className="me-2" onClick={handleExportWord} title="Xuất file Word">
+                            <i className="ri-file-word-line me-1"></i> Xuất Bảng
                         </Button>
+                        
+                        {/* Nút nạp lại Thuyết minh */}
+                        {data && data.explanation_sheet_url ? (
+                            <Button color="warning" outline className="me-2" onClick={() => handleSyncGsheet(data.explanation_sheet_url)} title="Đồng bộ lại từ Google Sheet">
+                                <i className="ri-google-line me-1"></i> Lấy Thuyết minh GSheet
+                            </Button>
+                        ) : (
+                            <Button color="primary" outline className="me-2" onClick={() => fileInputRef.current.click()} title="Nạp lại từ file Word">
+                                <i className="ri-file-word-line me-1"></i> Nạp Thuyết minh Word
+                            </Button>
+                        )}
+                        <Button color="warning" outline className="me-2" onClick={() => {
+                            setGsheetUrl(data?.explanation_sheet_url || "");
+                            setGsheetModal(true);
+                        }} title="Cài đặt link GSheet">
+                            <i className="ri-settings-4-line"></i>
+                        </Button>
+
                         <Button color="info" className={showAIWorkbench ? "active" : ""} onClick={() => setShowAIWorkbench(!showAIWorkbench)}>
                             <i className="ri-robot-3-line me-1"></i> Trợ lý AI
                         </Button>
@@ -290,6 +346,35 @@ const ComparisonWorkspace = () => {
                 </Modal>
 
                 <ToastContainer />
+                {/* Modal nhập GSheet Link */}
+                <Modal isOpen={gsheetModal} toggle={() => setGsheetModal(!gsheetModal)} centered>
+                    <ModalHeader toggle={() => setGsheetModal(!gsheetModal)}>Cài đặt Google Sheet Thuyết minh</ModalHeader>
+                    <ModalBody>
+                        <div className="mb-3">
+                            <Label className="form-label">Link Google Sheet</Label>
+                            <Input 
+                                type="url" 
+                                placeholder="https://docs.google.com/spreadsheets/d/..." 
+                                value={gsheetUrl}
+                                onChange={(e) => setGsheetUrl(e.target.value)}
+                            />
+                        </div>
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button color="light" onClick={() => setGsheetModal(false)}>Hủy</Button>
+                        <Button color="warning" onClick={() => handleSyncGsheet()}>
+                           <i className="ri-refresh-line me-1"></i> Đồng bộ ngay
+                        </Button>
+                    </ModalFooter>
+                </Modal>
+
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  style={{ display: "none" }} 
+                  accept=".docx" 
+                  onChange={handleFileChange} 
+                />
             </Container>
         </div>
     );
