@@ -2,7 +2,7 @@ import re
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from django.db import transaction
+from django.db import transaction, models
 from django.utils import timezone
 from django.http import HttpResponse
 from .models import ComparisonProject, DraftVersion, ComparisonNode, ComparisonMapping, ComparisonAIResult, StandaloneReview
@@ -176,91 +176,107 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
         if new_mappings:
             ComparisonMapping.objects.bulk_create(new_mappings)
 
-    def _get_full_content(self, node):
-        """Gộp nội dung tiêu đề và tất cả các con (Khoản, Điểm) của một node"""
+    def _get_full_content(self, node, nodes_by_parent=None):
+        """Gộp nội dung tiêu đề và tất cả các con (Khoản, Điểm) của một node. Sử dụng map bộ nhớ để tránh N+1."""
         full_text = node.content if node.content else ""
         
-        # Nếu là Chương, không gộp các Điều con vào (Để tách Điều thành hàng riêng)
         if node.node_type == 'Chương':
             return full_text.strip()
             
-        children = ComparisonNode.objects.filter(parent=node).order_by('order_index')
+        # Ưu tiên lấy từ map nếu có để tránh truy vấn DB
+        if nodes_by_parent is not None:
+            children = nodes_by_parent.get(node.id, [])
+        else:
+            children = ComparisonNode.objects.filter(parent=node).order_by('order_index')
+            
         for child in children:
-            child_text = self._get_full_content(child)
+            child_text = self._get_full_content(child, nodes_by_parent)
             if child_text:
-                # Thay dấu ":" bằng dấu cách để tránh bị lặp "1.:" hoặc "a):"
                 full_text += f"\n{child.node_label} {child_text}"
         return full_text.strip()
 
-    def _get_full_explanation(self, node):
-        """Gộp thuyết minh của node và tất cả các mục con"""
+    def _get_full_explanation(self, node, nodes_by_parent=None):
+        """Gộp thuyết minh của node và tất cả các mục con. Sử dụng map bộ nhớ để tránh N+1."""
         full_exp = node.explanation if node.explanation else ""
         
-        # Nếu là Chương, không gộp Điều con
         if node.node_type == 'Chương':
             return full_exp.strip()
             
-        children = ComparisonNode.objects.filter(parent=node).order_by('order_index')
+        if nodes_by_parent is not None:
+            children = nodes_by_parent.get(node.id, [])
+        else:
+            children = ComparisonNode.objects.filter(parent=node).order_by('order_index')
+            
         for child in children:
-            child_exp = self._get_full_explanation(child)
+            child_exp = self._get_full_explanation(child, nodes_by_parent)
             if child_exp:
                 full_exp += f"\n{child.node_label} {child_exp}"
         return full_exp.strip()
 
     def _get_interleaved_rows(self, version):
-        """Logic trộn hàng (Gốc làm chuẩn): Hiển thị đúng thứ tự gốc, không lặp lại"""
+        """Logic trộn hàng tối ưu hóa: Sử dụng bulk loading và in-memory processing"""
         project = version.project
-        # Lấy danh sách node gốc (trục chính)
-        base_nodes = ComparisonNode.objects.filter(
-            project=project, version__isnull=True,
-            node_type__in=['Chương', 'Điều', 'Phụ lục', 'Vấn đề khác']
-        ).order_by('order_index')
         
-        # Lấy danh sách node dự thảo
-        draft_nodes = ComparisonNode.objects.filter(
-            version=version,
-            node_type__in=['Chương', 'Điều', 'Phụ lục', 'Vấn đề khác']
-        ).order_by('order_index')
+        # 1. Bulk load TOÀN BỘ nodes của dự án này để xử lý trong bộ nhớ
+        # Bao gồm cả nodes của v bản gốc (version is null) và nodes của version hiện tại
+        all_relevant_nodes = list(ComparisonNode.objects.filter(
+            project=project
+        ).filter(
+            models.Q(version__isnull=True) | models.Q(version=version)
+        ).order_by('order_index'))
         
-        mappings = ComparisonMapping.objects.filter(version=version)
+        # 2. Xây dựng Parent-Child Map & Node Map (O(N))
+        from collections import defaultdict
+        nodes_by_parent = defaultdict(list)
+        base_nodes = []
+        draft_nodes = []
+        
+        for node in all_relevant_nodes:
+            if node.parent_id:
+                nodes_by_parent[node.parent_id].append(node)
+            
+            # Chỉ lấy các node cấp độ cao cho danh sách hàng
+            if node.node_type in ['Chương', 'Điều', 'Phụ lục', 'Vấn đề khác']:
+                if node.version_id is None:
+                    base_nodes.append(node)
+                elif node.version_id == version.id:
+                    draft_nodes.append(node)
+        
+        # 3. Lấy Mappings tối ưu
+        mappings = ComparisonMapping.objects.filter(version=version).select_related('draft_node', 'base_node')
         b_to_d = {m.base_node_id: m.draft_node for m in mappings}
         d_to_b = {m.draft_node_id: m.base_node for m in mappings}
         
         rows = []
         consumed_draft_ids = set()
         
-        # Duyệt theo danh sách Gốc để giữ đúng thứ tự 1, 2, 3...
+        # Duyệt theo danh sách Gốc
         for b_node in base_nodes:
             d_node = b_to_d.get(b_node.id)
             
             if d_node:
-                # Chỉ chèn các Điều dự thảo CHƯA ĐƯỢC ÁNH XẠ (nghĩa là Điều mới hoàn toàn) 
-                # mà có thứ tự nằm trước d_node hiện tại
                 for skip_d in draft_nodes:
                     if skip_d.order_index < d_node.order_index and skip_d.id not in consumed_draft_ids:
-                        # Kiểm tra xem skip_d này có mapping tới bất kỳ node gốc nào không
                         if skip_d.id not in d_to_b:
-                            rows.append(self._build_row(None, skip_d))
+                            rows.append(self._build_row(None, skip_d, nodes_by_parent))
                             consumed_draft_ids.add(skip_d.id)
                 
-                rows.append(self._build_row(b_node, d_node))
+                rows.append(self._build_row(b_node, d_node, nodes_by_parent))
                 consumed_draft_ids.add(d_node.id)
             else:
-                # Điều gốc bị bãi bỏ
-                rows.append(self._build_row(b_node, None))
+                rows.append(self._build_row(b_node, None, nodes_by_parent))
                 
-        # Thêm nốt các Điều dự thảo mới ở cuối bảng (nếu có)
         for last_d in draft_nodes:
             if last_d.id not in consumed_draft_ids:
-                rows.append(self._build_row(None, last_d))
+                rows.append(self._build_row(None, last_d, nodes_by_parent))
                 
         return rows
 
-    def _build_row(self, b_node, d_node):
-        b_full = self._get_full_content(b_node) if b_node else ""
-        d_full = self._get_full_content(d_node) if d_node else ""
-        b_exp = self._get_full_explanation(b_node) if b_node else ""
-        d_exp = self._get_full_explanation(d_node) if d_node else ""
+    def _build_row(self, b_node, d_node, nodes_by_parent=None):
+        b_full = self._get_full_content(b_node, nodes_by_parent) if b_node else ""
+        d_full = self._get_full_content(d_node, nodes_by_parent) if d_node else ""
+        b_exp = self._get_full_explanation(b_node, nodes_by_parent) if b_node else ""
+        d_exp = self._get_full_explanation(d_node, nodes_by_parent) if d_node else ""
         
         # Nếu không có dự thảo, lấy thuyết minh của bản gốc (dành cho trường hợp bãi bỏ)
         final_exp = d_exp if d_node else b_exp
@@ -281,13 +297,16 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def workspace_data(self, request, pk=None):
         """Lấy dữ liệu so sánh căn hàng ngang - Logic Interleaving (Base-centric)"""
-        version = self.get_object()
-        rows = self._get_interleaved_rows(version)
-        return Response({
-            "project_name": version.project.name,
-            "version_label": version.version_label,
-            "rows": rows
-        })
+        try:
+            version = self.get_object()
+            rows = self._get_interleaved_rows(version)
+            return Response({
+                "project_name": version.project.name,
+                "version_label": version.version_label,
+                "rows": rows
+            })
+        except Exception as e:
+            return Response({"error": f"Lỗi nạp workspace: {str(e)}"}, status=500)
 
     @action(detail=True, methods=['post'])
     def add_manual_row(self, request, pk=None):
