@@ -179,18 +179,23 @@ const ComparisonWorkspace = () => {
                             <i className="ri-file-word-line me-1"></i> Xuất Bảng
                         </Button>
                         
-                        {/* Nút nạp lại Thuyết minh */}
-                        {data && data.explanation_sheet_url ? (
-                            <Button color="warning" outline className="me-2" onClick={() => setAdvancedSyncModal(true)} title="So sánh & Đồng bộ nâng cao">
-                                <i className="ri-google-line me-1"></i> So sánh GSheet
-                            </Button>
-                        ) : (
-                            <Button color="primary" outline className="me-2" onClick={() => fileInputRef.current.click()} title="Nạp lại từ file Word">
-                                <i className="ri-file-word-line me-1"></i> Nạp Thuyết minh Word
-                            </Button>
-                        )}
-
+                        {/* Nút Đồng bộ Thuyết minh (Luôn hiển thị) */}
                         <Button color="warning" outline className="me-2" onClick={() => {
+                            if (data && data.explanation_sheet_url) {
+                                setAdvancedSyncModal(true);
+                            } else {
+                                setGsheetUrl("");
+                                setGsheetModal(true);
+                            }
+                        }} title="So sánh & Đồng bộ hai chiều với Google Sheet">
+                            <i className="ri-google-line me-1"></i> Đồng bộ GSheet
+                        </Button>
+
+                        <Button color="primary" outline className="me-2" onClick={() => fileInputRef.current.click()} title="Nạp từ file Word">
+                            <i className="ri-file-word-line me-1"></i> Nạp Word
+                        </Button>
+
+                        <Button color="soft-warning" className="me-2" onClick={() => {
                             setGsheetUrl(data?.explanation_sheet_url || "");
                             setGsheetModal(true);
                         }} title="Cài đặt link GSheet">
