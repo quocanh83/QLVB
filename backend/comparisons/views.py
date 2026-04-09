@@ -518,9 +518,9 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
         if not version.explanation_sheet_url:
             return Response({"error": "Chưa cài đặt URL Google Sheet Thuyết minh."}, status=400)
             
-        from .utils.gsheet_sync import sync_explanation_from_gsheet
+        from .utils.gsheet_sync import sync_explanation_from_gsheet, normalize_label
         try:
-            # Lấy dữ liệu từ gsheet (Đã skip header trong util)
+            # Lấy dữ liệu từ gsheet (Đã được chuẩn hoá key trong util)
             gsheet_data = sync_explanation_from_gsheet(version.explanation_sheet_url)
             
             # Lấy các node của phiên bản hiện tại
@@ -528,14 +528,9 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
             
             comparison = []
             for node in nodes:
-                # Trích xuất số điều để khớp nếu nhãn không khớp tuyệt đối
-                m = re.search(r'[\u0110\u0111]i\u1ec1u\s+(\d+)', node.node_label, re.IGNORECASE)
-                article_num = m.group(1) if m else node.node_label
-                
-                # Ưu tiên khớp theo nhãn đầy đủ, nếu không được thì khớp theo số điều
-                gsheet_content = gsheet_data.get(node.node_label)
-                if gsheet_content is None:
-                    gsheet_content = gsheet_data.get(article_num, "")
+                # Chuẩn hoá nhãn của node hiện tại để khớp với key trong gsheet_data
+                norm_label = normalize_label(node.node_label)
+                gsheet_content = gsheet_data.get(norm_label, "")
                 
                 db_content = node.explanation or ""
                 
