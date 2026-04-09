@@ -104,7 +104,7 @@ const ExplanationSyncModal = ({ isOpen, toggle, versionId, onSyncSuccess }) => {
             onSyncSuccess();
             fetchData();
         } catch (err) {
-            toast.error("Lỗi khi nạp dữ liệu về DB");
+            toast.error("Lỗi khi nạp dữ liệu về DB: " + (err.response?.data?.error || err.message));
         } finally {
             setSyncing(false);
         }
@@ -119,7 +119,7 @@ const ExplanationSyncModal = ({ isOpen, toggle, versionId, onSyncSuccess }) => {
             toast.success("Đã đẩy thành công từ DB lên GSheet!");
             fetchData(); 
         } catch (err) {
-            toast.error("Lỗi khi đẩy dữ liệu lên GSheet. Hãy đảm bảo link đã cấp quyền ghi.");
+            toast.error("Lỗi khi đẩy dữ liệu lên GSheet: " + (err.response?.data?.error || err.message));
         } finally {
             setSyncing(false);
         }
