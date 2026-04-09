@@ -128,18 +128,52 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
         save_nodes_recursive(structure)
 
     def _initial_automap(self, version):
-        base_nodes = ComparisonNode.objects.filter(project=version.project, node_type__in=['Điều', 'Phụ lục'])
+        project = version.project
+        # 1. Tìm phiên bản trước đó gần nhất (không phải phiên bản hiện tại)
+        prev_version = DraftVersion.objects.filter(project=project).exclude(id=version.id).order_by('-created_at').first()
+        
+        inherited_mapping = {}
+        if prev_version:
+            # Lấy ánh xạ của phiên bản trước
+            prev_mappings = ComparisonMapping.objects.filter(version=prev_version).select_related('draft_node')
+            # Tạo bản đồ: {id_node_gốc: nhãn_node_dự_thảo_cũ}
+            # Chúng ta dùng nhãn (node_label) để làm "cầu nối" giữa 2 phiên bản dự thảo (V1 -> V2)
+            prev_map_by_label = {m.base_node_id: m.draft_node.node_label for m in prev_mappings}
+            
+            # Lấy danh sách node của phiên bản hiện tại, đánh chỉ mục theo nhãn
+            current_draft_nodes_by_label = {
+                n.node_label: n.id 
+                for n in ComparisonNode.objects.filter(version=version)
+            }
+            
+            # Xây dựng ánh xạ kế thừa: Nếu Điều 1 gốc v1 khớp nhãn "Điều 5" dự thảo v1, 
+            # thì ở v2 ta vẫn cố gắng khớp Điều 1 gốc với cái gì có nhãn "Điều 5" ở dự thảo v2.
+            for b_id, label in prev_map_by_label.items():
+                if label in current_draft_nodes_by_label:
+                    inherited_mapping[b_id] = current_draft_nodes_by_label[label]
+
+        # 2. Thực hiện automap tiêu chuẩn (cho các node chưa có trong ánh xạ kế thừa)
+        base_nodes = ComparisonNode.objects.filter(project=project, node_type__in=['Điều', 'Phụ lục'], version__isnull=True)
         draft_nodes = ComparisonNode.objects.filter(version=version, node_type__in=['Điều', 'Phụ lục'])
         
-        mapping_dict = automap_nodes(base_nodes, draft_nodes)
+        standard_mapping = automap_nodes(base_nodes, draft_nodes)
         
-        for b_id, d_id in mapping_dict.items():
-            ComparisonMapping.objects.create(
-                project=version.project,
+        # 3. Gộp kết quả: Ánh xạ kế thừa (Inherited) được ưu tiên vì nó chứa các tùy chỉnh thủ công của người dùng
+        # Dictionary merge in Python 3.9+: final_mapping = standard_mapping | inherited_mapping
+        final_mapping = {**standard_mapping, **inherited_mapping}
+        
+        # 4. Lưu vào DB
+        new_mappings = [
+            ComparisonMapping(
+                project=project,
                 version=version,
                 base_node_id=b_id,
                 draft_node_id=d_id
-            )
+            ) for b_id, d_id in final_mapping.items()
+        ]
+        
+        if new_mappings:
+            ComparisonMapping.objects.bulk_create(new_mappings)
 
     def _get_full_content(self, node):
         """Gộp nội dung tiêu đề và tất cả các con (Khoản, Điểm) của một node"""

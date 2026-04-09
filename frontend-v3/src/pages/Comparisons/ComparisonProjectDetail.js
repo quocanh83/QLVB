@@ -198,7 +198,9 @@ const ComparisonProjectDetail = () => {
                                     <div className="d-flex align-items-center p-2 border rounded bg-light">
                                         <i className="ri-file-word-2-fill fs-24 text-primary me-2"></i>
                                         <div className="flex-grow-1 overflow-hidden">
-                                            <h6 className="fs-13 mb-0 text-truncate">{project.base_file.split('/').pop()}</h6>
+                                            <h6 className="fs-13 mb-0 text-truncate">
+                                                {project.base_file ? project.base_file.split('/').pop() : "Chưa tải lên"}
+                                            </h6>
                                             <small className="text-muted">{project.base_node_count} mục được bóc tách</small>
                                         </div>
                                     </div>

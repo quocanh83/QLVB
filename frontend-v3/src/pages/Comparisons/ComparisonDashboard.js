@@ -151,7 +151,7 @@ const ComparisonDashboard = () => {
                                                         </td>
                                                         <td>
                                                             <i className="ri-file-word-2-fill text-primary me-1"></i>
-                                                            {item.base_file.split('/').pop()}
+                                                            {item.base_file ? item.base_file.split('/').pop() : "Chưa tải lên"}
                                                         </td>
                                                         <td>
                                                             <Badge color="info" pill className="fs-12">
