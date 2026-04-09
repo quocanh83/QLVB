@@ -96,9 +96,22 @@ const ComparisonWorkspace = () => {
         window.open(url, '_blank');
     };
 
+    const handleSaveGsheetUrl = async () => {
+        if (!gsheetUrl) return toast.warning("Vui lòng nhập link Google Sheet");
+        try {
+            await axios.post(`/api/comparisons/versions/${versionId}/save_gsheet_url/`, { sheet_url: gsheetUrl }, getAuthHeader());
+            toast.success("Đã lưu cấu hình Google Sheet!");
+            setGsheetModal(false);
+            fetchWorkspaceData();
+        } catch (err) {
+            toast.error("Lỗi khi lưu link Google Sheet");
+        }
+    };
+
     const handleSyncGsheet = async (url) => {
         const targetUrl = url || gsheetUrl;
         if (!targetUrl) return toast.error("Vui lòng nhập URL Google Sheet");
+        setLoading(true);
         try {
             await axios.post(`/api/comparisons/versions/${versionId}/sync_gsheet_explanation/`, { sheet_url: targetUrl }, getAuthHeader());
             toast.success("Đồng bộ Thuyết minh thành công!");
@@ -106,6 +119,8 @@ const ComparisonWorkspace = () => {
             fetchWorkspaceData();
         } catch (err) {
             toast.error("Đồng bộ thất bại: " + (err.response?.data?.error || err.message));
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -427,6 +442,9 @@ const ComparisonWorkspace = () => {
                     </ModalBody>
                     <ModalFooter>
                         <Button color="light" onClick={() => setGsheetModal(false)}>Hủy</Button>
+                        <Button color="primary" outline onClick={handleSaveGsheetUrl}>
+                           <i className="ri-save-line me-1"></i> Lưu cấu hình
+                        </Button>
                         <Button color="warning" onClick={() => handleSyncGsheet()}>
                            <i className="ri-refresh-line me-1"></i> Đồng bộ ngay
                         </Button>

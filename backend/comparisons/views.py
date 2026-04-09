@@ -462,6 +462,18 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
             return Response({"error": str(e)}, status=500)
 
     @action(detail=True, methods=['post'])
+    def save_gsheet_url(self, request, pk=None):
+        """Action: Chỉ lưu link Google Sheet không đồng bộ"""
+        version = self.get_object()
+        sheet_url = request.data.get('sheet_url')
+        if not sheet_url:
+            return Response({"error": "Vui lòng nhập đường dẫn Google Sheet."}, status=400)
+        
+        version.explanation_sheet_url = sheet_url
+        version.save()
+        return Response({"message": "Đã lưu đường dẫn Google Sheet thành công.", "sheet_url": sheet_url})
+
+    @action(detail=True, methods=['post'])
     def sync_gsheet_explanation(self, request, pk=None):
         """Action: Đồng bộ thuyết minh từ Google Sheets"""
         version = self.get_object()
@@ -479,17 +491,23 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
             
             # Cập nhật thuyết minh
             count = 0
-            nodes = ComparisonNode.objects.filter(version=version, node_type='Điều')
+            nodes = ComparisonNode.objects.filter(version=version, node_type__in=['Điều', 'Phụ lục'])
             for node in nodes:
-                m = re.search(r'\d+', node.node_label)
-                if m:
-                    num = m.group()
-                    if num in exp_dict:
-                        node.explanation = exp_dict[num]
-                        node.save()
-                        count += 1
+                # Trích xuất số điều để khớp (Điều 1 -> 1)
+                m = re.search(r'[\u0110\u0111]i\u1ec1u\s+(\d+)', node.node_label, re.IGNORECASE)
+                article_num = m.group(1) if m else node.node_label
+                
+                # Khớp theo nhãn đầy đủ hoặc số điều
+                gsheet_val = exp_dict.get(node.node_label)
+                if gsheet_val is None:
+                    gsheet_val = exp_dict.get(article_num)
+                
+                if gsheet_val:
+                    node.explanation = gsheet_val
+                    node.save()
+                    count += 1
                         
-            return Response({"message": f"Đã đồng bộ thuyết minh cho {count} Điều từ Google Sheet."})
+            return Response({"message": f"Đã đồng bộ thuyết minh cho {count} mục từ Google Sheet."})
         except Exception as e:
             return Response({"error": str(e)}, status=500)
 

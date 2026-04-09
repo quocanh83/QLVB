@@ -77,23 +77,32 @@ def push_explanations_to_gsheet(sheet_url, items_to_push):
     worksheet = spreadsheet.get_worksheet(0)
     
     all_values = worksheet.get_all_values()
-    # Map label -> row_index (1-based)
+    
+    # Chuẩn hóa nhãn để khớp chính xác hơn (Ví dụ: "Điều 1." -> "Điều 1")
+    def normalize_label(l):
+        if not l: return ""
+        return re.sub(r'[\s\.]+', ' ', str(l).strip()).lower()
+
+    # Map normalized_label -> row_index (1-based)
     label_to_row = {}
     for i, row in enumerate(all_values):
         if i == 0: continue 
         if len(row) > 0:
-            label = str(row[0]).strip()
-            if label:
-                label_to_row[label] = i + 1
+            raw_label = str(row[0]).strip()
+            if raw_label:
+                norm = normalize_label(raw_label)
+                label_to_row[norm] = i + 1
     
     for item in items_to_push:
         label = item['label']
         content = item['content']
+        norm_label = normalize_label(label)
         
-        if label in label_to_row:
-            row_idx = label_to_row[label]
-            worksheet.update_cell(row_idx, 3, content) # Cột C
+        if norm_label in label_to_row:
+            row_idx = label_to_row[norm_label]
+            # Cập nhật Cột C (index 3)
+            worksheet.update_cell(row_idx, 3, content)
         else:
-            # Nếu không thấy, thêm dòng mới xuống cuối
+            # Nếu không thấy, thêm dòng mới xuống cuối: Cột A = Nhãn, Cột C = Nội dung
             worksheet.append_row([label, '', content])
 
