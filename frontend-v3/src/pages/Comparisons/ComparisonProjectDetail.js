@@ -339,31 +339,24 @@ const ComparisonProjectDetail = () => {
                                                         </td>
                                                         <td>{new Date(v.created_at).toLocaleString('vi-VN')}</td>
                                                         <td className="text-end">
-                                                            <div className="d-flex justify-content-end gap-2">
-                                                                <Dropdown isOpen={activeVersionId === v.id} toggle={() => setActiveVersionId(activeVersionId === v.id ? null : v.id)}>
-                                                                    <DropdownToggle size="sm" color="soft-info" className="btn-icon">
-                                                                        <i className="ri-more-2-fill"></i>
-                                                                    </DropdownToggle>
-                                                                    <DropdownMenu className="dropdown-menu-end">
-                                                                        <DropdownItem onClick={() => handleExportMappings(v.id)}>
-                                                                            <i className="ri-file-excel-line me-2 align-middle text-success"></i> Xuất bộ nhớ Excel
-                                                                        </DropdownItem>
-                                                                        <DropdownItem onClick={() => triggerFileUpload(v.id)}>
-                                                                            <i className="ri-file-word-line me-2 align-middle text-primary"></i> Nạp Thuyết minh (Word)
-                                                                        </DropdownItem>
-                                                                        <DropdownItem onClick={() => handleOpenGsheetModal(v)}>
-                                                                            <i className="ri-google-line me-2 align-middle text-warning"></i> Đồng bộ GSheet
-                                                                        </DropdownItem>
-                                                                        <DropdownItem divider />
-                                                                        <DropdownItem onClick={() => handleDeleteVersion(v.id)} className="text-danger">
-                                                                            <i className="ri-delete-bin-fill me-2 align-middle"></i> Xóa phiên bản
-                                                                        </DropdownItem>
-                                                                    </DropdownMenu>
-                                                                </Dropdown>
+                                                            <div className="d-flex justify-content-end gap-1">
+                                                                <Button size="sm" color="soft-success" onClick={() => handleExportMappings(v.id)} title="Xuất bộ nhớ Excel">
+                                                                    <i className="ri-file-excel-line"></i>
+                                                                </Button>
+                                                                <Button size="sm" color="soft-primary" onClick={() => triggerFileUpload(v.id)} title="Nạp Thuyết minh (Word)">
+                                                                    <i className="ri-file-word-line"></i>
+                                                                </Button>
+                                                                <Button size="sm" color="soft-warning" onClick={() => handleOpenGsheetModal(v)} title="Đồng bộ GSheet">
+                                                                    <i className="ri-google-line"></i>
+                                                                </Button>
                                                                 
                                                                 <Link to={`/comparisons/${id}/v/${v.id}`} className="btn btn-sm btn-primary">
                                                                     <i className="ri-arrow-left-right-line me-1"></i> So sánh
                                                                 </Link>
+
+                                                                <Button size="sm" color="soft-danger" onClick={() => handleDeleteVersion(v.id)} title="Xóa phiên bản">
+                                                                    <i className="ri-delete-bin-fill"></i>
+                                                                </Button>
                                                             </div>
                                                         </td>
                                                     </tr>
