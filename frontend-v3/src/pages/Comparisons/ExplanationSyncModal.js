@@ -46,7 +46,8 @@ const ExplanationSyncModal = ({ isOpen, toggle, versionId, onSyncSuccess }) => {
             setSelectedIds([]); 
             setIsConfiguring(false);
         } catch (err) {
-            toast.error("Lỗi khi tải dữ liệu so sánh GSheet. Vui lòng kiểm tra lại link hoặc quyền truy cập.");
+            const errorMsg = err.response?.data?.error || err.message;
+            toast.error("Lỗi GSheet: " + errorMsg);
             setIsConfiguring(true);
             setData([]);
         } finally {

@@ -62,7 +62,15 @@ def sync_explanation_from_gsheet(sheet_url):
         return results
         
     except gspread.exceptions.PermissionDenied:
-        raise Exception("Quyền truy cập GSheet bị từ chối. Hãy Share quyền cho Email dịch vụ.")
+        # Thử lấy email từ tệp cấu hình để hướng dẫn người dùng
+        try:
+            with open(key_path, 'r') as f:
+                import json
+                key_data = json.load(f)
+                email = key_data.get('client_email', 'của tài khoản dịch vụ')
+                raise Exception(f"Quyền truy cập GSheet bị từ chối. Hãy Share quyền Editor cho email: {email}")
+        except:
+            raise Exception("Quyền truy cập GSheet bị từ chối. Hãy Share quyền cho Email dịch vụ.")
     except Exception as e:
         raise Exception(f"Lỗi truy xuất GSheet: {str(e)}")
 
