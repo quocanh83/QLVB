@@ -38,13 +38,35 @@ class Command(BaseCommand):
                 node.save()
                 count += 1
 
-        # 2. Xử lý Điều (Loại bỏ dấu chấm ở cuối nhãn Điều 1. -> Điều 1)
+        # 2. Xử lý Điều (Gột tiêu đề vào nhãn)
         article_nodes = ComparisonNode.objects.filter(node_type='Điều')
         article_count = 0
         for node in article_nodes:
-            if node.node_label.endswith('.'):
-                node.node_label = node.node_label[:-1]
-                node.save()
-                article_count += 1
+            # Nếu nhãn chỉ có dạng "Điều 1" hoặc "Điều 1." (chưa có tiêu đề đi kèm)
+            if re.match(r'^Điều\s+\d+\.?$', node.node_label, flags=re.IGNORECASE):
+                # Lấy dòng đầu tiên của content làm tiêu đề nếu nội dung không trống
+                if node.content:
+                    lines = node.content.split('\n')
+                    first_line = lines[0].strip()
+                    
+                    # Nếu dòng đầu tiên ngắn và không bắt đầu bằng Khoản/Số thứ tự (điềm báo là tiêu đề)
+                    if len(first_line) > 0 and len(first_line) < 300 and not re.match(r'^(\d+[\.\:]|Khoản|Điểm)', first_line, re.IGNORECASE):
+                        # Cập nhật nhãn mới
+                        num_match = re.search(r'\d+', node.node_label)
+                        if num_match:
+                            num = num_match.group()
+                            node.node_label = f"Điều {num}. {first_line}"
+                            # Xóa tiêu đề khỏi phần nội dung
+                            node.content = '\n'.join(lines[1:]).strip()
+                            node.save()
+                            article_count += 1
+            
+            # Trường hợp nhãn đã có tiêu đề nhưng vẫn còn dấu chấm ở cuối số thứ tự (Điều 1. Tiêu đề -> Điều 1. Tiêu đề)
+            # Thực tế "Điều 1." là chuẩn, nên ta giữ nguyên dấu chấm nếu sau đó là tiêu đề.
+            # Nếu nhãn là "Điều 1." (không tiêu đề) thì bỏ dấu chấm.
+            elif node.node_label.endswith('.') and not re.search(r'\.\s+.+', node.node_label):
+                 node.node_label = node.node_label[:-1]
+                 node.save()
+                 article_count += 1
 
         self.stdout.write(self.style.SUCCESS(f"Đã cập nhật: {count} mục Khoản/Điểm, {article_count} mục Điều."))

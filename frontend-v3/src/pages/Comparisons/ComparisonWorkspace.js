@@ -142,7 +142,11 @@ const ComparisonWorkspace = () => {
                                                     {row.base_node ? (
                                                         <>
                                                             <div className="d-flex justify-content-between align-items-start mb-2">
-                                                                <Badge color="secondary" outline>{formatNodeLabel(row.base_node.node_label)}</Badge>
+                                                                {row.base_node.node_type === 'Điều' ? (
+                                                                    <div className="fw-bold fs-14 text-dark mb-1 w-100">{row.base_node.node_label}</div>
+                                                                ) : (
+                                                                    <Badge color="secondary" outline>{formatNodeLabel(row.base_node.node_label)}</Badge>
+                                                                )}
                                                                 <Button size="sm" color="soft-primary" className="btn-icon rounded-circle" 
                                                                     onClick={() => {
                                                                         setSelectedBaseNode(row.base_node);
@@ -169,7 +173,11 @@ const ComparisonWorkspace = () => {
                                                     {row.draft_node ? (
                                                         <>
                                                             <div className="d-flex justify-content-between mb-2">
-                                                                <Badge color="primary">{formatNodeLabel(row.draft_node.node_label)}</Badge>
+                                                                {row.draft_node.node_type === 'Điều' ? (
+                                                                    <div className="fw-bold fs-14 text-primary mb-1 w-100">{row.draft_node.node_label}</div>
+                                                                ) : (
+                                                                    <Badge color="primary">{formatNodeLabel(row.draft_node.node_label)}</Badge>
+                                                                )}
                                                             </div>
                                                             <div 
                                                                 className="node-content text-justify legislative-text"

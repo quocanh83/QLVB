@@ -41,11 +41,18 @@ class ComparisonParser:
             # 4. Nhận diện Điều (Chỉ dùng Regex tiêu chuẩn)
             article_match = re.match(r'^Điều\s+([\d\.]+)\s*[\.:-]?\s*(.*)', text, re.IGNORECASE)
             if article_match:
-                label = article_match.group(1).strip()
-                # Loại bỏ dấu chấm ở cuối nhãn điều nếu có (ví dụ: "1." -> "1")
-                if label.endswith('.'): label = label[:-1]
-                if not label.startswith("Điều"): label = f"Điều {label}"
-                content = article_match.group(2).strip()
+                number = article_match.group(1).strip()
+                # Loại bỏ dấu chấm ở cuối số thứ tự nếu có (ví dụ: "1." -> "1")
+                if number.endswith('.'): number = number[:-1]
+                
+                title = article_match.group(2).strip()
+                # Gộp tiêu đề vào nhãn nếu có tiêu đề trên cùng dòng
+                if title:
+                    label = f"Điều {number}. {title}"
+                    content = ""
+                else:
+                    label = f"Điều {number}"
+                    content = ""
                 
                 node = self._create_node('Điều', label, content)
                 if self.current_chapter:
