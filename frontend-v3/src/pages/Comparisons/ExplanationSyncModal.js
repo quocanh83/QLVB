@@ -40,12 +40,15 @@ const ExplanationSyncModal = ({ isOpen, toggle, versionId, onSyncSuccess }) => {
         setLoading(true);
         try {
             const res = await axios.get(`/api/comparisons/versions/${versionId}/gsheet_compare_explanation/`, getAuthHeader());
-            setData(res.data);
+            // res ở đây đã được unwrap bởi axios interceptor
+            const responseData = Array.isArray(res) ? res : (res.data || []);
+            setData(responseData);
             setSelectedIds([]); 
             setIsConfiguring(false);
         } catch (err) {
             toast.error("Lỗi khi tải dữ liệu so sánh GSheet. Vui lòng kiểm tra lại link hoặc quyền truy cập.");
             setIsConfiguring(true);
+            setData([]);
         } finally {
             setLoading(false);
         }
@@ -182,7 +185,7 @@ const ExplanationSyncModal = ({ isOpen, toggle, versionId, onSyncSuccess }) => {
                                                 className="form-check-input" 
                                                 type="checkbox" 
                                                 onChange={handleSelectAll}
-                                                checked={selectedIds.length === data.length && data.length > 0}
+                                                checked={data?.length > 0 && selectedIds.length === data.length}
                                             />
                                         </div>
                                     </th>
@@ -193,7 +196,7 @@ const ExplanationSyncModal = ({ isOpen, toggle, versionId, onSyncSuccess }) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {data.map((item) => (
+                                {data && data.map ? data.map((item) => (
                                     <tr key={item.id} className={item.status !== 'match' ? 'bg-light-subtle' : ''}>
                                         <td>
                                             <div className="form-check">
