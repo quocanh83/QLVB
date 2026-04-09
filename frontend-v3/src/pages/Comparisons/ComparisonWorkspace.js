@@ -93,7 +93,7 @@ const ComparisonWorkspace = () => {
     if (loading) return <div className="page-content text-center py-5"><div className="spinner-border text-primary"></div></div>;
 
     // Check if we need a 3-column layout
-    const hasExplanations = rows.some(r => r.draft_node && r.draft_node.explanation);
+    const hasExplanations = data && data.rows && data.rows.some(r => r.draft_node && r.draft_node.explanation);
     const colClass = hasExplanations ? "col-4" : "col-6";
 
     return (
