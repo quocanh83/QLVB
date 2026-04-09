@@ -76,77 +76,82 @@ def sync_explanation_from_gsheet(sheet_url):
 
 def push_explanations_to_gsheet(sheet_url, items_to_push):
     """
-    Đẩy dữ liệu từ hệ thống lên Google Sheet.
-    items_to_push: danh sách [{ label: 'Điều 1', content: '...' }]
+    Đẩy dữ liệu so sánh 3 cột (Gốc, Dự thảo, Thuyết minh) lên Google Sheet.
+    items_to_push: [{ 'label': 'Điều 1', 'base_content': '...', 'draft_content': '...', 'explanation': '...' }]
     """
     key_path = os.path.join(settings.BASE_DIR, 'google_keys.json')
     if not os.path.exists(key_path):
-        raise Exception("Không tìm thấy tệp cấu hình Google trên Server.")
+        raise Exception("Hệ thống chưa cấu hình tệp google_keys.json trên server.")
 
     scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
     
     try:
         creds = Credentials.from_service_account_file(key_path, scopes=scopes)
         client = gspread.authorize(creds)
-        
+
         match = re.search(r'/spreadsheets/d/([a-zA-Z0-9-_]+)', sheet_url)
         if not match:
             raise Exception("URL Google Sheet không hợp lệ.")
-
+        
         sheet_id = match.group(1)
         spreadsheet = client.open_by_key(sheet_id)
         worksheet = spreadsheet.get_worksheet(0)
         
         all_values = worksheet.get_all_values()
         
-        # Chuẩn hóa nhãn tuyệt đối (Bỏ tất cả dấu chấm và khoảng trắng)
-        def normalize_label(l):
-            if not l: return ""
-            # Chuyển thường, bỏ dấu chấm, bỏ mọi khoảng trắng
-            res = str(l).lower().replace('.', '').replace(' ', '').strip()
-            return res
+        # Hàm trích xuất nhãn từ nội dung (Ví dụ: "Điều 1. Phạm vi..." -> "dieu1")
+        def extract_norm_label(text):
+            if not text: return ""
+            # Tìm "Điều X" hoặc "Phụ lục X" ở đầu chuỗi (cho phép dấu cách/dấu chấm)
+            m = re.search(r'^(?:Điều|điều|Phụ lục|phụ lục)\s+(\d+|[A-Z]+)', str(text).strip(), re.IGNORECASE)
+            if m:
+                return normalize_label(m.group(0))
+            return normalize_label(text[:20]) # Fallback lấy 20 ký tự đầu
 
         # Map normalized_label -> row_index (0-based)
-        label_to_row_idx = {}
+        label_map = {}
         for i, row in enumerate(all_values):
             if i == 0: continue 
-            if len(row) > 0:
-                raw_label = str(row[0]).strip()
-                if raw_label:
-                    norm = normalize_label(raw_label)
-                    label_to_row_idx[norm] = i
+            # Tìm nhãn ở cột A hoặc cột B
+            label_a = extract_norm_label(row[0]) if len(row) > 0 else ""
+            label_b = extract_norm_label(row[1]) if len(row) > 1 else ""
+            
+            if label_a: label_map[label_a] = i
+            if label_b: label_map[label_b] = i
         
         updates = []
         new_rows = []
         
         for item in items_to_push:
             label = item['label']
-            content = item['content']
-            norm_label = normalize_label(label)
+            base_content = item.get('base_content', '')
+            draft_content = item.get('draft_content', '')
+            explanation = item.get('explanation', '')
             
-            if norm_label in label_to_row_idx:
-                row_idx = label_to_row_idx[norm_label]
-                # Cấu trúc gspread update: range, values
-                # Cột C là cột thứ 3 (index 2) -> R{row_idx+1}C3
-                range_name = f'C{row_idx + 1}'
+            norm_key = normalize_label(label)
+            
+            # Chuẩn bị dữ liệu 3 cột cho hàng này
+            row_data = [base_content, draft_content, explanation]
+            
+            if norm_key in label_map:
+                row_idx = label_map[norm_key]
+                # Cập nhật dải ô A-C của hàng row_idx+1
+                range_name = f'A{row_idx + 1}:C{row_idx + 1}'
                 updates.append({
                     'range': range_name,
-                    'values': [[content]]
+                    'values': [row_data]
                 })
             else:
-                # Nếu không thấy, chuẩn bị thêm dòng mới: Cột A = Nhãn, Cột B = rỗng, Cột C = Thuyết minh
-                new_rows.append([label, '', content])
+                # Nếu không thấy, thêm dòng mới 3 cột
+                new_rows.append(row_data)
         
-        # Thực hiện Batch Update (Nhanh và an toàn quota)
         if updates:
             worksheet.batch_update(updates)
             
-        # Thêm các dòng mới nếu có
         if new_rows:
             worksheet.append_rows(new_rows)
                 
     except gspread.exceptions.PermissionDenied:
-        raise Exception("Không có quyền ghi vào GSheet. Hãy Share quyền Editor cho email trong google_keys.json.")
+        raise Exception("Không có quyền Editor trên GSheet. Hãy Share Editor cho email dịch vụ.")
     except Exception as e:
-        raise Exception(f"Lỗi đẩy dữ liệu lên GSheet: {str(e)}")
-
+        raise Exception(f"Lỗi đẩy dữ liệu: {str(e)}")
