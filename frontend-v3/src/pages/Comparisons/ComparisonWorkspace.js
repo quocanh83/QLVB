@@ -164,7 +164,9 @@ const ComparisonWorkspace = () => {
     if (loading) return <div className="page-content text-center py-5"><div className="spinner-border text-primary"></div></div>;
 
     // Check if we need a 3-column layout
-    const hasExplanations = data && data.rows && data.rows.some(r => r.draft_node && r.draft_node.explanation);
+    const hasExplanations = data && data.rows && data.rows.some(r => 
+        (r.draft_node && r.draft_node.explanation) || (r.base_node && r.base_node.explanation)
+    );
     const colClass = hasExplanations ? "col-4" : "col-6";
 
     return (
@@ -280,58 +282,52 @@ const ComparisonWorkspace = () => {
                                                 </div>
 
                                                 {/* Cột Thuyết minh */}
-                                                {hasExplanations && (
+                                                {(hasExplanations || (row.base_node && row.base_node.explanation)) && (
                                                     <div className="col-4 p-3 explanation-cell border-start">
-                                                        {row.draft_node ? (
-                                                            <>
-                                                                <div className="d-flex justify-content-between mb-2">
-                                                                    <Badge color="warning" outline className="text-uppercase">Thuyết minh</Badge>
-                                                                    {editingExpId !== row.draft_node.id && (
-                                                                        <Button 
-                                                                            size="xs" 
-                                                                            color="link" 
-                                                                            className="p-0 text-decoration-none"
-                                                                            onClick={() => {
-                                                                                setEditingExpId(row.draft_node.id);
-                                                                                setTempExpContent(row.draft_node.explanation || "");
-                                                                            }}
-                                                                        >
-                                                                            <i className="ri-pencil-line"></i> Sửa
-                                                                        </Button>
-                                                                    )}
+                                                        <div className="d-flex justify-content-between mb-2">
+                                                            <Badge color="warning" outline className="text-uppercase">Thuyết minh</Badge>
+                                                            {editingExpId !== (row.draft_node?.id || row.base_node?.id) && (
+                                                                <Button 
+                                                                    size="xs" 
+                                                                    color="link" 
+                                                                    className="p-0 text-decoration-none"
+                                                                    onClick={() => {
+                                                                        const tid = row.draft_node?.id || row.base_node?.id;
+                                                                        setEditingExpId(tid);
+                                                                        setTempExpContent(row.display_explanation || "");
+                                                                    }}
+                                                                >
+                                                                    <i className="ri-pencil-line"></i> Sửa
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                        {editingExpId === (row.draft_node?.id || row.base_node?.id) ? (
+                                                            <div className="d-flex flex-column gap-2">
+                                                                <Input 
+                                                                    type="textarea" 
+                                                                    rows="4"
+                                                                    className="form-control-sm"
+                                                                    value={tempExpContent}
+                                                                    onChange={(e) => setTempExpContent(e.target.value)}
+                                                                    autoFocus
+                                                                />
+                                                                <div className="d-flex gap-2 justify-content-end">
+                                                                    <Button size="xs" color="soft-danger" onClick={() => setEditingExpId(null)}>Hủy</Button>
+                                                                    <Button size="xs" color="primary" onClick={() => handleSaveExplanation(row.draft_node?.id || row.base_node?.id)}>Lưu</Button>
                                                                 </div>
-                                                                {editingExpId === row.draft_node.id ? (
-                                                                    <div className="d-flex flex-column gap-2">
-                                                                        <Input 
-                                                                            type="textarea" 
-                                                                            rows="4"
-                                                                            className="form-control-sm"
-                                                                            value={tempExpContent}
-                                                                            onChange={(e) => setTempExpContent(e.target.value)}
-                                                                            autoFocus
-                                                                        />
-                                                                        <div className="d-flex gap-2 justify-content-end">
-                                                                            <Button size="xs" color="soft-danger" onClick={() => setEditingExpId(null)}>Hủy</Button>
-                                                                            <Button size="xs" color="primary" onClick={() => handleSaveExplanation(row.draft_node.id)}>Lưu</Button>
-                                                                        </div>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div 
-                                                                        className="node-content text-justify text-muted small bg-warning-subtle p-2 rounded border-start border-3 border-warning cursor-pointer" 
-                                                                        style={{ whiteSpace: 'pre-wrap' }}
-                                                                        onClick={() => {
-                                                                            setEditingExpId(row.draft_node.id);
-                                                                            setTempExpContent(row.draft_node.explanation || "");
-                                                                        }}
-                                                                        title="Nhấn để chỉnh sửa"
-                                                                    >
-                                                                        {row.draft_node.explanation || <em className="text-muted">(Chưa có thuyết minh - Nhấn để thêm)</em>}
-                                                                    </div>
-                                                                )}
-                                                            </>
+                                                            </div>
                                                         ) : (
-                                                            <div className="h-100 d-flex align-items-center justify-content-center bg-light-subtle rounded dashed-border p-3">
-                                                                <span className="text-muted italic small">N/A</span>
+                                                            <div 
+                                                                className="node-content text-justify text-muted small bg-warning-subtle p-2 rounded border-start border-3 border-warning cursor-pointer" 
+                                                                style={{ whiteSpace: 'pre-wrap' }}
+                                                                onClick={() => {
+                                                                    const tid = row.draft_node?.id || row.base_node?.id;
+                                                                    setEditingExpId(tid);
+                                                                    setTempExpContent(row.display_explanation || "");
+                                                                }}
+                                                                title="Nhấn để chỉnh sửa"
+                                                            >
+                                                                {row.display_explanation || <em className="text-muted">(Chưa có thuyết minh - Nhấn để thêm)</em>}
                                                             </div>
                                                         )}
                                                     </div>

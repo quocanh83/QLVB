@@ -256,19 +256,22 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
                 
         return rows
 
-    def _build_row(self, b_node, d_node):
-        b_full = self._get_full_content(b_node) if b_node else ""
-        d_full = self._get_full_content(d_node) if d_node else ""
+        b_exp = self._get_full_explanation(b_node) if b_node else ""
         d_exp = self._get_full_explanation(d_node) if d_node else ""
+        
+        # Nếu không có dự thảo, lấy thuyết minh của bản gốc (dành cho trường hợp bãi bỏ)
+        final_exp = d_exp if d_node else b_exp
         
         return {
             "base_node": {
-                "id": b_node.id, "node_label": b_node.node_label, "content": b_full, "node_type": b_node.node_type
+                "id": b_node.id, "node_label": b_node.node_label, "content": b_full, "node_type": b_node.node_type,
+                "explanation": b_exp
             } if b_node else None,
             "draft_node": {
                 "id": d_node.id, "node_label": d_node.node_label, "content": d_full, "node_type": d_node.node_type,
                 "explanation": d_exp
             } if d_node else None,
+            "display_explanation": final_exp,
             "diff_content": legislative_diff(b_full, d_full) if d_node and b_node else (d_full if d_node else "")
         }
 
@@ -513,7 +516,7 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'])
     def gsheet_compare_explanation(self, request, pk=None):
-        """So sánh thuyết minh giữa Hệ thống và Google Sheet"""
+        """So sánh thuyết minh giữa Hệ thống và Google Sheet cho TOÀN BỘ hàng so sánh"""
         version = self.get_object()
         if not version.explanation_sheet_url:
             return Response({"error": "Chưa cài đặt URL Google Sheet Thuyết minh."}, status=400)
@@ -523,16 +526,28 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
             # Lấy dữ liệu từ gsheet (Đã được chuẩn hoá key trong util)
             gsheet_data = sync_explanation_from_gsheet(version.explanation_sheet_url)
             
-            # Lấy các node của phiên bản hiện tại
-            nodes = ComparisonNode.objects.filter(version=version, node_type__in=['Điều', 'Phụ lục']).order_by('order_index')
+            # Sử dụng logic trộn hàng chuẩn của hệ thống
+            rows = self._get_interleaved_rows(version)
             
             comparison = []
-            for node in nodes:
-                # Chuẩn hoá nhãn của node hiện tại để khớp với key trong gsheet_data
-                norm_label = normalize_label(node.node_label)
-                gsheet_content = gsheet_data.get(norm_label, "")
+            for r in rows:
+                b_node = r.get("base_node")
+                d_node = r.get("draft_node")
                 
-                db_content = node.explanation or ""
+                # Xác định node chính để lấy nhãn và thuyết minh (Dự thảo ưu tiên hơn Gốc)
+                primary_node = d_node if d_node else b_node
+                if not primary_node: continue
+                
+                # Nhãn hiển thị
+                label = primary_node.get("node_label")
+                node_id = primary_node.get("id")
+                
+                # Lấy thuyết minh từ hệ thống (Dòng so sánh này đã có display_explanation từ build_row)
+                db_content = r.get("display_explanation") or ""
+                
+                # Khớp với GSheet
+                norm_label = normalize_label(label)
+                gsheet_content = gsheet_data.get(norm_label, "")
                 
                 status_val = "match"
                 if not db_content and gsheet_content: status_val = "missing_db"
@@ -540,8 +555,8 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
                 elif db_content.strip() != gsheet_content.strip(): status_val = "mismatch"
                 
                 comparison.append({
-                    "id": node.id,
-                    "label": node.node_label,
+                    "id": node_id,
+                    "label": label,
                     "db_content": db_content,
                     "gsheet_content": gsheet_content,
                     "status": status_val
@@ -571,7 +586,8 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
              return Response({"error": "Chưa cài đặt URL Google Sheet Thuyết minh."}, status=400)
              
         node_ids = request.data.get('node_ids', [])
-        nodes = ComparisonNode.objects.filter(id__in=node_ids, version=version)
+        # Lấy cả node của phiên bản này và node của project (bản gốc)
+        nodes = ComparisonNode.objects.filter(id__in=node_ids)
         
         from .utils.gsheet_sync import push_explanations_to_gsheet
         items_to_push = [
