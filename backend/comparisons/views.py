@@ -218,12 +218,10 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
         project = version.project
         
         # 1. Bulk load TOÀN BỘ nodes của dự án này để xử lý trong bộ nhớ
-        # Bao gồm cả nodes của v bản gốc (version is null) và nodes của version hiện tại
+        # Bao gồm cả nodes của v bản gốc (project=project, version is null) và nodes của version hiện tại
         all_relevant_nodes = list(ComparisonNode.objects.filter(
-            project=project
-        ).filter(
-            models.Q(version__isnull=True) | models.Q(version=version)
-        ).order_by('order_index'))
+            models.Q(project=project, version__isnull=True) | models.Q(version=version)
+        ).select_related('parent').order_by('order_index'))
         
         # 2. Xây dựng Parent-Child Map & Node Map (O(N))
         from collections import defaultdict
