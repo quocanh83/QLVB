@@ -187,7 +187,8 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
         for child in children:
             child_text = self._get_full_content(child)
             if child_text:
-                full_text += f"\n{child.node_label}: {child_text}"
+                # Thay dấu ":" bằng dấu cách để tránh bị lặp "1.:" hoặc "a):"
+                full_text += f"\n{child.node_label} {child_text}"
         return full_text.strip()
 
     def _get_interleaved_rows(self, version):
