@@ -556,8 +556,11 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
                 b_node = r.get("base_node")
                 d_node = r.get("draft_node")
                 
+                # ID tham chiếu: node_{id}
                 primary_node = d_node if d_node else b_node
                 if not primary_node: continue
+                
+                row_id = f"node_{primary_node.get('id')}" if primary_node else ""
                 
                 label = primary_node.get("node_label")
                 norm_label = normalize_label(label)
@@ -567,8 +570,11 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
                 db_draft = d_node.get("content") if d_node else ""
                 db_exp = r.get("display_explanation") or ""
                 
-                # Dữ liệu trên GSheet
-                gs_data = gsheet_rows.get(norm_label, {})
+                # Dữ liệu trên GSheet - Ưu tiên khớp theo ID trước, sau đó mới đến Nhãn
+                gs_data = gsheet_rows.get(row_id)
+                if not gs_data:
+                    gs_data = gsheet_rows.get(norm_label, {})
+                
                 gs_base = gs_data.get('base', '')
                 gs_draft = gs_data.get('draft', '')
                 gs_exp = gs_data.get('exp', '')
@@ -577,18 +583,16 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
                 if not gs_data:
                     status_val = "missing_gsheet"
                 else:
-                    # Kiểm tra xem có bất kỳ sự sai lệch nào trong 3 cột không?
-                    # Ưu tiên báo lệch thuyết minh trước
                     if db_exp.strip() != gs_exp.strip():
                         status_val = "mismatch"
                     elif db_base.strip() != gs_base.strip() or db_draft.strip() != gs_draft.strip():
-                        # Nếu gốc hoặc dự thảo lệch, cũng báo mismatch để người dùng cập nhật lại 3 cột
                         status_val = "mismatch"
                 
                 comparison.append({
                     "id": primary_node.get("id"),
+                    "row_id": row_id, # ID tham chiếu cho GSheet
                     "label": label,
-                    "db_content": db_exp, # Giữ nguyên key cũ để tương thích FE ban đầu
+                    "db_content": db_exp,
                     "gsheet_content": gs_exp,
                     "db_data": {"base": db_base, "draft": db_draft, "exp": db_exp},
                     "gs_data": {"base": gs_base, "draft": gs_draft, "exp": gs_exp},
@@ -613,26 +617,46 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def gsheet_push_selected_explanation(self, request, pk=None):
-        """Đẩy dữ liệu từ hệ thống lên GSheet cho những node được chọn"""
-        version = self.get_object()
-        if not version.explanation_sheet_url:
-             return Response({"error": "Chưa cài đặt URL Google Sheet Thuyết minh."}, status=400)
-             
-        node_ids = request.data.get('node_ids', [])
-        # Lấy cả node của phiên bản này và node của project (bản gốc)
-        nodes = ComparisonNode.objects.filter(id__in=node_ids)
-        
-        from .utils.gsheet_sync import push_explanations_to_gsheet
-        items_to_push = [
-            {'label': n.node_label, 'content': n.explanation or ""}
-            for n in nodes
-        ]
-        
+        """Đẩy dữ liệu từ hệ thống lên GSheet cho những node được chọn - Hỗ trợ chuẩn 4 cột"""
         try:
+            version = self.get_object()
+            if not version.explanation_sheet_url:
+                return Response({"error": "Chưa cài đặt URL Google Sheet Thuyết minh."}, status=400)
+                
+            selected_ids = request.data.get('node_ids', [])
+            if not selected_ids:
+                return Response({"error": "Vui lòng chọn ít nhất một mục để đẩy."}, status=400)
+            
+            # Sử dụng logic trộn hàng để có đầy đủ nội dung Gốc/Dự thảo/Thuyết minh
+            all_rows = self._get_interleaved_rows(version)
+            
+            items_to_push = []
+            for r in all_rows:
+                b_n = r.get("base_node")
+                d_n = r.get("draft_node")
+                primary = d_n if d_n else b_n
+                
+                if not primary or primary.get("id") not in selected_ids:
+                    continue
+                
+                # Xây dựng item đẩy lên GSheet
+                items_to_push.append({
+                    'id': f"node_{primary.get('id')}",
+                    'label': primary.get("node_label"),
+                    'base_content': b_n.get("content") if b_n else "",
+                    'draft_content': d_n.get("content") if d_n else "",
+                    'explanation': r.get("display_explanation") or ""
+                })
+            
+            if not items_to_push:
+                return Response({"error": "Không tìm thấy dữ liệu hợp lệ để đẩy."}, status=400)
+
+            from .utils.gsheet_sync import push_explanations_to_gsheet
             push_explanations_to_gsheet(version.explanation_sheet_url, items_to_push)
-            return Response({"message": f"Đã đẩy {len(items_to_push)} mục lên Google Sheet thành công."})
+            
+            return Response({"message": f"Đã đẩy thành công {len(items_to_push)} mục lên Google Sheet (Cấu trúc 4 cột)."})
         except Exception as e:
-            return Response({"error": str(e)}, status=400)
+            return Response({"error": f"Lỗi đồng bộ: {str(e)}"}, status=500)
 
 
     @action(detail=True, methods=['get'])
