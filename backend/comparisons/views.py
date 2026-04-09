@@ -256,6 +256,9 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
                 
         return rows
 
+    def _build_row(self, b_node, d_node):
+        b_full = self._get_full_content(b_node) if b_node else ""
+        d_full = self._get_full_content(d_node) if d_node else ""
         b_exp = self._get_full_explanation(b_node) if b_node else ""
         d_exp = self._get_full_explanation(d_node) if d_node else ""
         
