@@ -140,13 +140,13 @@ const ExplanationSyncModal = ({ isOpen, toggle, versionId, onSyncSuccess }) => {
         <Modal isOpen={isOpen} toggle={toggle} size="xl" centered scrollable>
             <ModalHeader toggle={toggle} className="bg-light">
                 <i className="ri-google-line me-2 text-warning"></i> 
-                Đồng bộ 4 cột [A: ID/STT - B: Gốc - C: Dự thảo - D: Thuyết minh]
+                Đồng bộ 4 cột [A: Gốc - B: Dự thảo - C: Thuyết minh - D: ID/STT]
             </ModalHeader>
             <ModalBody className="p-0">
                 <div className="p-3 border-bottom bg-light-subtle">
                     <div className="d-flex gap-2 align-items-end">
                         <div className="flex-grow-1">
-                            <label className="form-label small fw-bold text-uppercase">Link Google Sheet [A: ID, B: GỐC, C: DỰ THẢO, D: THUYẾT MINH]</label>
+                            <label className="form-label small fw-bold text-uppercase">Link Google Sheet [A: GỐC, B: DỰ THẢO, C: THUYẾT MINH, D: ID]</label>
                             <input 
                                 type="url" 
                                 className="form-control" 

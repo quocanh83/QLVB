@@ -47,16 +47,18 @@ def sync_explanation_from_gsheet(sheet_url):
         for i, row in enumerate(all_values):
             if i == 0: continue # Bỏ qua dòng tiêu đề
             
-            # Cấu trúc 4 cột mới: A: ID, B: Gốc, C: Dự thảo, D: Thuyết minh
-            # Dự phòng cấu trúc 3 cột cũ: A: Gốc, B: Dự thảo, C: Thuyết minh
-            if len(row) >= 4 and str(row[0]).startswith('node_'):
-                row_id = str(row[0]).strip()
-                base_val = str(row[1]).strip()
-                draft_val = str(row[2]).strip()
-                exp_val = str(row[3]).strip()
-                norm_key = row_id # Dùng Luôn ID làm key
+            # Cấu trúc mới: A: Gốc, B: Dự thảo, C: Thuyết minh, D: ID
+            # Kiểm tra xem cột D (index 3) có chứa ID không
+            id_val = str(row[3]).strip() if len(row) >= 4 else ""
+            
+            if id_val.startswith('node_'):
+                row_id = id_val
+                base_val = str(row[0]).strip() if len(row) >= 1 else ""
+                draft_val = str(row[1]).strip() if len(row) >= 2 else ""
+                exp_val = str(row[2]).strip() if len(row) >= 3 else ""
+                norm_key = row_id
             else:
-                # Fallback cấu trúc 3 cột cũ
+                # Fallback cấu trúc 3 cột cũ hoặc không có ID ở cột D
                 base_val = str(row[0]).strip() if len(row) >= 1 else ""
                 draft_val = str(row[1]).strip() if len(row) >= 2 else ""
                 exp_val = str(row[2]).strip() if len(row) >= 3 else ""
@@ -114,16 +116,17 @@ def push_explanations_to_gsheet(sheet_url, items_to_push):
             return normalize_label(text[:20]) # Fallback lấy 20 ký tự đầu
 
         # 1. Xây dựng bản đồ đối soát từ GSheet hiện tại
-        # Map: ID (cột A) -> row_index HOẶC Label -> row_index
+        # Ưu tiên tìm ID ở cột D (chỉ số 3)
         id_map = {}
         label_map = {}
         
         for i, row in enumerate(all_values):
             if i == 0: continue 
             
-            first_col = str(row[0]).strip() if len(row) > 0 else ""
-            if first_col.startswith('node_'):
-                id_map[first_col] = i
+            # Cột D (index 3) là ID
+            id_in_col_d = str(row[3]).strip() if len(row) >= 4 else ""
+            if id_in_col_d.startswith('node_'):
+                id_map[id_in_col_d] = i
             else:
                 # Fallback cho GSheet cũ: Tìm nhãn ở cột A/B
                 l_a = extract_norm_label(row[0]) if len(row) > 0 else ""
@@ -134,33 +137,42 @@ def push_explanations_to_gsheet(sheet_url, items_to_push):
         updates = []
         new_rows = []
         
-        for item in items_to_push:
-            ref_id = item.get('id', '') # Mã node dạng node_123
+        for idx_in_items, item in enumerate(items_to_push):
+            ref_id = item.get('id', '')
             label = item['label']
             base_content = item.get('base_content', '')
             draft_content = item.get('draft_content', '')
             explanation = item.get('explanation', '')
             
-            # Dữ liệu chuẩn 4 cột: [ID, Gốc, Dự thảo, Thuyết minh]
-            row_data = [ref_id, base_content, draft_content, explanation]
+            # Cấu trúc ghi mới: [Gốc, Dự thảo, Thuyết minh, ID]
+            row_data = [base_content, draft_content, explanation, ref_id]
             
             row_idx = -1
-            # Lớp 1: Khớp theo ID (Chính xác tuyệt đối)
+            # Lớp 1: Khớp chính xác theo ID ở cột D
             if ref_id in id_map:
                 row_idx = id_map[ref_id]
-            # Lớp 2: Khớp theo Nhãn (Dành cho việc nâng cấp GSheet cũ)
-            elif normalize_label(label) in label_map:
+            # Lớp 2: Khớp theo thứ tự dòng (Sequential Match) - Nếu chưa có ID
+            # Giả định hàng i hệ thống tương ứng hàng i+1 của GSheet (bỏ qua header)
+            elif (idx_in_items + 1) < len(all_values):
+                current_gs_row = all_values[idx_in_items + 1]
+                # Kiểm tra nếu hàng GSheet hiện tại chưa có ID ở cột D thì mới khớp đè
+                gs_id = str(current_gs_row[3]).strip() if len(current_gs_row) >= 4 else ""
+                if not gs_id.startswith('node_'):
+                    row_idx = idx_in_items + 1 # Khớp theo thứ tự
+            
+            # Lớp 3: Khớp theo Nhãn (Nếu thứ tự không khớp hoặc GSheet ngắn hơn)
+            if row_idx == -1 and normalize_label(label) in label_map:
                 row_idx = label_map[normalize_label(label)]
             
             if row_idx >= 0:
-                # Cập nhật dải ô A-D của hàng row_idx+1
+                # Cập nhật dải ô A-D của hàng row_idx + 1
                 range_name = f'A{row_idx + 1}:D{row_idx + 1}'
                 updates.append({
                     'range': range_name,
                     'values': [row_data]
                 })
             else:
-                # Nếu không thấy cả ID lẫn Nhãn, thêm dòng mới 4 cột
+                # Nếu hoàn toàn không khớp, thêm dòng mới 4 cột
                 new_rows.append(row_data)
         
         if updates:
