@@ -25,6 +25,14 @@ const ComparisonWorkspace = () => {
     const [currentMappedId, setCurrentMappedId] = useState(null);
     const [showAIWorkbench, setShowAIWorkbench] = useState(false);
 
+    const formatNodeLabel = (label) => {
+        if (!label) return "";
+        // Chuyển "Khoản 1" -> "1.", "Điểm a" -> "a)"
+        let formatted = label.replace(/^Khoản\s+(\d+)/i, "$1.");
+        formatted = formatted.replace(/^Điểm\s+([a-zđ])/i, "$1)");
+        return formatted;
+    };
+
     useEffect(() => {
         fetchWorkspaceData();
         fetchAllDraftNodes();
@@ -134,7 +142,7 @@ const ComparisonWorkspace = () => {
                                                     {row.base_node ? (
                                                         <>
                                                             <div className="d-flex justify-content-between align-items-start mb-2">
-                                                                <Badge color="secondary" outline>{row.base_node.node_label}</Badge>
+                                                                <Badge color="secondary" outline>{formatNodeLabel(row.base_node.node_label)}</Badge>
                                                                 <Button size="sm" color="soft-primary" className="btn-icon rounded-circle" 
                                                                     onClick={() => {
                                                                         setSelectedBaseNode(row.base_node);
@@ -161,7 +169,7 @@ const ComparisonWorkspace = () => {
                                                     {row.draft_node ? (
                                                         <>
                                                             <div className="d-flex justify-content-between mb-2">
-                                                                <Badge color="primary">{row.draft_node.node_label}</Badge>
+                                                                <Badge color="primary">{formatNodeLabel(row.draft_node.node_label)}</Badge>
                                                             </div>
                                                             <div 
                                                                 className="node-content text-justify legislative-text"
@@ -220,7 +228,7 @@ const ComparisonWorkspace = () => {
                                         style={{ cursor: 'pointer' }}
                                     >
                                         <div>
-                                            <span className="fw-medium">{node.node_label}</span>
+                                            <span className="fw-medium">{formatNodeLabel(node.node_label)}</span>
                                             <div className="text-muted small text-truncate" style={{ maxWidth: '300px' }}>
                                                 {node.content?.substring(0, 100)}...
                                             </div>

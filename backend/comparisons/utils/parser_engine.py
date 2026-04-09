@@ -63,7 +63,7 @@ class ComparisonParser:
             # 6. Nhận diện Khoản
             clause_match = re.match(r'^(\d+)\.\s*(.*)', text)
             if clause_match and self.current_article:
-                node = self._create_node('Khoản', f"Khoản {clause_match.group(1)}", clause_match.group(2).strip())
+                node = self._create_node('Khoản', f"{clause_match.group(1)}.", clause_match.group(2).strip())
                 self.current_article['children'].append(node)
                 self.current_clause = node
                 continue
@@ -71,7 +71,7 @@ class ComparisonParser:
             # 7. Nhận diện Điểm
             point_match = re.match(r'^([a-zđ])\)\s*(.*)', text, re.IGNORECASE)
             if point_match and self.current_clause:
-                node = self._create_node('Điểm', f"Điểm {point_match.group(1)}", point_match.group(2).strip())
+                node = self._create_node('Điểm', f"{point_match.group(1)})", point_match.group(2).strip())
                 self.current_clause['children'].append(node)
                 continue
 
