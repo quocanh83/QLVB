@@ -136,6 +136,34 @@ const ExplanationSyncModal = ({ isOpen, toggle, versionId, onSyncSuccess }) => {
         }
     };
 
+    const renderCellWithDiff = (dbVal = "", gsVal = "") => {
+        const dbText = dbVal.trim();
+        const gsText = gsVal.trim();
+        const isDifferent = dbText !== gsText;
+        
+        if (!isDifferent) {
+            return (
+                <div className="text-muted small" style={{ maxHeight: "60px", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {dbText || <em className="text-muted opacity-50">(Trống)</em>}
+                </div>
+            );
+        }
+        
+        return (
+            <div className="small bg-warning-subtle p-2 rounded border border-warning" style={{ maxHeight: "150px", overflowY: "auto" }}>
+                <div className="mb-2 pb-2 border-bottom border-warning-subtle">
+                    <Badge color="primary" className="me-1">Hệ thống</Badge> 
+                    <span className="text-dark d-block mt-1">{dbText || <em className="text-muted opacity-50">(Trống)</em>}</span>
+                </div>
+                <div>
+                    <Badge color="success" className="me-1">GSheet</Badge> 
+                    <span className="text-dark d-block mt-1">{gsText || <em className="text-muted opacity-50">(Trống)</em>}</span>
+                </div>
+            </div>
+        );
+    };
+
+
     return (
         <Modal isOpen={isOpen} toggle={toggle} size="xl" centered scrollable>
             <ModalHeader toggle={toggle} className="bg-light">
@@ -190,9 +218,10 @@ const ExplanationSyncModal = ({ isOpen, toggle, versionId, onSyncSuccess }) => {
                                             />
                                         </div>
                                     </th>
-                                    <th>Điều / Nhãn</th>
-                                    <th>Thuyết minh HT</th>
-                                    <th>Thuyết minh GSheet</th>
+                                    <th style={{ minWidth: "120px" }}>Điều / Nhãn</th>
+                                    <th style={{ width: "25%", minWidth: "250px" }}>Nội dung Gốc</th>
+                                    <th style={{ width: "25%", minWidth: "250px" }}>Nội dung Dự thảo</th>
+                                    <th style={{ width: "25%", minWidth: "250px" }}>Thuyết minh</th>
                                     <th>Trạng thái</th>
                                 </tr>
                             </thead>
@@ -209,16 +238,18 @@ const ExplanationSyncModal = ({ isOpen, toggle, versionId, onSyncSuccess }) => {
                                                 />
                                             </div>
                                         </td>
-                                        <td className="fw-medium">{item.label}</td>
-                                        <td style={{ maxWidth: "350px", minWidth: "200px", whiteSpace: "normal" }}>
-                                            <div className="text-muted small" style={{ maxHeight: "60px", overflow: "hidden" }}>
-                                                {item.db_content || <em className="text-muted opacity-50">(Trống)</em>}
-                                            </div>
+                                        <td>
+                                            <div className="fw-medium">{item.label}</div>
+                                            {item.row_id && <small className="text-info">{item.row_id}</small>}
                                         </td>
-                                        <td style={{ maxWidth: "350px", minWidth: "200px", whiteSpace: "normal" }}>
-                                            <div className="text-muted small" style={{ maxHeight: "60px", overflow: "hidden" }}>
-                                                {item.gsheet_content || <em className="text-muted opacity-50">(Trống)</em>}
-                                            </div>
+                                        <td style={{ whiteSpace: "normal", verticalAlign: "top" }}>
+                                            {renderCellWithDiff(item.db_data?.base, item.gs_data?.base)}
+                                        </td>
+                                        <td style={{ whiteSpace: "normal", verticalAlign: "top" }}>
+                                            {renderCellWithDiff(item.db_data?.draft, item.gs_data?.draft)}
+                                        </td>
+                                        <td style={{ whiteSpace: "normal", verticalAlign: "top" }}>
+                                            {renderCellWithDiff(item.db_data?.exp, item.gs_data?.exp)}
                                         </td>
                                         <td>{getStatusBadge(item.status)}</td>
                                     </tr>

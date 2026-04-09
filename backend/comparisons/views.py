@@ -313,17 +313,88 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
         """Thêm một hàng trống vào bản gốc để người dùng tự ghép nối"""
         version = self.get_object()
         project = version.project
-        from django.db.models import Max
-        max_idx = ComparisonNode.objects.filter(project=project, version__isnull=True).aggregate(Max('order_index'))['order_index__max'] or 0
+        insert_after_id = request.data.get('insert_after_id')
         
-        node = ComparisonNode.objects.create(
-            project=project,
-            node_type='Vấn đề khác',
-            node_label='Hàng thủ công',
-            content='',
-            order_index=max_idx + 1
-        )
+        with transaction.atomic():
+            if insert_after_id:
+                try:
+                    after_node = ComparisonNode.objects.get(id=insert_after_id, project=project, version__isnull=True)
+                    new_order = after_node.order_index + 1
+                    # Đẩy các node phía sau xuống
+                    ComparisonNode.objects.filter(
+                        project=project, 
+                        version__isnull=True, 
+                        order_index__gte=new_order
+                    ).update(order_index=models.F('order_index') + 1)
+                except ComparisonNode.DoesNotExist:
+                    from django.db.models import Max
+                    new_order = (ComparisonNode.objects.filter(project=project, version__isnull=True).aggregate(Max('order_index'))['order_index__max'] or 0) + 1
+            else:
+                from django.db.models import Max
+                new_order = (ComparisonNode.objects.filter(project=project, version__isnull=True).aggregate(Max('order_index'))['order_index__max'] or 0) + 1
+            
+            node = ComparisonNode.objects.create(
+                project=project,
+                node_type='Vấn đề khác',
+                node_label='Hàng thủ công',
+                content='',
+                order_index=new_order
+            )
         return Response(ComparisonNodeSerializer(node).data)
+
+    @action(detail=True, methods=['post'])
+    def reorder_node(self, request, pk=None):
+        """Di chuyển node lên/xuống (chỉ áp dụng cho base nodes)"""
+        version = self.get_object()
+        project = version.project
+        node_id = request.data.get('node_id')
+        direction = request.data.get('direction') # 'up' or 'down'
+        
+        if not node_id or direction not in ['up', 'down']:
+            return Response({"error": "Dữ liệu không hợp lệ."}, status=400)
+            
+        with transaction.atomic():
+            try:
+                node = ComparisonNode.objects.get(id=node_id, project=project, version__isnull=True)
+                
+                if direction == 'up':
+                    swap_node = ComparisonNode.objects.filter(
+                        project=project, version__isnull=True, order_index__lt=node.order_index
+                    ).order_by('-order_index').first()
+                else:
+                    swap_node = ComparisonNode.objects.filter(
+                        project=project, version__isnull=True, order_index__gt=node.order_index
+                    ).order_by('order_index').first()
+                    
+                if swap_node:
+                    temp_order = node.order_index
+                    node.order_index = swap_node.order_index
+                    swap_node.order_index = temp_order
+                    node.save()
+                    swap_node.save()
+                    return Response({"message": "Đổi vị trí thành công"})
+                else:
+                    return Response({"message": "Không thể di chuyển thêm"})
+            except ComparisonNode.DoesNotExist:
+                return Response({"error": "Không tìm thấy Node."}, status=404)
+
+    @action(detail=True, methods=['post'])
+    def delete_manual_node(self, request, pk=None):
+        """Xóa hàng thủ công"""
+        version = self.get_object()
+        project = version.project
+        node_id = request.data.get('node_id')
+        
+        if not node_id:
+            return Response({"error": "Thiếu node_id"}, status=400)
+            
+        try:
+            # Chỉ cho phép xóa node 'Hàng thủ công'
+            node = ComparisonNode.objects.get(id=node_id, project=project, version__isnull=True, node_label='Hàng thủ công')
+            node.delete()
+            return Response({"message": "Đã xóa hàng thủ công"})
+        except ComparisonNode.DoesNotExist:
+            return Response({"error": "Không tìm thấy hàng thủ công hợp lệ"}, status=404)
 
     @action(detail=True, methods=['get'])
     def export_word(self, request, pk=None):

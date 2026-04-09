@@ -90,6 +90,36 @@ const ComparisonWorkspace = () => {
         }
     };
 
+    const handleReorderNode = async (nodeId, direction) => {
+        try {
+            await axios.post(`/api/comparisons/versions/${versionId}/reorder_node/`, { node_id: nodeId, direction }, getAuthHeader());
+            fetchWorkspaceData();
+        } catch (err) {
+            toast.warning(err.response?.data?.message || err.response?.data?.error || "Không thể di chuyển");
+        }
+    };
+
+    const handleInsertManualRow = async (afterId) => {
+        try {
+            await axios.post(`/api/comparisons/versions/${versionId}/add_manual_row/`, { insert_after_id: afterId }, getAuthHeader());
+            toast.success("Đã chèn hàng trống. Gắn Điểu dự thảo tùy ý.");
+            fetchWorkspaceData();
+        } catch (err) {
+            toast.error("Lỗi khi chèn hàng");
+        }
+    };
+
+    const handleDeleteManualRow = async (nodeId) => {
+        if (!window.confirm("Bạn có chắc muốn xóa hàng này không?")) return;
+        try {
+            await axios.post(`/api/comparisons/versions/${versionId}/delete_manual_node/`, { node_id: nodeId }, getAuthHeader());
+            toast.success("Đã xóa hàng.");
+            fetchWorkspaceData();
+        } catch (err) {
+            toast.error(err.response?.data?.error || "Lỗi khi xóa hàng");
+        }
+    };
+
     const handleExportWord = () => {
         const token = localStorage.getItem("access_token");
         const url = `${process.env.REACT_APP_API_URL || ''}/api/comparisons/versions/${versionId}/export_word/?token=${token}`;
@@ -237,14 +267,31 @@ const ComparisonWorkspace = () => {
                                                                 ) : (
                                                                     <Badge color="secondary" outline>{formatNodeLabel(row.base_node.node_label)}</Badge>
                                                                 )}
-                                                                <Button size="sm" color="soft-primary" className="btn-icon rounded-circle" 
-                                                                    onClick={() => {
-                                                                        setSelectedBaseNode(row.base_node);
-                                                                        setCurrentMappedId(row.draft_node ? row.draft_node.id : null);
-                                                                        setMappingModal(true);
-                                                                    }}>
-                                                                    <i className="ri-links-line"></i>
-                                                                </Button>
+                                                                <div className="d-flex gap-1 align-items-center">
+                                                                    <Button size="sm" color="soft-info" className="btn-icon rounded-circle" title="Di chuyển lên" onClick={() => handleReorderNode(row.base_node.id, 'up')}>
+                                                                        <i className="ri-arrow-up-line"></i>
+                                                                    </Button>
+                                                                    <Button size="sm" color="soft-info" className="btn-icon rounded-circle" title="Di chuyển xuống" onClick={() => handleReorderNode(row.base_node.id, 'down')}>
+                                                                        <i className="ri-arrow-down-line"></i>
+                                                                    </Button>
+                                                                    <Button size="sm" color="soft-success" className="btn-icon rounded-circle" title="Chèn hàng bên dưới" onClick={() => handleInsertManualRow(row.base_node.id)}>
+                                                                        <i className="ri-add-line"></i>
+                                                                    </Button>
+                                                                    {row.base_node.node_label === 'Hàng thủ công' && (
+                                                                        <Button size="sm" color="soft-danger" className="btn-icon rounded-circle" title="Xóa hàng" onClick={() => handleDeleteManualRow(row.base_node.id)}>
+                                                                            <i className="ri-delete-bin-line"></i>
+                                                                        </Button>
+                                                                    )}
+                                                                    <Button size="sm" color="soft-primary" className="btn-icon rounded-circle ms-1" 
+                                                                        title="Ghép / Hủy ghép"
+                                                                        onClick={() => {
+                                                                            setSelectedBaseNode(row.base_node);
+                                                                            setCurrentMappedId(row.draft_node ? row.draft_node.id : null);
+                                                                            setMappingModal(true);
+                                                                        }}>
+                                                                        <i className="ri-links-line"></i>
+                                                                    </Button>
+                                                                </div>
                                                             </div>
                                                             <div className="node-content text-justify">
                                                                 {row.base_node.content}
