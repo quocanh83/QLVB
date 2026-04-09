@@ -339,6 +339,7 @@ const ComparisonProjectDetail = () => {
                                                         </td>
                                                         <td>{new Date(v.created_at).toLocaleString('vi-VN')}</td>
                                                         <td className="text-end">
+                                                            <div className="d-flex justify-content-end gap-2">
                                                                 <Dropdown isOpen={activeVersionId === v.id} toggle={() => setActiveVersionId(activeVersionId === v.id ? null : v.id)}>
                                                                     <DropdownToggle size="sm" color="soft-info" className="btn-icon">
                                                                         <i className="ri-more-2-fill"></i>
