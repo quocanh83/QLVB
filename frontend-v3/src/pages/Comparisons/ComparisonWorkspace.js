@@ -194,27 +194,13 @@ const ComparisonWorkspace = () => {
                             <i className="ri-file-word-line me-1"></i> Xuất Bảng
                         </Button>
                         
-                        {/* Nút Đồng bộ Thuyết minh (Luôn hiển thị) */}
-                        <Button color="warning" outline className="me-2" onClick={() => {
-                            if (data && data.explanation_sheet_url) {
-                                setAdvancedSyncModal(true);
-                            } else {
-                                setGsheetUrl("");
-                                setGsheetModal(true);
-                            }
-                        }} title="So sánh & Đồng bộ hai chiều với Google Sheet">
+                        {/* Nút Đồng bộ Thuyết minh (Luôn hiển thị trung tâm điều khiển) */}
+                        <Button color="warning" outline className="me-2" onClick={() => setAdvancedSyncModal(true)} title="Trung tâm Đồng bộ GSheet (Hai chiều)">
                             <i className="ri-google-line me-1"></i> Đồng bộ GSheet
                         </Button>
 
                         <Button color="primary" outline className="me-2" onClick={() => fileInputRef.current.click()} title="Nạp từ file Word">
                             <i className="ri-file-word-line me-1"></i> Nạp Word
-                        </Button>
-
-                        <Button color="soft-warning" className="me-2" onClick={() => {
-                            setGsheetUrl(data?.explanation_sheet_url || "");
-                            setGsheetModal(true);
-                        }} title="Cài đặt link GSheet">
-                            <i className="ri-settings-4-line"></i>
                         </Button>
 
                         <Button color="info" className={showAIWorkbench ? "active" : ""} onClick={() => setShowAIWorkbench(!showAIWorkbench)}>
@@ -426,31 +412,6 @@ const ComparisonWorkspace = () => {
                 </Modal>
 
                 <ToastContainer />
-                {/* Modal nhập GSheet Link */}
-                <Modal isOpen={gsheetModal} toggle={() => setGsheetModal(!gsheetModal)} centered>
-                    <ModalHeader toggle={() => setGsheetModal(!gsheetModal)}>Cài đặt Google Sheet Thuyết minh</ModalHeader>
-                    <ModalBody>
-                        <div className="mb-3">
-                            <Label className="form-label">Link Google Sheet</Label>
-                            <Input 
-                                type="url" 
-                                placeholder="https://docs.google.com/spreadsheets/d/..." 
-                                value={gsheetUrl}
-                                onChange={(e) => setGsheetUrl(e.target.value)}
-                            />
-                        </div>
-                    </ModalBody>
-                    <ModalFooter>
-                        <Button color="light" onClick={() => setGsheetModal(false)}>Hủy</Button>
-                        <Button color="primary" outline onClick={handleSaveGsheetUrl}>
-                           <i className="ri-save-line me-1"></i> Lưu cấu hình
-                        </Button>
-                        <Button color="warning" onClick={() => handleSyncGsheet()}>
-                           <i className="ri-refresh-line me-1"></i> Đồng bộ ngay
-                        </Button>
-                    </ModalFooter>
-                </Modal>
-
                 <ExplanationSyncModal 
                     isOpen={advancedSyncModal}
                     toggle={() => setAdvancedSyncModal(!advancedSyncModal)}
