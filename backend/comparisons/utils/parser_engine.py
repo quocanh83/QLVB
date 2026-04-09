@@ -42,6 +42,8 @@ class ComparisonParser:
             article_match = re.match(r'^Điều\s+([\d\.]+)\s*[\.:-]?\s*(.*)', text, re.IGNORECASE)
             if article_match:
                 label = article_match.group(1).strip()
+                # Loại bỏ dấu chấm ở cuối nhãn điều nếu có (ví dụ: "1." -> "1")
+                if label.endswith('.'): label = label[:-1]
                 if not label.startswith("Điều"): label = f"Điều {label}"
                 content = article_match.group(2).strip()
                 
@@ -61,7 +63,7 @@ class ComparisonParser:
                     continue
 
             # 6. Nhận diện Khoản (Hỗ trợ cả "1.", "Khoản 1.", "Khoản 1:")
-            clause_match = re.match(r'^(?:Khoản\s+)?(\d+)[\.\:]\s*(.*)', text, re.IGNORECASE)
+            clause_match = re.match(r'^(?:Khoản\s+)?(\d+)[\.\:\s]*\s*(.*)', text, re.IGNORECASE)
             if clause_match and self.current_article:
                 node = self._create_node('Khoản', f"{clause_match.group(1)}.", clause_match.group(2).strip())
                 self.current_article['children'].append(node)
@@ -69,7 +71,7 @@ class ComparisonParser:
                 continue
 
             # 7. Nhận diện Điểm (Hỗ trợ cả "a)", "Điểm a.", "Điểm a:")
-            point_match = re.match(r'^(?:Điểm\s+)?([a-zđ])[\)\.\:]\s*(.*)', text, re.IGNORECASE)
+            point_match = re.match(r'^(?:Điểm\s+)?([a-zđ])[\)\.\:\s]*\s*(.*)', text, re.IGNORECASE)
             if point_match and self.current_clause:
                 node = self._create_node('Điểm', f"{point_match.group(1)})", point_match.group(2).strip())
                 self.current_clause['children'].append(node)
