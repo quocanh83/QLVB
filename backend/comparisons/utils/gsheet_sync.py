@@ -36,7 +36,8 @@ def sync_explanation_from_gsheet(sheet_url):
         all_values = worksheet.get_all_values()
         results = {}
 
-        for row in all_values:
+        for i, row in enumerate(all_values):
+            if i == 0: continue # Bỏ qua dòng tiêu đề
             if len(row) >= 3:
                 c1 = str(row[0]).strip() # Cột A: Số Điều
                 c2 = str(row[2]).strip() # Cột C: Thuyết minh
@@ -59,3 +60,40 @@ def sync_explanation_from_gsheet(sheet_url):
         raise Exception("Quyền truy cập bị từ chối. Hãy đảm bảo bạn đã Share quyền Viewer cho email trong google_keys.json.")
     except Exception as e:
         raise Exception(f"Lỗi đồng bộ GSheet: {str(e)}")
+
+def push_explanations_to_gsheet(sheet_url, items_to_push):
+    """
+    Đẩy dữ liệu từ hệ thống lên Google Sheet.
+    items_to_push: danh sách [{ label: 'Điều 1', content: '...' }]
+    """
+    key_path = os.path.join(settings.BASE_DIR, 'google_keys.json')
+    scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+    creds = Credentials.from_service_account_file(key_path, scopes=scopes)
+    client = gspread.authorize(creds)
+    
+    match = re.search(r'/spreadsheets/d/([a-zA-Z0-9-_]+)', sheet_url)
+    sheet_id = match.group(1)
+    spreadsheet = client.open_by_key(sheet_id)
+    worksheet = spreadsheet.get_worksheet(0)
+    
+    all_values = worksheet.get_all_values()
+    # Map label -> row_index (1-based)
+    label_to_row = {}
+    for i, row in enumerate(all_values):
+        if i == 0: continue 
+        if len(row) > 0:
+            label = str(row[0]).strip()
+            if label:
+                label_to_row[label] = i + 1
+    
+    for item in items_to_push:
+        label = item['label']
+        content = item['content']
+        
+        if label in label_to_row:
+            row_idx = label_to_row[label]
+            worksheet.update_cell(row_idx, 3, content) # Cột C
+        else:
+            # Nếu không thấy, thêm dòng mới xuống cuối
+            worksheet.append_row([label, '', content])
+

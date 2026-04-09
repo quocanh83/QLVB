@@ -494,6 +494,86 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
             return Response({"error": str(e)}, status=500)
 
     @action(detail=True, methods=['get'])
+    def gsheet_compare_explanation(self, request, pk=None):
+        """So sánh thuyết minh giữa Hệ thống và Google Sheet"""
+        version = self.get_object()
+        if not version.explanation_sheet_url:
+            return Response({"error": "Chưa cài đặt URL Google Sheet Thuyết minh."}, status=400)
+            
+        from .utils.gsheet_sync import sync_explanation_from_gsheet
+        try:
+            # Lấy dữ liệu từ gsheet (Đã skip header trong util)
+            gsheet_data = sync_explanation_from_gsheet(version.explanation_sheet_url)
+            
+            # Lấy các node của phiên bản hiện tại
+            nodes = ComparisonNode.objects.filter(version=version, node_type__in=['Điều', 'Phụ lục']).order_by('order_index')
+            
+            comparison = []
+            for node in nodes:
+                # Trích xuất số điều để khớp nếu nhãn không khớp tuyệt đối
+                m = re.search(r'[\u0110\u0111]i\u1ec1u\s+(\d+)', node.node_label, re.IGNORECASE)
+                article_num = m.group(1) if m else node.node_label
+                
+                # Ưu tiên khớp theo nhãn đầy đủ, nếu không được thì khớp theo số điều
+                gsheet_content = gsheet_data.get(node.node_label)
+                if gsheet_content is None:
+                    gsheet_content = gsheet_data.get(article_num, "")
+                
+                db_content = node.explanation or ""
+                
+                status_val = "match"
+                if not db_content and gsheet_content: status_val = "missing_db"
+                elif db_content and not gsheet_content: status_val = "missing_gsheet"
+                elif db_content.strip() != gsheet_content.strip(): status_val = "mismatch"
+                
+                comparison.append({
+                    "id": node.id,
+                    "label": node.node_label,
+                    "db_content": db_content,
+                    "gsheet_content": gsheet_content,
+                    "status": status_val
+                })
+            
+            return Response(comparison)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+    @action(detail=True, methods=['post'])
+    def gsheet_sync_selected_explanation(self, request, pk=None):
+        """Kéo dữ liệu từ GSheet về những node được chọn"""
+        version = self.get_object()
+        items = request.data.get('items', []) # [{id, content}]
+        
+        with transaction.atomic():
+            for item in items:
+                ComparisonNode.objects.filter(id=item['id'], version=version).update(explanation=item['content'])
+                
+        return Response({"message": f"Đã cập nhật {len(items)} mục từ Google Sheet."})
+
+    @action(detail=True, methods=['post'])
+    def gsheet_push_selected_explanation(self, request, pk=None):
+        """Đẩy dữ liệu từ hệ thống lên GSheet cho những node được chọn"""
+        version = self.get_object()
+        if not version.explanation_sheet_url:
+             return Response({"error": "Chưa cài đặt URL Google Sheet Thuyết minh."}, status=400)
+             
+        node_ids = request.data.get('node_ids', [])
+        nodes = ComparisonNode.objects.filter(id__in=node_ids, version=version)
+        
+        from .utils.gsheet_sync import push_explanations_to_gsheet
+        items_to_push = [
+            {'label': n.node_label, 'content': n.explanation or ""}
+            for n in nodes
+        ]
+        
+        try:
+            push_explanations_to_gsheet(version.explanation_sheet_url, items_to_push)
+            return Response({"message": f"Đã đẩy {len(items_to_push)} mục lên Google Sheet thành công."})
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+
+    @action(detail=True, methods=['get'])
     def export_mappings(self, request, pk=None):
         """Xuất bộ nhớ ánh xạ (Mapping Memory) ra file Excel"""
         import pandas as pd

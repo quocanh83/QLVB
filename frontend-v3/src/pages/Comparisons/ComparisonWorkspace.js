@@ -11,6 +11,7 @@ import BreadCrumb from '../../Components/Common/BreadCrumb';
 import { toast, ToastContainer } from 'react-toastify';
 import SimpleBar from 'simplebar-react';
 import AIWorkbench from './AIWorkbench';
+import ExplanationSyncModal from './ExplanationSyncModal';
 import './Comparison.css';
 
 const ComparisonWorkspace = () => {
@@ -27,8 +28,13 @@ const ComparisonWorkspace = () => {
 
     // Explanation re-upload state
     const [gsheetModal, setGsheetModal] = useState(false);
+    const [advancedSyncModal, setAdvancedSyncModal] = useState(false);
     const [gsheetUrl, setGsheetUrl] = useState("");
     const fileInputRef = React.useRef(null);
+
+    // Inline edit state
+    const [editingExpId, setEditingExpId] = useState(null);
+    const [tempExpContent, setTempExpContent] = useState("");
 
     const formatNodeLabel = (label) => {
         if (!label) return "";
@@ -122,6 +128,18 @@ const ComparisonWorkspace = () => {
         }
     };
 
+    const handleSaveExplanation = async (nodeId) => {
+        try {
+            await axios.patch(`/api/comparisons/nodes/${nodeId}/`, { explanation: tempExpContent }, getAuthHeader());
+            toast.success("Đã lưu thuyết minh!");
+            setEditingExpId(null);
+            fetchWorkspaceData();
+        } catch (err) {
+            toast.error("Lỗi khi lưu thuyết minh");
+        }
+    };
+
+
 
     const filteredNodes = allDraftNodes.filter(node => 
         node.node_label.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -163,14 +181,15 @@ const ComparisonWorkspace = () => {
                         
                         {/* Nút nạp lại Thuyết minh */}
                         {data && data.explanation_sheet_url ? (
-                            <Button color="warning" outline className="me-2" onClick={() => handleSyncGsheet(data.explanation_sheet_url)} title="Đồng bộ lại từ Google Sheet">
-                                <i className="ri-google-line me-1"></i> Lấy Thuyết minh GSheet
+                            <Button color="warning" outline className="me-2" onClick={() => setAdvancedSyncModal(true)} title="So sánh & Đồng bộ nâng cao">
+                                <i className="ri-google-line me-1"></i> So sánh GSheet
                             </Button>
                         ) : (
                             <Button color="primary" outline className="me-2" onClick={() => fileInputRef.current.click()} title="Nạp lại từ file Word">
                                 <i className="ri-file-word-line me-1"></i> Nạp Thuyết minh Word
                             </Button>
                         )}
+
                         <Button color="warning" outline className="me-2" onClick={() => {
                             setGsheetUrl(data?.explanation_sheet_url || "");
                             setGsheetModal(true);
@@ -254,21 +273,59 @@ const ComparisonWorkspace = () => {
                                                     )}
                                                 </div>
 
-                                                {/* Cột Thuyết minh (Chỉ hiện khi có dữ liệu) */}
+                                                {/* Cột Thuyết minh */}
                                                 {hasExplanations && (
-                                                    <div className="col-4 p-3 explanation-cell">
-                                                        {row.draft_node && row.draft_node.explanation ? (
+                                                    <div className="col-4 p-3 explanation-cell border-start">
+                                                        {row.draft_node ? (
                                                             <>
-                                                                <div className="mb-2">
+                                                                <div className="d-flex justify-content-between mb-2">
                                                                     <Badge color="warning" outline className="text-uppercase">Thuyết minh</Badge>
+                                                                    {editingExpId !== row.draft_node.id && (
+                                                                        <Button 
+                                                                            size="xs" 
+                                                                            color="link" 
+                                                                            className="p-0 text-decoration-none"
+                                                                            onClick={() => {
+                                                                                setEditingExpId(row.draft_node.id);
+                                                                                setTempExpContent(row.draft_node.explanation || "");
+                                                                            }}
+                                                                        >
+                                                                            <i className="ri-pencil-line"></i> Sửa
+                                                                        </Button>
+                                                                    )}
                                                                 </div>
-                                                                <div className="node-content text-justify text-muted small bg-warning-subtle p-2 rounded border-start border-3 border-warning" style={{ whiteSpace: 'pre-wrap' }}>
-                                                                    {row.draft_node.explanation}
-                                                                </div>
+                                                                {editingExpId === row.draft_node.id ? (
+                                                                    <div className="d-flex flex-column gap-2">
+                                                                        <Input 
+                                                                            type="textarea" 
+                                                                            rows="4"
+                                                                            className="form-control-sm"
+                                                                            value={tempExpContent}
+                                                                            onChange={(e) => setTempExpContent(e.target.value)}
+                                                                            autoFocus
+                                                                        />
+                                                                        <div className="d-flex gap-2 justify-content-end">
+                                                                            <Button size="xs" color="soft-danger" onClick={() => setEditingExpId(null)}>Hủy</Button>
+                                                                            <Button size="xs" color="primary" onClick={() => handleSaveExplanation(row.draft_node.id)}>Lưu</Button>
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div 
+                                                                        className="node-content text-justify text-muted small bg-warning-subtle p-2 rounded border-start border-3 border-warning cursor-pointer" 
+                                                                        style={{ whiteSpace: 'pre-wrap' }}
+                                                                        onClick={() => {
+                                                                            setEditingExpId(row.draft_node.id);
+                                                                            setTempExpContent(row.draft_node.explanation || "");
+                                                                        }}
+                                                                        title="Nhấn để chỉnh sửa"
+                                                                    >
+                                                                        {row.draft_node.explanation || <em className="text-muted">(Chưa có thuyết minh - Nhấn để thêm)</em>}
+                                                                    </div>
+                                                                )}
                                                             </>
                                                         ) : (
                                                             <div className="h-100 d-flex align-items-center justify-content-center bg-light-subtle rounded dashed-border p-3">
-                                                                <span className="text-muted italic small text-center">(Không có thuyết minh)</span>
+                                                                <span className="text-muted italic small">N/A</span>
                                                             </div>
                                                         )}
                                                     </div>
@@ -370,6 +427,13 @@ const ComparisonWorkspace = () => {
                         </Button>
                     </ModalFooter>
                 </Modal>
+
+                <ExplanationSyncModal 
+                    isOpen={advancedSyncModal}
+                    toggle={() => setAdvancedSyncModal(!advancedSyncModal)}
+                    versionId={versionId}
+                    onSyncSuccess={fetchWorkspaceData}
+                />
 
                 <input 
                   type="file" 
