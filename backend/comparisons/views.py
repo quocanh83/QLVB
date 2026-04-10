@@ -82,6 +82,19 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
             return [permissions.AllowAny()]
         return [permissions.IsAuthenticated()]
 
+    def create(self, request, *args, **kwargs):
+        project_id = request.data.get('project')
+        user_note = request.data.get('user_note', '')
+        file_obj = request.FILES.get('file_path')
+
+        if not project_id or not file_obj:
+            return Response({"error": "Thiếu project_id hoặc file dự thảo."}, status=400)
+
+        # Tạo nhãn phiên bản: [Ngày giờ] - {user_note}
+        from django.utils import timezone
+        now = timezone.now().strftime('%Y-%m-%d %H:%M')
+        version_label = f"[{now}] {user_note}".strip()
+
         with transaction.atomic():
             version = DraftVersion.objects.create(
                 project_id=project_id,
