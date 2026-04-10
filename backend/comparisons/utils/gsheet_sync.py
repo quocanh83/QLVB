@@ -155,6 +155,11 @@ def push_explanations_to_gsheet(sheet_url, items_to_push):
         
         all_values = worksheet.get_all_values()
         
+        # Tự động tạo headers nếu sheet trắng hoàn toàn
+        if len(all_values) == 0:
+            worksheet.append_row(["A: Gốc", "B: Dự thảo", "C: Thuyết minh", "D: ID (Vui lòng không sửa)"])
+            all_values = worksheet.get_all_values()
+            
         # 1. Xây dựng bản đồ đối soát từ GSheet hiện tại
         id_to_row = {}
         label_to_row = {}
@@ -189,10 +194,10 @@ def push_explanations_to_gsheet(sheet_url, items_to_push):
             explanation = item.get('explanation', '') or ""
             
             # Cấu trúc: [Gốc, Dự thảo, Thuyết minh, ID]
-            # Gộp nhãn vào nội dung nếu cần (tùy thuộc vào quy ước ghi)
+            # Content ở đây đã được xử lý gộp nhãn từ views.py, nên đẩy trực tiếp
             row_data = [
-                f"{label}\n{base_content}".strip() if base_content else label,
-                f"{label}\n{draft_content}".strip() if draft_content else label,
+                base_content if base_content else label,
+                draft_content if draft_content else label,
                 explanation,
                 ref_id
             ]

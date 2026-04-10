@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
     Modal, ModalHeader, ModalBody, ModalFooter, 
-    Button, Table, Badge, Spinner, Alert
+    Button, Table, Badge, Spinner, Alert, FormText
 } from 'reactstrap';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -39,7 +39,7 @@ const ExplanationSyncModal = ({ isOpen, toggle, versionId, onSyncSuccess }) => {
         
         setLoading(true);
         try {
-            const res = await axios.get(`/api/comparisons/versions/${versionId}/gsheet_compare_explanation/`, getAuthHeader());
+            const res = await axios.get(`/api/comparisons/versions/${versionId}/gsheet_compare_explanation/?url=${encodeURIComponent(targetUrl)}`, getAuthHeader());
             // res ở đây đã được unwrap bởi axios interceptor
             const responseData = Array.isArray(res) ? res : (res.data || []);
             setData(responseData);
@@ -174,14 +174,19 @@ const ExplanationSyncModal = ({ isOpen, toggle, versionId, onSyncSuccess }) => {
                 <div className="p-3 border-bottom bg-light-subtle">
                     <div className="d-flex gap-2 align-items-end">
                         <div className="flex-grow-1">
-                            <label className="form-label small fw-bold text-uppercase">Link Google Sheet [A: GỐC, B: DỰ THẢO, C: THUYẾT MINH, D: ID]</label>
+                            <label className="form-label small fw-bold text-uppercase mb-1">
+                                Link Google Sheet [A: GỐC, B: DỰ THẢO, C: THUYẾT MINH, D: ID]
+                            </label>
                             <input 
                                 type="url" 
-                                className="form-control" 
+                                className="form-control mb-1" 
                                 placeholder="Dán link Google Sheet tại đây..." 
                                 value={gsheetUrl}
                                 onChange={(e) => setGsheetUrl(e.target.value)}
                             />
+                            <FormText color="muted">
+                                * Yêu cầu: Bạn phải cấp quyền <strong>Editor (Người chỉnh sửa)</strong> cho email: <strong className="text-danger user-select-all">feedback-bot@backuphass.iam.gserviceaccount.com</strong>
+                            </FormText>
                         </div>
                         <Button color="primary" onClick={handleSaveUrl} disabled={syncing}>
                             {syncing ? <Spinner size="sm" /> : <i className="ri-save-line me-1"></i>} Lưu & Quét
@@ -189,6 +194,11 @@ const ExplanationSyncModal = ({ isOpen, toggle, versionId, onSyncSuccess }) => {
                         <Button color="soft-info" onClick={() => fetchData()} disabled={syncing || !gsheetUrl}>
                             <i className="ri-refresh-line"></i> Quét lại
                         </Button>
+                        {gsheetUrl && (
+                            <a href={gsheetUrl} target="_blank" rel="noreferrer" className="btn btn-soft-success" title="Mở trang GSheet">
+                                <i className="ri-external-link-line"></i> Mở
+                            </a>
+                        )}
                     </div>
                 </div>
 
