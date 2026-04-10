@@ -236,8 +236,8 @@ const ExplanationSyncModal = ({ isOpen, toggle, versionId, onSyncSuccess }) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {data && data.map && data.map((item) => (
-                                    <tr key={item.id} className={item.status !== 'match' ? 'bg-light-subtle' : ''}>
+                                {data && data.map && data.map((item, index) => (
+                                    <tr key={`${item.id}_${index}`} className={item.status !== 'match' ? 'bg-light-subtle' : ''}>
                                         <td>
                                             <div className="form-check">
                                                 <input 

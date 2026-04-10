@@ -234,8 +234,8 @@ const ComparisonSyncTab = ({ versionId, onSyncSuccess, gsheetUrlProp }) => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {data.length > 0 ? data.map((item) => (
-                                        <tr key={item.id} className={item.status !== 'match' ? 'bg-soft-warning-row' : ''}>
+                                    {data.length > 0 ? data.map((item, index) => (
+                                        <tr key={`${item.id}_${index}`} className={item.status !== 'match' ? 'bg-soft-warning-row' : ''}>
                                             <td>
                                                 <div className="form-check">
                                                     <Input 
