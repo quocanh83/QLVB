@@ -660,13 +660,17 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
     def gsheet_compare_explanation(self, request, pk=None):
         """So sánh dữ liệu 3 cột (Gốc, Dự thảo, Thuyết minh) giữa Hệ thống và Google Sheet"""
         version = self.get_object()
-        if not version.explanation_sheet_url:
+        
+        # Ưu tiên lấy URL từ param gửi lên để phản hồi tức thì khi đổi link
+        sheet_url = request.query_params.get('url') or version.explanation_sheet_url
+        
+        if not sheet_url:
             return Response({"error": "Chưa cài đặt URL Google Sheet Thuyết minh."}, status=400)
             
         from .utils.gsheet_sync import sync_explanation_from_gsheet, extract_norm_label, get_content_fingerprint
         try:
             # Lấy dữ liệu gsheet (đã bao gồm ID, Label và Fingerprint keys)
-            gsheet_rows = sync_explanation_from_gsheet(version.explanation_sheet_url)
+            gsheet_rows = sync_explanation_from_gsheet(sheet_url)
             
             # Sử dụng logic trộn hàng chuẩn của hệ thống
             rows = self._get_interleaved_rows(version)
@@ -770,14 +774,21 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
         version = self.get_object()
         items = request.data.get('items', []) # [{id, content}]
         
+        updated_count = 0
         with transaction.atomic():
             project = version.project
             for item in items:
                 # Cập nhật node: có thể là base node (version=None) hoặc draft node (version=version)
-                # Miễn là thuộc project này.
-                ComparisonNode.objects.filter(id=item['id'], project=project).update(explanation=item['content'])
+                # Phải thuộc Version này hoặc Project này
+                res = ComparisonNode.objects.filter(id=item['id']).filter(
+                    models.Q(version=version) | models.Q(project=version.project)
+                ).update(explanation=item['content'])
+                updated_count += res
                 
-        return Response({"message": f"Đã cập nhật {len(items)} mục từ Google Sheet."})
+        return Response({
+            "message": f"Đã cập nhật thành công {updated_count}/{len(items)} mục từ Google Sheet.",
+            "updated_count": updated_count
+        })
 
     @action(detail=True, methods=['post'])
     def gsheet_push_selected_explanation(self, request, pk=None):

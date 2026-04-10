@@ -297,7 +297,7 @@ const ComparisonWorkspace = () => {
                                                                         {row.base_node.node_type === 'Điều' ? (
                                                                             <div className="fw-bold fs-14 text-dark mb-1 w-100">{row.base_node.node_label}</div>
                                                                         ) : (
-                                                                            <Badge color="secondary" outline>{formatNodeLabel(row.base_node.node_label)}</Badge>
+                                                                            <Badge color="secondary-subtle" className="text-secondary">{formatNodeLabel(row.base_node.node_label)}</Badge>
                                                                         )}
                                                                         <div className="d-flex gap-1 align-items-center">
                                                                             <Button size="sm" color="soft-info" className="btn-icon rounded-circle" title="Di chuyển lên" onClick={() => handleReorderNode(row.base_node.id, 'up')}>
@@ -364,7 +364,7 @@ const ComparisonWorkspace = () => {
                                                         {(hasExplanations || (row.base_node && row.base_node.explanation)) && (
                                                             <div className="col-4 p-3 explanation-cell border-start">
                                                                 <div className="d-flex justify-content-between mb-2">
-                                                                    <Badge color="warning" outline className="text-uppercase">Thuyết minh</Badge>
+                                                                    <Badge color="warning-subtle" className="text-warning text-uppercase">Thuyết minh</Badge>
                                                                     {editingExpId !== (row.draft_node?.id || row.base_node?.id) && (
                                                                         <Button 
                                                                             size="xs" 

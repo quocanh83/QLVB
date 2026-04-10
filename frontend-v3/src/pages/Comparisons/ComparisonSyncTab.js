@@ -26,7 +26,7 @@ const ComparisonSyncTab = ({ versionId, onSyncSuccess, gsheetUrlProp }) => {
         
         setLoading(true);
         try {
-            const res = await axios.get(`/api/comparisons/versions/${versionId}/gsheet_compare_explanation/`, getAuthHeader());
+            const res = await axios.get(`/api/comparisons/versions/${versionId}/gsheet_compare_explanation/?url=${encodeURIComponent(targetUrl)}`, getAuthHeader());
             const responseData = Array.isArray(res) ? res : (res.data || []);
             setData(responseData);
             // Mặc định chọn các dòng có sự khác biệt hoặc thiếu ở GSheet
@@ -184,6 +184,11 @@ const ComparisonSyncTab = ({ versionId, onSyncSuccess, gsheetUrlProp }) => {
                             <Button color="soft-info" onClick={() => fetchData()} disabled={syncing || !gsheetUrl}>
                                 <i className="ri-refresh-line me-1"></i> Quét lại
                             </Button>
+                            {gsheetUrl && (
+                                <a href={gsheetUrl} target="_blank" rel="noreferrer" className="btn btn-soft-success" title="Mở trang GSheet">
+                                    <i className="ri-external-link-line me-1"></i> Mở
+                                </a>
+                            )}
                         </div>
                     </div>
 
