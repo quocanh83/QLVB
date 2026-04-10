@@ -342,6 +342,7 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
             return Response({
                 "project_name": version.project.name,
                 "version_label": version.version_label,
+                "explanation_sheet_url": version.explanation_sheet_url,
                 "rows": rows
             })
         except Exception as e:
