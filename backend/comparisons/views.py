@@ -618,10 +618,15 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
     def _normalize_text_for_compare(self, text):
         """Chuẩn hóa văn bản để so sánh: loại bỏ HTML, gộp khoảng trắng thừa, xử lý placeholder trống"""
         if not text: return ""
+        import unicodedata
+        # 0. Chuẩn hóa NFC để đảm bảo tiếng Việt giống nhau trên mọi OS (Quan trọng: Windows/Mac vs Linux)
+        text = unicodedata.normalize('NFC', str(text))
+        
         # 1. Loại bỏ tag HTML
-        text = re.sub(r'<[^>]+>', ' ', str(text))
-        # 2. Quy đổi whitespace (newline, tab, nhiều space) thành 1 space duy nhất
-        text = re.sub(r'\s+', ' ', text)
+        text = re.sub(r'<[^>]+>', ' ', text)
+        
+        # 2. Quy đổi whitespace (newline, tab, nhiều space, non-breaking space) thành 1 space duy nhất
+        text = re.sub(r'[\s\xa0\u200b\ufeff]+', ' ', text)
         text = text.strip()
 
         # 3. Chuẩn hóa các cụm từ tương đương với "Trống" hoặc "Mới"

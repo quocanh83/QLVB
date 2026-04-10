@@ -16,7 +16,10 @@ def normalize_label(l):
 def extract_norm_label(text):
     """Trích xuất nhãn chuẩn hoá hạt nhân (Ví dụ: 'Điều 1. Phạm vi...' -> 'dieu1')"""
     if not text: return ""
-    text_s = str(text).strip()
+    import unicodedata
+    # NFC normalization for cross-platform stability (important for Vietnamese)
+    text_s = unicodedata.normalize('NFC', str(text)).strip()
+    
     # Tìm "Điều X", "Phụ lục X", "Chương X" hoặc các nhãn cố định như "Phần mở đầu"
     m = re.search(r'^(?:Điều|điều|Phụ lục|phụ lục|Chương|chương|Mục|mục)\s+([a-zA-Z0-9]+)', text_s, re.IGNORECASE)
     if m:
@@ -44,7 +47,10 @@ def extract_norm_label(text):
 def get_content_fingerprint(text):
     """Tạo dấu vân tay cho nội dung để khớp fuzzy (bỏ qua khoảng trắng/xuống dòng)"""
     if not text: return ""
-    clean_text = re.sub(r'\s+', '', str(text)).lower()
+    import unicodedata
+    # NFC normalization + remove ALL whitespace
+    clean_text = unicodedata.normalize('NFC', str(text))
+    clean_text = re.sub(r'[\s\xa0\u200b\ufeff]+', '', clean_text).lower()
     return clean_text[:50] # Lấy 50 ký tự đầu làm fingerprint
 
 def sync_explanation_from_gsheet(sheet_url):
