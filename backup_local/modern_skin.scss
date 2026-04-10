@@ -1,0 +1,314 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap');
+
+:root {
+  // Deep Blue / Slate Theme (Modern SaaS look)
+  --vz-primary: #0f172a; // Slate 900
+  --vz-primary-rgb: 15, 23, 42;
+  --vz-primary-bg-subtle: #f1f5f9; // Slate 100
+
+  --vz-card-border-radius: 1rem;
+  --vz-btn-border-radius: 0.6rem;
+
+  --vz-body-font-family: 'Be Vietnam Pro', sans-serif;
+  --vz-heading-font-family: 'Be Vietnam Pro', sans-serif;
+
+  --vz-card-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 10px -2px rgba(0, 0, 0, 0.03);
+}
+
+body {
+  font-family: var(--vz-body-font-family);
+  background-color: #f8fafc; // Slate 50
+}
+
+h5 {
+  font-size: 1rem !important; // Match h6 size
+  font-weight: 600 !important;
+}
+
+
+.card {
+  border: none;
+  box-shadow: var(--vz-card-shadow);
+  border-radius: var(--vz-card-border-radius);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  &.modern-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+  }
+}
+
+.card-header {
+  background-color: transparent !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+  padding: 1.25rem;
+}
+
+.btn {
+  border-radius: var(--vz-btn-border-radius);
+  font-weight: 500;
+  padding: 0.5rem 1.2rem;
+
+  &.btn-primary {
+    background-color: var(--vz-primary);
+    border-color: var(--vz-primary);
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.2);
+
+    &:hover {
+      background-color: #1e293b;
+      border-color: #1e293b;
+    }
+  }
+}
+
+.badge {
+  padding: 0.45em 0.8em;
+  border-radius: 6px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+// Custom modern utilities
+.bg-modern-gradient {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+}
+
+.text-premium {
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+// Authentication V3 (Absolute Masterpiece - Screen Blend)
+.auth-page-wrapper {
+  background-color: #0f172a !important;
+  background-image:
+    radial-gradient(at 0% 0%, hsla(222, 47%, 11%, 1) 0, transparent 50%),
+    radial-gradient(at 50% 0%, hsla(226, 71%, 18%, 1) 0, transparent 50%),
+    radial-gradient(at 100% 0%, hsla(222, 47%, 11%, 1) 0, transparent 50%),
+    radial-gradient(at 0% 100%, hsla(222, 47%, 11%, 1) 0, transparent 50%),
+    radial-gradient(at 50% 100%, hsla(226, 71%, 18%, 1) 0, transparent 50%),
+    radial-gradient(at 100% 100%, hsla(222, 47%, 11%, 1) 0, transparent 50%);
+  background-attachment: fixed;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 100vh !important;
+}
+
+.auth-card-minimalist-dark {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  max-width: 440px !important; // Widened to prevent text wrap
+  width: 95% !important;
+  margin: 0 auto;
+}
+
+.auth-logo-brand {
+  height: 200px; // Doubled Logo size
+  width: auto;
+  object-fit: contain;
+  margin-bottom: 3rem;
+  mix-blend-mode: screen !important;
+  filter: contrast(1.1) brightness(1.1) !important;
+  transition: transform 0.3s ease;
+
+  &:hover {
+    transform: scale(1.05);
+  }
+}
+
+// Absolute Unified Typography (14px)
+.text-unified {
+  font-size: 0.875rem !important; // standard 14px
+  color: #cbd5e1 !important; // Slate 300 readability
+  font-family: 'Be Vietnam Pro', sans-serif !important;
+  line-height: 1.5;
+}
+
+.label-unified {
+  font-size: 0.875rem !important; // standard 14px
+  font-weight: 700 !important;
+  color: #94a3b8 !important;
+  margin-bottom: 0.5rem;
+  text-transform: none; // cleaner look
+  letter-spacing: normal;
+}
+
+.input-minimal-dark {
+  background: rgba(255, 255, 255, 0.04) !important; // Ultra translucent to blend with mesh
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 0.5rem !important;
+  color: #fff !important;
+  padding: 0.85rem 1rem !important;
+  font-size: 0.875rem !important; // standard 14px
+
+  &:focus {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.4) !important;
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.03) !important;
+  }
+}
+
+.btn-premium-white {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: none !important;
+  border-radius: 0.5rem !important;
+  padding: 0.9rem !important;
+  font-weight: 800 !important;
+  font-size: 0.9rem !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3) !important;
+
+  &:hover:not(:disabled) {
+    background: #f8fafc !important;
+    transform: translateY(-2px);
+  }
+}
+
+// Dashboard Masterpiece (Absolute Dark Premium)
+.page-content {
+  background-color: #0f172a !important;
+  background-image: 
+    radial-gradient(at 0% 0%, hsla(222,47%,11%,1) 0, transparent 50%), 
+    radial-gradient(at 50% 0%, hsla(226,71%,18%,1) 0, transparent 50%), 
+    radial-gradient(at 100% 0%, hsla(222,47%,11%,1) 0, transparent 50%), 
+    radial-gradient(at 0% 100%, hsla(222,47%,11%,1) 0, transparent 50%), 
+    radial-gradient(at 50% 100%, hsla(226,71%,18%,1) 0, transparent 50%), 
+    radial-gradient(at 100% 100%, hsla(222,47%,11%,1) 0, transparent 50%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+// Global Text Locking (14px)
+body {
+  font-family: 'Be Vietnam Pro', sans-serif !important;
+  font-size: 0.875rem !important; // standard 14px
+  color: #cbd5e1 !important;
+}
+
+.card, .premium-card-dark {
+  background: rgba(255, 255, 255, 0.03) !important;
+  backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  transition: all 0.3s ease;
+  
+  .card-header {
+    background: transparent !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    padding: 1.25rem 1.5rem !important;
+    
+    .card-title {
+      font-size: 0.875rem !important; // standard 14px
+      font-weight: 700 !important;
+      color: #fff !important;
+      letter-spacing: 0.02em;
+    }
+  }
+
+  .card-body {
+    padding: 1.5rem !important;
+  }
+
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.15) !important;
+    transform: translateY(-2px);
+  }
+}
+
+// Special Widget Styles
+.stat-value-modern {
+  font-size: 1.5rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em;
+  color: #fff !important;
+}
+
+.label-modern {
+  font-size: 0.8125rem !important; // 13px
+  font-weight: 600 !important;
+  color: #94a3b8 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+// Sidebar & Navbar Blending
+#page-topbar {
+  background: rgba(15, 23, 42, 0.8) !important;
+  backdrop-filter: blur(10px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+.app-menu {
+  background: #0f172a !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
+  
+  .navbar-nav {
+    .nav-link {
+      font-size: 0.875rem !important; // 14px
+      font-weight: 500 !important;
+      color: #94a3b8 !important;
+      
+      &:hover, &.active {
+        color: #fff !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+      }
+      
+      i {
+        font-size: 1.1rem !important;
+      }
+    }
+  }
+}
+
+.btn-social-minimal {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+  border-radius: 0.75rem !important;
+  width: 48px !important;
+  height: 48px !important;
+  font-size: 1.2rem !important; // for icons
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.15) !important;
+    transform: translateY(-2px);
+  }
+}
+
+.input-modern-v2 {
+  border-radius: 0.75rem !important;
+  padding: 0.85rem 1.15rem !important;
+  border: 1.5px solid #e2e8f0 !important;
+  font-size: 0.95rem !important;
+  transition: all 0.2s ease;
+
+  &:focus {
+    border-color: #0f172a !important;
+    background-color: #fff !important;
+    box-shadow: 0 0 0 4px rgba(15, 23, 42, 0.08) !important;
+  }
+}
+
+.btn-premium-v2 {
+  background: #0f172a !important;
+  border-radius: 0.75rem !important;
+  padding: 0.85rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.02em !important;
+  border: none !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+
+  &:hover:not(:disabled) {
+    background: #1e293b !important;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2) !important;
+  }
+}

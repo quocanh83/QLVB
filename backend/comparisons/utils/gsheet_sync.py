@@ -1,27 +1,56 @@
 import os
 import re
 import gspread
+import hashlib
 from google.oauth2.service_account import Credentials
 from django.conf import settings
 
 def normalize_label(l):
     if not l: return ""
-    # Chuyển thường, bỏ dấu chấm, bỏ mọi khoảng trắng
-    return str(l).lower().replace('.', '').replace(' ', '').strip()
+    # Chuyển thường, bỏ dấu, bỏ mọi khoảng trắng và ký tự đặc biệt ở cuối
+    # Ví dụ: "Điều 1." -> "dieu1", "Điều 1 a" -> "dieu1a"
+    l = str(l).lower().strip()
+    l = re.sub(r'[\s\.]+', '', l)
+    return l
 
 def extract_norm_label(text):
-    """Trích xuất nhãn chuẩn hoá từ nội dung ô (Ví dụ: 'Điều 1. Phạm vi...' -> 'dieu1')"""
+    """Trích xuất nhãn chuẩn hoá hạt nhân (Ví dụ: 'Điều 1. Phạm vi...' -> 'dieu1')"""
     if not text: return ""
-    # Tìm "Điều X" hoặc "Phụ lục X" ở đầu chuỗi (cho phép dấu cách/dấu chấm)
-    m = re.search(r'^(?:Điều|điều|Phụ lục|phụ lục)\s+(\d+|[A-Z]+)', str(text).strip(), re.IGNORECASE)
+    text_s = str(text).strip()
+    # Tìm "Điều X", "Phụ lục X", "Chương X" hoặc các nhãn cố định như "Phần mở đầu"
+    m = re.search(r'^(?:Điều|điều|Phụ lục|phụ lục|Chương|chương|Mục|mục)\s+([a-zA-Z0-9]+)', text_s, re.IGNORECASE)
     if m:
-        return normalize_label(m.group(0))
-    return normalize_label(str(text)[:20])
+        # Trả về dạng dieu1, phuluc2...
+        prefix = "dieu" if "iều" in text_s[:5].lower() else \
+                 "phuluc" if "lục" in text_s[:10].lower() else \
+                 "chuong" if "ương" in text_s[:10].lower() else \
+                 "muc" if "mục" in text_s[:5].lower() else ""
+        return f"{prefix}{m.group(1).lower()}"
+    
+    # Nhận diện các nhãn cố định quan trọng (Phần mở đầu, Lời nói đầu, Căn cứ)
+    static_labels = {
+        'phần mở đầu': 'phanmodau',
+        'lời nói đầu': 'loinaidau',
+        'căn cứ': 'cancu',
+        'phần thứ': 'phanthu'
+    }
+    for key, val in static_labels.items():
+        if text_s.lower().startswith(key):
+            return val
+    
+    # Fallback: lấy 15 ký tự đầu chuẩn hóa
+    return normalize_label(text_s[:15])
+
+def get_content_fingerprint(text):
+    """Tạo dấu vân tay cho nội dung để khớp fuzzy (bỏ qua khoảng trắng/xuống dòng)"""
+    if not text: return ""
+    clean_text = re.sub(r'\s+', '', str(text)).lower()
+    return clean_text[:50] # Lấy 50 ký tự đầu làm fingerprint
 
 def sync_explanation_from_gsheet(sheet_url):
     """
-    Kết nối Google Sheet và trích xuất dữ liệu 3 cột. 
-    Trả về bộ { nhãn: { base, draft, exp } }
+    Kết nối Google Sheet và trích xuất dữ liệu. 
+    Trả về bộ { key: { base, draft, exp, row_idx } }
     """
     key_path = os.path.join(settings.BASE_DIR, 'google_keys.json')
     if not os.path.exists(key_path):
@@ -45,34 +74,48 @@ def sync_explanation_from_gsheet(sheet_url):
         results = {}
 
         for i, row in enumerate(all_values):
-            if i == 0: continue # Bỏ qua dòng tiêu đề
+            if i == 0: continue # Header
             
-            # Cấu trúc mới: A: Gốc, B: Dự thảo, C: Thuyết minh, D: ID
-            # Kiểm tra xem cột D (index 3) có chứa ID không
+            # Cấu trúc: A: Gốc, B: Dự thảo, C: Thuyết minh, D: ID
+            base_val = str(row[0]).strip() if len(row) >= 1 else ""
+            draft_val = str(row[1]).strip() if len(row) >= 2 else ""
+            exp_val = str(row[2]).strip() if len(row) >= 3 else ""
             id_val = str(row[3]).strip() if len(row) >= 4 else ""
             
+            data = {
+                'base': base_val,
+                'draft': draft_val,
+                'exp': exp_val,
+                'row_idx': i
+            }
+
+            # 1. Key theo ID (Ưu tiên cao nhất - Tuyệt đối)
             if id_val.startswith('node_'):
-                row_id = id_val
-                base_val = str(row[0]).strip() if len(row) >= 1 else ""
-                draft_val = str(row[1]).strip() if len(row) >= 2 else ""
-                exp_val = str(row[2]).strip() if len(row) >= 3 else ""
-                norm_key = row_id
-            else:
-                # Fallback cấu trúc 3 cột cũ hoặc không có ID ở cột D
-                base_val = str(row[0]).strip() if len(row) >= 1 else ""
-                draft_val = str(row[1]).strip() if len(row) >= 2 else ""
-                exp_val = str(row[2]).strip() if len(row) >= 3 else ""
-                norm_key = extract_norm_label(base_val) or extract_norm_label(draft_val)
+                results[id_val] = data
             
-            if not norm_key:
-                continue
+            # 2. Key theo Cặp nhãn chuẩn hóa (Dựa trên Sơ đồ Mapping - Rất chính xác)
+            label_base = extract_norm_label(base_val)
+            label_draft = extract_norm_label(draft_val)
+            
+            if label_base or label_draft:
+                pair_key = f"{label_base}|{label_draft}"
+                # Chỉ lưu nếu chưa có ID match để tránh ghi đè
+                if pair_key not in results:
+                    results[pair_key] = data
                 
-            if norm_key not in results:
-                results[norm_key] = {
-                    'base': base_val,
-                    'draft': draft_val,
-                    'exp': exp_val
-                }
+                # Fallback: Lưu thêm label đơn lẻ nếu chưa có bất kỳ gì
+                if label_draft and f"only_draft_{label_draft}" not in results:
+                    results[f"only_draft_{label_draft}"] = data
+                if label_base and f"only_base_{label_base}" not in results:
+                    results[f"only_base_{label_base}"] = data
+                
+            # 3. Key theo Fingerprint (Fuzzy match - Dự phòng cuối cùng)
+            fp_base = get_content_fingerprint(base_val)
+            fp_draft = get_content_fingerprint(draft_val)
+            if fp_draft and f"fp_d_{fp_draft}" not in results:
+                results[f"fp_d_{fp_draft}"] = data
+            if fp_base and f"fp_b_{fp_base}" not in results:
+                results[f"fp_b_{fp_base}"] = data
         
         return results
         
@@ -83,8 +126,8 @@ def sync_explanation_from_gsheet(sheet_url):
 
 def push_explanations_to_gsheet(sheet_url, items_to_push):
     """
-    Đẩy dữ liệu so sánh 3 cột (Gốc, Dự thảo, Thuyết minh) lên Google Sheet.
-    items_to_push: [{ 'label': 'Điều 1', 'base_content': '...', 'draft_content': '...', 'explanation': '...' }]
+    Đẩy dữ liệu lên GSheet với thuật toán khớp đa lớp thông minh.
+    items_to_push: [{ 'id', 'label', 'base_content', 'draft_content', 'explanation' }]
     """
     key_path = os.path.join(settings.BASE_DIR, 'google_keys.json')
     if not os.path.exists(key_path):
@@ -106,73 +149,67 @@ def push_explanations_to_gsheet(sheet_url, items_to_push):
         
         all_values = worksheet.get_all_values()
         
-        # Hàm trích xuất nhãn từ nội dung (Ví dụ: "Điều 1. Phạm vi..." -> "dieu1")
-        def extract_norm_label(text):
-            if not text: return ""
-            # Tìm "Điều X" hoặc "Phụ lục X" ở đầu chuỗi (cho phép dấu cách/dấu chấm)
-            m = re.search(r'^(?:Điều|điều|Phụ lục|phụ lục)\s+(\d+|[A-Z]+)', str(text).strip(), re.IGNORECASE)
-            if m:
-                return normalize_label(m.group(0))
-            return normalize_label(text[:20]) # Fallback lấy 20 ký tự đầu
-
         # 1. Xây dựng bản đồ đối soát từ GSheet hiện tại
-        # Ưu tiên tìm ID ở cột D (chỉ số 3)
-        id_map = {}
-        label_map = {}
+        id_to_row = {}
+        label_to_row = {}
+        fingerprint_to_row = {}
         
         for i, row in enumerate(all_values):
             if i == 0: continue 
             
-            # Cột D (index 3) là ID
-            id_in_col_d = str(row[3]).strip() if len(row) >= 4 else ""
-            if id_in_col_d.startswith('node_'):
-                id_map[id_in_col_d] = i
-            else:
-                # Fallback cho GSheet cũ: Tìm nhãn ở cột A/B
-                l_a = extract_norm_label(row[0]) if len(row) > 0 else ""
-                l_b = extract_norm_label(row[1]) if len(row) > 1 else ""
-                if l_a: label_map[l_a] = i
-                if l_b: label_map[l_b] = i
+            # Khớp ID (Cột D)
+            gs_id = str(row[3]).strip() if len(row) >= 4 else ""
+            if gs_id.startswith('node_'):
+                id_to_row[gs_id] = i
+                
+            # Khớp Nhãn chuẩn hóa (Cột A hoặc B)
+            l_a = extract_norm_label(row[0]) if len(row) > 0 else ""
+            l_b = extract_norm_label(row[1]) if len(row) > 1 else ""
+            if l_a: label_to_row[l_a] = i
+            elif l_b: label_to_row[l_b] = i
+            
+            # Khớp Fingerprint
+            fp_a = get_content_fingerprint(row[0]) if len(row) > 0 else ""
+            if fp_a: fingerprint_to_row[fp_a] = i
         
         updates = []
         new_rows = []
         
-        for idx_in_items, item in enumerate(items_to_push):
+        for item in items_to_push:
             ref_id = item.get('id', '')
-            label = item['label']
-            base_content = item.get('base_content', '')
-            draft_content = item.get('draft_content', '')
-            explanation = item.get('explanation', '')
+            label = item.get('label', '')
+            base_content = item.get('base_content', '') or ""
+            draft_content = item.get('draft_content', '') or ""
+            explanation = item.get('explanation', '') or ""
             
-            # Cấu trúc ghi mới: [Gốc, Dự thảo, Thuyết minh, ID]
-            row_data = [base_content, draft_content, explanation, ref_id]
+            # Cấu trúc: [Gốc, Dự thảo, Thuyết minh, ID]
+            # Gộp nhãn vào nội dung nếu cần (tùy thuộc vào quy ước ghi)
+            row_data = [
+                f"{label}\n{base_content}".strip() if base_content else label,
+                f"{label}\n{draft_content}".strip() if draft_content else label,
+                explanation,
+                ref_id
+            ]
             
             row_idx = -1
-            # Lớp 1: Khớp chính xác theo ID ở cột D
-            if ref_id in id_map:
-                row_idx = id_map[ref_id]
-            # Lớp 2: Khớp theo thứ tự dòng (Sequential Match) - Nếu chưa có ID
-            # Giả định hàng i hệ thống tương ứng hàng i+1 của GSheet (bỏ qua header)
-            elif (idx_in_items + 1) < len(all_values):
-                current_gs_row = all_values[idx_in_items + 1]
-                # Kiểm tra nếu hàng GSheet hiện tại chưa có ID ở cột D thì mới khớp đè
-                gs_id = str(current_gs_row[3]).strip() if len(current_gs_row) >= 4 else ""
-                if not gs_id.startswith('node_'):
-                    row_idx = idx_in_items + 1 # Khớp theo thứ tự
-            
-            # Lớp 3: Khớp theo Nhãn (Nếu thứ tự không khớp hoặc GSheet ngắn hơn)
-            if row_idx == -1 and normalize_label(label) in label_map:
-                row_idx = label_map[normalize_label(label)]
+            # Lớp 1: Khớp theo ID
+            if ref_id in id_to_row:
+                row_idx = id_to_row[ref_id]
+            # Lớp 2: Khớp theo Nhãn chuẩn hóa
+            elif extract_norm_label(label) in label_to_row:
+                row_idx = label_to_row[extract_norm_label(label)]
+            # Lớp 3: Khớp theo Fingerprint nội dung
+            elif get_content_fingerprint(base_content) in fingerprint_to_row:
+                row_idx = fingerprint_to_row[get_content_fingerprint(base_content)]
             
             if row_idx >= 0:
-                # Cập nhật dải ô A-D của hàng row_idx + 1
                 range_name = f'A{row_idx + 1}:D{row_idx + 1}'
                 updates.append({
                     'range': range_name,
                     'values': [row_data]
                 })
             else:
-                # Nếu hoàn toàn không khớp, thêm dòng mới 4 cột
+                # Không khớp bất cứ lớp nào -> Thêm hàng mới
                 new_rows.append(row_data)
         
         if updates:
@@ -181,7 +218,5 @@ def push_explanations_to_gsheet(sheet_url, items_to_push):
         if new_rows:
             worksheet.append_rows(new_rows)
                 
-    except gspread.exceptions.PermissionDenied:
-        raise Exception("Không có quyền Editor trên GSheet. Hãy Share Editor cho email dịch vụ.")
     except Exception as e:
         raise Exception(f"Lỗi đẩy dữ liệu: {str(e)}")

@@ -43,60 +43,67 @@ const GSheetSync = () => {
     };
 
     // Select styles consistent with the app
+    // Redesigned Select styles for Dark Minimalist theme
     const selectStyles = {
         control: (base, state) => ({
             ...base,
             background: "rgba(255, 255, 255, 0.05)",
-            borderColor: state.isFocused ? "rgba(255, 255, 255, 0.2)" : "rgba(255, 255, 255, 0.1)",
+            borderColor: state.isFocused ? "rgba(255, 255, 255, 0.3)" : "rgba(255, 255, 255, 0.1)",
             color: "#fff",
-            borderRadius: "0.6rem",
+            borderRadius: "0.5rem",
             padding: "2px",
-            boxShadow: state.isFocused ? "0 0 0 3px rgba(255, 255, 255, 0.03)" : "none",
+            boxShadow: "none",
             "&:hover": {
-                borderColor: "rgba(255, 255, 255, 0.2)",
+                borderColor: "rgba(255, 255, 255, 0.2)"
             }
         }),
         menu: (base) => ({
             ...base,
-            background: "#1e293b",
-            borderColor: "rgba(255, 255, 255, 0.1)",
-            boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
+            background: "#1e293b", // Deep slate
+            backdropFilter: "blur(12px)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            boxShadow: "0 10px 40px rgba(0,0,0,0.5)",
             zIndex: 9999,
             borderRadius: "0.75rem",
-            padding: "4px"
+            marginTop: "8px",
+            overflow: "hidden"
         }),
         option: (base, state) => ({
             ...base,
             background: state.isSelected 
-                ? "rgba(255, 255, 255, 0.1)" 
+                ? "rgba(255, 255, 255, 0.2)" 
                 : state.isFocused 
-                    ? "rgba(255, 255, 255, 0.05)" 
+                    ? "rgba(255, 255, 255, 0.1)" 
                     : "transparent",
             color: "#fff",
-            padding: "10px 15px",
-            fontSize: "13px",
+            padding: "12px 16px",
+            fontSize: "14px",
             fontWeight: "500",
             cursor: "pointer",
-            borderRadius: "0.5rem",
-            margin: "2px 0",
             "&:active": {
-                background: "rgba(255, 255, 255, 0.1)",
+                background: "rgba(255, 255, 255, 0.25)"
             }
         }),
         singleValue: (base) => ({
             ...base,
             color: "#fff",
-            fontSize: "13px",
-            fontWeight: "500",
-        }),
-        input: (base) => ({
-            ...base,
-            color: "#fff",
+            marginLeft: "2px",
+            fontSize: "14px",
+            fontWeight: "500"
         }),
         placeholder: (base) => ({
             ...base,
+            fontSize: "14px"
+        }),
+        input: (base) => ({
+            ...base,
+            color: "#fff"
+        }),
+        indicatorSeparator: () => ({ display: "none" }),
+        dropdownIndicator: (base) => ({
+            ...base,
             color: "rgba(255, 255, 255, 0.4)",
-            fontSize: "13px"
+            "&:hover": { color: "#fff" }
         })
     };
 
@@ -122,13 +129,14 @@ const GSheetSync = () => {
         setLoading(true);
         try {
             const res = await axios.get('/api/documents/', getAuthHeader());
-            const data = Array.isArray(res.results || res) ? (res.results || res) : [];
-            const mapped = data.map(d => ({
-                value: d.id,
-                label: d.project_name,
-                google_sheets_url: d.google_sheets_url
+            const rawData = Array.isArray(res.results || res) ? (res.results || res) : [];
+            // Map data correctly for react-select
+            const mappedData = rawData.map(doc => ({
+                ...doc,
+                value: doc.id,
+                label: doc.project_name
             }));
-            setDocuments(mapped);
+            setDocuments(mappedData);
         } catch (e) {
             toast.error("Không thể tải danh sách dự thảo.");
         } finally {
@@ -422,10 +430,11 @@ const GSheetSync = () => {
                                         <FormGroup className="mb-0">
                                             <Label className="form-label text-uppercase fw-bold fs-11 text-muted mb-2">Dự thảo văn bản</Label>
                                             <Select
-                                                value={documents.find(doc => doc.value === selectedDocId)}
+                                                value={documents.find(d => d.value === selectedDocId)}
                                                 onChange={(opt) => setSelectedDocId(opt ? opt.value : null)}
                                                 options={documents}
-                                                placeholder="Chọn văn bản..."
+                                                placeholder="Chọn dự thảo..."
+                                                isLoading={loading}
                                                 styles={selectStyles}
                                                 isClearable
                                                 classNamePrefix="react-select"

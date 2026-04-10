@@ -52,7 +52,10 @@ class StandaloneReview(models.Model):
 
 class ComparisonNode(models.Model):
     NODE_TYPE_CHOICES = (
+        ('Phần', 'Phần'),
         ('Chương', 'Chương'),
+        ('Mục', 'Mục'),
+        ('Tiểu mục', 'Tiểu mục'),
         ('Điều', 'Điều'),
         ('Khoản', 'Khoản'),
         ('Điểm', 'Điểm'),

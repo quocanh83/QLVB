@@ -82,18 +82,6 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
             return [permissions.AllowAny()]
         return [permissions.IsAuthenticated()]
 
-    def create(self, request, *args, **kwargs):
-        project_id = request.data.get('project')
-        user_note = request.data.get('user_note', '')
-        file_obj = request.FILES.get('file_path')
-
-        if not project_id or not file_obj:
-            return Response({"error": "Thiếu project_id hoặc file dự thảo."}, status=400)
-
-        # Tạo nhãn phiên bản: [Ngày giờ] - {user_note}
-        now = timezone.now().strftime('%Y-%m-%d %H:%M')
-        version_label = f"[{now}] {user_note}".strip()
-
         with transaction.atomic():
             version = DraftVersion.objects.create(
                 project_id=project_id,
@@ -101,14 +89,54 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
                 user_note=user_note,
                 version_label=version_label
             )
-            # Bóc tách cấu trúc cho phiên bản này (Bật renumber_articles theo yêu cầu của user)
+            # Bóc tách cấu trúc cho phiên bản này
             self._parse_draft_document(version)
             
             # Tự động ánh xạ từ phiên bản trước (nếu có) hoặc từ bản gốc
             self._initial_automap(version)
 
-        # Trả về data sau khi tạo (Đảm bảo có get_auth_header nếu cần, nhưng thường data là đủ)
+            # 1. Tự động kế thừa URL Google Sheet từ phiên bản cũ nhất gần đây
+            prev_version = DraftVersion.objects.filter(project_id=project_id).exclude(id=version.id).order_by('-created_at').first()
+            if prev_version and prev_version.explanation_sheet_url:
+                version.explanation_sheet_url = prev_version.explanation_sheet_url
+                version.save()
+
+        # 2. Tự động đồng bộ thuyết minh nếu có URL
+        if version.explanation_sheet_url:
+            try:
+                self._perform_gsheet_sync(version, version.explanation_sheet_url)
+            except Exception as e:
+                # Không chặn quá trình tạo version nếu đồng bộ lỗi
+                print(f"Auto-sync explanation failed: {str(e)}")
+
         return Response(DraftVersionSerializer(version).data, status=201)
+
+    def _perform_gsheet_sync(self, version, sheet_url):
+        """Tiện ích thực hiện đồng bộ thuyết minh thực sự với thuật toán đối soát đa lớp"""
+        from .utils.gsheet_sync import sync_explanation_from_gsheet, extract_norm_label, get_content_fingerprint
+        exp_dict = sync_explanation_from_gsheet(sheet_url)
+        
+        count = 0
+        # Đồng bộ thuyết minh cho các mục Điều, Phụ lục, Chương, Mục
+        nodes = ComparisonNode.objects.filter(version=version, node_type__in=['Điều', 'Phụ lục', 'Chương', 'Mục'])
+        for node in nodes:
+            # 1. Khớp theo ID node_{id}
+            node_id_key = f"node_{node.id}"
+            # 2. Khớp theo Nhãn chuẩn hóa
+            label_key = extract_norm_label(node.node_label)
+            # 3. Khớp theo Fingerprint nội dung
+            fp_key = f"fp_{get_content_fingerprint(node.content)}"
+
+            # Ưu tiên khớp ID -> Label -> Fingerprint
+            match = exp_dict.get(node_id_key)
+            if not match: match = exp_dict.get(label_key)
+            if not match: match = exp_dict.get(fp_key)
+
+            if match:
+                node.explanation = match.get('exp', '')
+                node.save()
+                count += 1
+        return count
 
     def _parse_draft_document(self, version):
         parser = ComparisonParser(version.file_path.path)
@@ -575,35 +603,40 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
         if not sheet_url:
             return Response({"error": "Vui lòng nhập đường dẫn Google Sheet."}, status=400)
             
-        from .utils.gsheet_sync import sync_explanation_from_gsheet
         try:
-            exp_dict = sync_explanation_from_gsheet(sheet_url)
+            count = self._perform_gsheet_sync(version, sheet_url)
             
-            # Lưu lại link GSheet
-            version.explanation_sheet_url = sheet_url
-            version.save()
-            
-            # Cập nhật thuyết minh
-            count = 0
-            nodes = ComparisonNode.objects.filter(version=version, node_type__in=['Điều', 'Phụ lục'])
-            for node in nodes:
-                # Trích xuất số điều để khớp (Điều 1 -> 1)
-                m = re.search(r'[\u0110\u0111]i\u1ec1u\s+(\d+)', node.node_label, re.IGNORECASE)
-                article_num = m.group(1) if m else node.node_label
+            # Lưu lại link GSheet vào version nếu chưa có hoặc thay đổi
+            if version.explanation_sheet_url != sheet_url:
+                version.explanation_sheet_url = sheet_url
+                version.save()
                 
-                # Khớp theo nhãn đầy đủ hoặc số điều
-                gsheet_val = exp_dict.get(node.node_label)
-                if gsheet_val is None:
-                    gsheet_val = exp_dict.get(article_num)
-                
-                if gsheet_val:
-                    node.explanation = gsheet_val
-                    node.save()
-                    count += 1
-                        
             return Response({"message": f"Đã đồng bộ thuyết minh cho {count} mục từ Google Sheet."})
         except Exception as e:
             return Response({"error": str(e)}, status=400)
+
+    def _normalize_text_for_compare(self, text):
+        """Chuẩn hóa văn bản để so sánh: loại bỏ HTML, gộp khoảng trắng thừa, xử lý placeholder trống"""
+        if not text: return ""
+        # 1. Loại bỏ tag HTML
+        text = re.sub(r'<[^>]+>', ' ', str(text))
+        # 2. Quy đổi whitespace (newline, tab, nhiều space) thành 1 space duy nhất
+        text = re.sub(r'\s+', ' ', text)
+        text = text.strip()
+
+        # 3. Chuẩn hóa các cụm từ tương đương với "Trống" hoặc "Mới"
+        # Giúp tránh báo lỗi khi bên hệ thống là null/trống còn GSheet điền text ghi chú
+        placeholders = [
+            '(trống)', 'trống', '(trong)', 'trong',
+            '(dòng mới)', 'dòng mới', '(dong moi)', 'dong moi',
+            '(mới)', 'mới', '(moi)', 'moi',
+            '(bãi bỏ)', 'bãi bỏ', '(bai bo)', 'bai bo',
+            'x', '-', '...', 'none', 'null'
+        ]
+        if text.lower() in placeholders:
+            return ""
+
+        return text
 
     @action(detail=True, methods=['get'])
     def gsheet_compare_explanation(self, request, pk=None):
@@ -612,9 +645,9 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
         if not version.explanation_sheet_url:
             return Response({"error": "Chưa cài đặt URL Google Sheet Thuyết minh."}, status=400)
             
-        from .utils.gsheet_sync import sync_explanation_from_gsheet, normalize_label
+        from .utils.gsheet_sync import sync_explanation_from_gsheet, extract_norm_label, get_content_fingerprint
         try:
-            # Lấy dữ liệu 3 cột từ gsheet
+            # Lấy dữ liệu gsheet (đã bao gồm ID, Label và Fingerprint keys)
             gsheet_rows = sync_explanation_from_gsheet(version.explanation_sheet_url)
             
             # Sử dụng logic trộn hàng chuẩn của hệ thống
@@ -629,20 +662,51 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
                 primary_node = d_node if d_node else b_node
                 if not primary_node: continue
                 
-                row_id = f"node_{primary_node.get('id')}" if primary_node else ""
-                
+                row_id = f"node_{primary_node.get('id')}"
                 label = primary_node.get("node_label")
-                norm_label = normalize_label(label)
+                label_key = extract_norm_label(label)
+                fp_key = f"fp_{get_content_fingerprint(primary_node.get('content'))}"
                 
-                # Dữ liệu trong hệ thống (Gộp nhãn Điều vào nội dung)
+                # Dữ liệu trong hệ thống
                 db_base = f"{b_node.get('node_label')}\n{b_node.get('content')}".strip() if b_node else ""
                 db_draft = f"{d_node.get('node_label')}\n{d_node.get('content')}".strip() if d_node else ""
                 db_exp = r.get("display_explanation") or ""
                 
-                # Dữ liệu trên GSheet - Ưu tiên khớp theo ID trước, sau đó mới đến Nhãn
+                # Dữ liệu trên GSheet - Đối soát theo Cặp Mapping (ID -> Pair Key -> Fallback)
                 gs_data = gsheet_rows.get(row_id)
+                
                 if not gs_data:
-                    gs_data = gsheet_rows.get(norm_label, {})
+                    # Tạo Pair-Key từ hệ thống để đối soát GSheet
+                    b_lab_norm = extract_norm_label(b_node.get('node_label')) if b_node else ""
+                    d_lab_norm = extract_norm_label(d_node.get('node_label')) if d_node else ""
+                    pair_key = f"{b_lab_norm}|{d_lab_norm}"
+                    gs_data = gsheet_rows.get(pair_key)
+                
+                if not gs_data:
+                    # Fallback 1: Thử tìm theo Draft Label đơn lẻ
+                    d_lab_norm = extract_norm_label(d_node.get('node_label')) if d_node else ""
+                    if d_lab_norm:
+                        gs_data = gsheet_rows.get(f"only_draft_{d_lab_norm}")
+                
+                if not gs_data:
+                    # Fallback 2: Thử tìm theo Fingerprint của Draft (Chính xác cao cho nội dung)
+                    if d_node:
+                        fp_d = f"fp_d_{get_content_fingerprint(d_node.get('content'))}"
+                        gs_data = gsheet_rows.get(fp_d)
+                
+                if not gs_data:
+                    # Fallback 3: Thử tìm theo Base Label đơn lẻ
+                    b_lab_norm = extract_norm_label(b_node.get('node_label')) if b_node else ""
+                    if b_lab_norm:
+                        gs_data = gsheet_rows.get(f"only_base_{b_lab_norm}")
+
+                if not gs_data:
+                    # Fallback 4: Thử tìm theo Fingerprint của Base (Cho các dòng bãi bỏ hoặc giữ nguyên)
+                    if b_node:
+                        fp_b = f"fp_b_{get_content_fingerprint(b_node.get('content'))}"
+                        gs_data = gsheet_rows.get(fp_b)
+
+                if not gs_data: gs_data = {}
                 
                 gs_base = gs_data.get('base', '')
                 gs_draft = gs_data.get('draft', '')
@@ -652,9 +716,19 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
                 if not gs_data:
                     status_val = "missing_gsheet"
                 else:
-                    if db_exp.strip() != gs_exp.strip():
+                    # So sánh thông minh sau khi chuẩn hóa
+                    db_exp_norm = self._normalize_text_for_compare(db_exp)
+                    gs_exp_norm = self._normalize_text_for_compare(gs_exp)
+                    
+                    db_base_norm = self._normalize_text_for_compare(db_base)
+                    gs_base_norm = self._normalize_text_for_compare(gs_base)
+                    
+                    db_draft_norm = self._normalize_text_for_compare(db_draft)
+                    gs_draft_norm = self._normalize_text_for_compare(gs_draft)
+
+                    if db_exp_norm != gs_exp_norm:
                         status_val = "mismatch"
-                    elif db_base.strip() != gs_base.strip() or db_draft.strip() != gs_draft.strip():
+                    elif db_base_norm != gs_base_norm or db_draft_norm != gs_draft_norm:
                         status_val = "mismatch"
                 
                 comparison.append({
@@ -679,8 +753,11 @@ class DraftVersionViewSet(viewsets.ModelViewSet):
         items = request.data.get('items', []) # [{id, content}]
         
         with transaction.atomic():
+            project = version.project
             for item in items:
-                ComparisonNode.objects.filter(id=item['id'], version=version).update(explanation=item['content'])
+                # Cập nhật node: có thể là base node (version=None) hoặc draft node (version=version)
+                # Miễn là thuộc project này.
+                ComparisonNode.objects.filter(id=item['id'], project=project).update(explanation=item['content'])
                 
         return Response({"message": f"Đã cập nhật {len(items)} mục từ Google Sheet."})
 
@@ -827,6 +904,46 @@ import json
 class ComparisonNodeViewSet(viewsets.ModelViewSet):
     queryset = ComparisonNode.objects.all().order_by('order_index')
     serializer_class = ComparisonNodeSerializer
+
+    @action(detail=True, methods=['post'])
+    def insert_node(self, request, pk=None):
+        """Chèn một node mới vào phía trên hoặc phía dưới node hiện tại"""
+        target_node = self.get_object()
+        position = request.data.get('position', 'below') # 'above' or 'below'
+        node_label = request.data.get('node_label', 'Mục mới')
+        content = request.data.get('content', '')
+        node_type = request.data.get('node_type', 'Điều')
+        
+        # Xác định phạm vi (scope)
+        scope_filter = {
+            'project': target_node.project,
+            'version': target_node.version,
+            'standalone_review': target_node.standalone_review,
+            'parent': target_node.parent
+        }
+        
+        with transaction.atomic():
+            if position == 'above':
+                new_order = target_node.order_index
+            else: # 'below'
+                new_order = target_node.order_index + 1
+                
+            # Đẩy các node phía sau lên
+            ComparisonNode.objects.filter(
+                **scope_filter,
+                order_index__gte=new_order
+            ).update(order_index=models.F('order_index') + 1)
+            
+            # Tạo node mới
+            new_node = ComparisonNode.objects.create(
+                **scope_filter,
+                node_type=node_type,
+                node_label=node_label,
+                content=content,
+                order_index=new_order
+            )
+            
+        return Response(ComparisonNodeSerializer(new_node).data)
 
 class StandaloneReviewViewSet(viewsets.ModelViewSet):
     queryset = StandaloneReview.objects.all().order_by('-created_at')

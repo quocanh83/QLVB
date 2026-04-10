@@ -15,6 +15,13 @@ const BaseNodeManager = () => {
     const [nodes, setNodes] = useState([]);
     const [loading, setLoading] = useState(true);
     
+    const [addModal, setAddModal] = useState(false);
+    const [addTargetNode, setAddTargetNode] = useState(null);
+    const [addPosition, setAddPosition] = useState('below');
+    const [addLabel, setAddLabel] = useState('');
+    const [addContent, setAddContent] = useState('');
+    const [addType, setAddType] = useState('Điều');
+
     const [editModal, setEditModal] = useState(false);
     const [selectedNode, setSelectedNode] = useState(null);
     const [editLabel, setEditLabel] = useState('');
@@ -69,13 +76,54 @@ const BaseNodeManager = () => {
     };
 
     const handleDelete = async (nodeId) => {
-        if (!window.confirm("Bạn có chắc chắn muốn xóa mục này khỏi văn bản gốc?")) return;
+        if (!window.confirm("Bạn có chắc chắn muốn xóa mục này khỏi văn bản?")) return;
         try {
             await axios.delete(`/api/comparisons/nodes/${nodeId}/`, getAuthHeader());
             toast.success("Đã xóa!");
             fetchNodes();
         } catch (error) {
             toast.error("Lỗi khi xóa");
+        }
+    };
+
+    const openAddModal = (targetNode, position) => {
+        setAddTargetNode(targetNode);
+        setAddPosition(position);
+        setAddLabel('');
+        setAddContent('');
+        setAddType(targetNode.node_type || 'Điều');
+        setAddModal(true);
+    };
+
+    const handleAdd = async () => {
+        setSubmitting(true);
+        try {
+            if (addTargetNode) {
+                await axios.post(`/api/comparisons/nodes/${addTargetNode.id}/insert_node/`, {
+                    position: addPosition,
+                    node_label: addLabel,
+                    content: addContent,
+                    node_type: addType
+                }, getAuthHeader());
+            } else {
+                // Tạo node đầu tiên cho văn bản (Văn bản gốc hoặc Dự thảo)
+                await axios.post(`/api/comparisons/nodes/`, {
+                    project: versionId ? null : id,
+                    version: versionId || null,
+                    node_label: addLabel,
+                    content: addContent,
+                    node_type: addType,
+                    order_index: 0
+                }, getAuthHeader());
+            }
+            toast.success("Đã thêm mục mới!");
+            setAddModal(false);
+            fetchNodes();
+        } catch (error) {
+            console.error(error);
+            toast.error("Lỗi khi thêm mục mới");
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -92,43 +140,61 @@ const BaseNodeManager = () => {
                             {versionId ? "Kiểm tra và sửa các Điều/Khoản đã bóc tách từ file dự thảo." : "Điều chỉnh các Điều/Khoản đã được hệ thống bóc tách từ file gốc."}
                         </p>
                     </div>
+                    <div>
+                        <Button color="success" onClick={() => openAddModal(nodes[nodes.length - 1] || null, 'below')} className="btn-label">
+                            <i className="ri-add-line label-icon align-middle fs-16 me-2"></i> Thêm mục mới
+                        </Button>
+                    </div>
                 </div>
 
                 <Row>
                     <Col lg={12}>
-                        <Card>
+                        <Card className="border-0 shadow-sm">
                             <CardBody>
                                 {loading ? (
                                     <div className="text-center py-5"><div className="spinner-border text-primary"></div></div>
                                 ) : (
                                     <div className="table-responsive">
                                         <Table className="table-bordered align-middle mb-0">
-                                            <thead className="table-light">
+                                            <thead className="bg-soft-light text-uppercase text-muted fs-11">
                                                 <tr>
                                                     <th style={{ width: '150px' }}>Nhãn</th>
                                                     <th>Nội dung Điều/Khoản/Mục</th>
-                                                    <th style={{ width: '120px' }}>Hành động</th>
+                                                    <th style={{ width: '220px' }} className="text-center">Hành động</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {nodes.map((node) => (
+                                                {nodes.length > 0 ? nodes.map((node) => (
                                                     <tr key={node.id}>
-                                                        <td className="fw-bold">{node.node_label}</td>
-                                                        <td style={{ whiteSpace: 'pre-wrap' }} className="small">
+                                                        <td className="fw-bold text-info">{node.node_label}</td>
+                                                        <td style={{ whiteSpace: 'pre-wrap' }} className="small text-white-50">
                                                             {node.content}
                                                         </td>
                                                         <td>
-                                                            <div className="d-flex gap-2">
-                                                                <Button size="sm" color="soft-primary" onClick={() => toggleEdit(node)}>
+                                                            <div className="d-flex gap-1 justify-content-center">
+                                                                <Button size="sm" color="soft-info" onClick={() => openAddModal(node, 'above')} title="Thêm phía trên">
+                                                                    <i className="ri-arrow-up-line"></i>
+                                                                </Button>
+                                                                <Button size="sm" color="soft-info" onClick={() => openAddModal(node, 'below')} title="Thêm phía dưới">
+                                                                    <i className="ri-arrow-down-line"></i>
+                                                                </Button>
+                                                                <div className="vr mx-1"></div>
+                                                                <Button size="sm" color="soft-warning" onClick={() => toggleEdit(node)} title="Sửa">
                                                                     <i className="ri-pencil-fill"></i>
                                                                 </Button>
-                                                                <Button size="sm" color="soft-danger" onClick={() => handleDelete(node.id)}>
+                                                                <Button size="sm" color="soft-danger" onClick={() => handleDelete(node.id)} title="Xóa">
                                                                     <i className="ri-delete-bin-fill"></i>
                                                                 </Button>
                                                             </div>
                                                         </td>
                                                     </tr>
-                                                ))}
+                                                )) : (
+                                                    <tr>
+                                                        <td colSpan="3" className="text-center py-4 text-muted">
+                                                            Chưa có nội dung bóc tách. Hãy bấm "Thêm mục mới" để bắt đầu.
+                                                        </td>
+                                                    </tr>
+                                                )}
                                             </tbody>
                                         </Table>
                                     </div>
@@ -139,30 +205,87 @@ const BaseNodeManager = () => {
                 </Row>
 
                 <Modal isOpen={editModal} toggle={() => setEditModal(false)} centered size="lg">
-                    <ModalHeader toggle={() => setEditModal(false)}>Chỉnh sửa Điều/Khoản</ModalHeader>
+                    <ModalHeader className="bg-light p-3" toggle={() => setEditModal(false)}>Chỉnh sửa Điều/Khoản</ModalHeader>
                     <ModalBody>
                         <div className="mb-3">
-                            <Label>Nhãn mục</Label>
+                            <Label className="form-label fw-bold">Nhãn mục</Label>
                             <Input 
                                 type="text" 
+                                className="form-control-light"
                                 value={editLabel} 
                                 onChange={(e) => setEditLabel(e.target.value)}
                             />
                         </div>
                         <div className="mb-3">
-                            <Label>Nội dung</Label>
+                            <Label className="form-label fw-bold">Nội dung</Label>
                             <Input 
                                 type="textarea" 
                                 rows="8"
+                                className="form-control-light"
                                 value={editContent} 
                                 onChange={(e) => setEditContent(e.target.value)}
                             />
                         </div>
                     </ModalBody>
                     <ModalFooter>
-                        <Button color="light" onClick={() => setEditModal(false)}>Hủy</Button>
-                        <Button color="primary" onClick={handleUpdate} disabled={submitting}>
+                        <Button color="link" className="link-success fw-medium" onClick={() => setEditModal(false)}>Hủy</Button>
+                        <Button color="primary" className="px-4" onClick={handleUpdate} disabled={submitting}>
                             {submitting ? "Đang lưu..." : "Lưu thay đổi"}
+                        </Button>
+                    </ModalFooter>
+                </Modal>
+
+                <Modal isOpen={addModal} toggle={() => setAddModal(false)} centered size="lg">
+                    <ModalHeader className="bg-light p-3" toggle={() => setAddModal(false)}>
+                        Thêm mục mới vào phía {addPosition === 'above' ? 'trên' : 'dưới'} dòng: {addTargetNode?.node_label}
+                    </ModalHeader>
+                    <ModalBody>
+                        <Row className="gy-3">
+                            <Col md={6}>
+                                <Label className="form-label fw-bold">Loại mục</Label>
+                                <select 
+                                    className="form-select form-control-light"
+                                    value={addType}
+                                    onChange={(e) => setAddType(e.target.value)}
+                                >
+                                    <option value="Phần">Phần</option>
+                                    <option value="Chương">Chương</option>
+                                    <option value="Mục">Mục</option>
+                                    <option value="Tiểu mục">Tiểu mục</option>
+                                    <option value="Điều">Điều</option>
+                                    <option value="Khoản">Khoản</option>
+                                    <option value="Điểm">Điểm</option>
+                                    <option value="Phụ lục">Phụ lục</option>
+                                    <option value="Vấn đề khác">Vấn đề khác</option>
+                                </select>
+                            </Col>
+                            <Col md={6}>
+                                <Label className="form-label fw-bold">Nhãn mục</Label>
+                                <Input 
+                                    type="text" 
+                                    className="form-control-light"
+                                    placeholder="Ví dụ: Điều 1a, Khoản 2..."
+                                    value={addLabel} 
+                                    onChange={(e) => setAddLabel(e.target.value)}
+                                />
+                            </Col>
+                            <Col md={12}>
+                                <Label className="form-label fw-bold">Nội dung</Label>
+                                <Input 
+                                    type="textarea" 
+                                    rows="8"
+                                    className="form-control-light"
+                                    placeholder="Nhập nội dung mục văn bản..."
+                                    value={addContent} 
+                                    onChange={(e) => setAddContent(e.target.value)}
+                                />
+                            </Col>
+                        </Row>
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button color="link" className="link-success fw-medium" onClick={() => setAddModal(false)}>Hủy</Button>
+                        <Button color="info" className="px-4" onClick={handleAdd} disabled={submitting}>
+                            {submitting ? "Đang thêm..." : "Thêm mục mới"}
                         </Button>
                     </ModalFooter>
                 </Modal>

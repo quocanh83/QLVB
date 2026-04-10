@@ -2,16 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { 
     Container, Row, Col, Card, CardBody, Button, 
     Table, Badge, Modal, ModalHeader, ModalBody, ModalFooter,
-    Input, Label, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, FormText
+    Input, Label, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, Nav, NavItem, NavLink, TabContent, TabPane
 } from 'reactstrap';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import classnames from 'classnames';
 import { getAuthHeader } from '../../helpers/api_helper';
 import BreadCrumb from '../../Components/Common/BreadCrumb';
 import { toast, ToastContainer } from 'react-toastify';
 import SimpleBar from 'simplebar-react';
 import AIWorkbench from './AIWorkbench';
-import ExplanationSyncModal from './ExplanationSyncModal';
+import ComparisonSyncTab from './ComparisonSyncTab';
 import './Comparison.css';
 
 const ComparisonWorkspace = () => {
@@ -25,6 +26,7 @@ const ComparisonWorkspace = () => {
     const [selectedBaseNode, setSelectedBaseNode] = useState(null);
     const [currentMappedId, setCurrentMappedId] = useState(null);
     const [showAIWorkbench, setShowAIWorkbench] = useState(false);
+    const [activeTab, setActiveTab] = useState("1"); // 1: Workspace, 2: GSheet Sync
 
     // Explanation re-upload state
     const [gsheetModal, setGsheetModal] = useState(false);
@@ -226,9 +228,15 @@ const ComparisonWorkspace = () => {
                             <i className="ri-file-word-line me-1"></i> Xuất Bảng
                         </Button>
                         
-                        {/* Nút Đồng bộ Thuyết minh (Luôn hiển thị trung tâm điều khiển) */}
-                        <Button color="warning" outline className="me-2" onClick={() => setAdvancedSyncModal(true)} title="Trung tâm Đồng bộ GSheet (Hai chiều)">
-                            <i className="ri-google-line me-1"></i> Đồng bộ GSheet
+                        {/* Nút Chuyển Tab Đồng bộ Thuyết minh */}
+                        <Button 
+                            color={activeTab === "2" ? "warning" : "warning"} 
+                            outline={activeTab !== "2"} 
+                            className="me-2" 
+                            onClick={() => setActiveTab(activeTab === "1" ? "2" : "1")} 
+                            title="Đồng bộ GSheet (Hai chiều)"
+                        >
+                            <i className="ri-google-line me-1"></i> {activeTab === "2" ? "Quay lại Bàn làm việc" : "Đồng bộ GSheet"}
                         </Button>
 
                         <Button color="primary" outline className="me-2" onClick={() => fileInputRef.current.click()} title="Nạp từ file Word">
@@ -241,159 +249,193 @@ const ComparisonWorkspace = () => {
                     </div>
                 </div>
 
-                <Row>
-                    <Col lg={showAIWorkbench ? 8 : 12}>
-                        <Card className="comparison-card">
-                            <CardBody className="p-0">
-                                <div className="comparison-header bg-dark text-white border-bottom d-flex">
-                                    <div className={`${colClass} p-2 border-end fw-bold text-center text-uppercase`}>VĂN BẢN GỐC</div>
-                                    <div className={`${colClass} p-2 border-end fw-bold text-center text-uppercase text-info`}>VĂN BẢN DỰ THẢO</div>
-                                    {hasExplanations && (
-                                        <div className="col-4 p-2 fw-bold text-center text-uppercase text-warning">THUYẾT MINH SO SÁNH</div>
-                                    )}
-                                </div>
-                                
-                                <SimpleBar style={{ maxHeight: "calc(100vh - 250px)" }}>
-                                    <div className="col-12 p-0">
-                                        {data.rows.map((row, idx) => (
-                                            <div key={idx} className="comparison-row d-flex border-bottom">
-                                                {/* Cột Gốc */}
-                                                <div className={`${colClass} p-3 border-end base-cell`}>
-                                                    {row.base_node ? (
-                                                        <>
-                                                            <div className="d-flex justify-content-between align-items-start mb-2">
-                                                                {row.base_node.node_type === 'Điều' ? (
-                                                                    <div className="fw-bold fs-14 text-dark mb-1 w-100">{row.base_node.node_label}</div>
-                                                                ) : (
-                                                                    <Badge color="secondary" outline>{formatNodeLabel(row.base_node.node_label)}</Badge>
-                                                                )}
-                                                                <div className="d-flex gap-1 align-items-center">
-                                                                    <Button size="sm" color="soft-info" className="btn-icon rounded-circle" title="Di chuyển lên" onClick={() => handleReorderNode(row.base_node.id, 'up')}>
-                                                                        <i className="ri-arrow-up-line"></i>
-                                                                    </Button>
-                                                                    <Button size="sm" color="soft-info" className="btn-icon rounded-circle" title="Di chuyển xuống" onClick={() => handleReorderNode(row.base_node.id, 'down')}>
-                                                                        <i className="ri-arrow-down-line"></i>
-                                                                    </Button>
-                                                                    <Button size="sm" color="soft-success" className="btn-icon rounded-circle" title="Chèn hàng bên dưới" onClick={() => handleInsertManualRow(row.base_node.id)}>
-                                                                        <i className="ri-add-line"></i>
-                                                                    </Button>
-                                                                    {row.base_node.node_label === 'Hàng thủ công' && (
-                                                                        <Button size="sm" color="soft-danger" className="btn-icon rounded-circle" title="Xóa hàng" onClick={() => handleDeleteManualRow(row.base_node.id)}>
-                                                                            <i className="ri-delete-bin-line"></i>
-                                                                        </Button>
-                                                                    )}
-                                                                    <Button size="sm" color="soft-primary" className="btn-icon rounded-circle ms-1" 
-                                                                        title="Ghép / Hủy ghép"
-                                                                        onClick={() => {
-                                                                            setSelectedBaseNode(row.base_node);
-                                                                            setCurrentMappedId(row.draft_node ? row.draft_node.id : null);
-                                                                            setMappingModal(true);
-                                                                        }}>
-                                                                        <i className="ri-links-line"></i>
-                                                                    </Button>
+                {/* Tab Navigation */}
+                <Nav tabs className="nav-tabs-custom nav-success mb-3">
+                    <NavItem>
+                        <NavLink
+                            style={{ cursor: "pointer" }}
+                            className={classnames({ active: activeTab === "1" })}
+                            onClick={() => setActiveTab("1")}
+                        >
+                            <i className="ri-layout-grid-line me-1 align-bottom"></i> Bàn làm việc
+                        </NavLink>
+                    </NavItem>
+                    <NavItem>
+                        <NavLink
+                            style={{ cursor: "pointer" }}
+                            className={classnames({ active: activeTab === "2" })}
+                            onClick={() => setActiveTab("2")}
+                        >
+                            <i className="ri-google-line me-1 align-bottom"></i> Đối soát & Đồng bộ GSheet
+                        </NavLink>
+                    </NavItem>
+                </Nav>
+
+                <TabContent activeTab={activeTab}>
+                    <TabPane tabId="1">
+                        <Row>
+                            <Col lg={showAIWorkbench ? 8 : 12}>
+                                <Card className="comparison-card">
+                                    <CardBody className="p-0">
+                                        <div className="comparison-header bg-dark text-white border-bottom d-flex">
+                                            <div className={`${colClass} p-2 border-end fw-bold text-center text-uppercase`}>VĂN BẢN GỐC</div>
+                                            <div className={`${colClass} p-2 border-end fw-bold text-center text-uppercase text-info`}>VĂN BẢN DỰ THẢO</div>
+                                            {hasExplanations && (
+                                                <div className="col-4 p-2 fw-bold text-center text-uppercase text-warning">THUYẾT MINH SO SÁNH</div>
+                                            )}
+                                        </div>
+                                        
+                                        <SimpleBar style={{ maxHeight: "calc(100vh - 350px)" }}>
+                                            <div className="col-12 p-0">
+                                                {data.rows.map((row, idx) => (
+                                                    <div key={idx} className="comparison-row d-flex border-bottom">
+                                                        {/* Cột Gốc */}
+                                                        <div className={`${colClass} p-3 border-end base-cell`}>
+                                                            {row.base_node ? (
+                                                                <>
+                                                                    <div className="d-flex justify-content-between align-items-start mb-2">
+                                                                        {row.base_node.node_type === 'Điều' ? (
+                                                                            <div className="fw-bold fs-14 text-dark mb-1 w-100">{row.base_node.node_label}</div>
+                                                                        ) : (
+                                                                            <Badge color="secondary" outline>{formatNodeLabel(row.base_node.node_label)}</Badge>
+                                                                        )}
+                                                                        <div className="d-flex gap-1 align-items-center">
+                                                                            <Button size="sm" color="soft-info" className="btn-icon rounded-circle" title="Di chuyển lên" onClick={() => handleReorderNode(row.base_node.id, 'up')}>
+                                                                                <i className="ri-arrow-up-line"></i>
+                                                                            </Button>
+                                                                            <Button size="sm" color="soft-info" className="btn-icon rounded-circle" title="Di chuyển xuống" onClick={() => handleReorderNode(row.base_node.id, 'down')}>
+                                                                                <i className="ri-arrow-down-line"></i>
+                                                                            </Button>
+                                                                            <Button size="sm" color="soft-success" className="btn-icon rounded-circle" title="Chèn hàng bên dưới" onClick={() => handleInsertManualRow(row.base_node.id)}>
+                                                                                <i className="ri-add-line"></i>
+                                                                            </Button>
+                                                                            {row.base_node.node_label === 'Hàng thủ công' && (
+                                                                                <Button size="sm" color="soft-danger" className="btn-icon rounded-circle" title="Xóa hàng" onClick={() => handleDeleteManualRow(row.base_node.id)}>
+                                                                                    <i className="ri-delete-bin-line"></i>
+                                                                                </Button>
+                                                                            )}
+                                                                            <Button size="sm" color="soft-primary" className="btn-icon rounded-circle ms-1" 
+                                                                                title="Ghép / Hủy ghép"
+                                                                                onClick={() => {
+                                                                                    setSelectedBaseNode(row.base_node);
+                                                                                    setCurrentMappedId(row.draft_node ? row.draft_node.id : null);
+                                                                                    setMappingModal(true);
+                                                                                }}>
+                                                                                <i className="ri-links-line"></i>
+                                                                            </Button>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="node-content text-justify">
+                                                                        {row.base_node.content}
+                                                                    </div>
+                                                                </>
+                                                            ) : (
+                                                                <div className="h-100 d-flex flex-column align-items-center justify-content-center bg-light-subtle rounded dashed-border p-3">
+                                                                    <i className="ri-add-circle-line ri-2x text-muted mb-2"></i>
+                                                                    <span className="text-muted italic small text-center">(Dòng mới - Không có trong bản gốc)</span>
                                                                 </div>
-                                                            </div>
-                                                            <div className="node-content text-justify">
-                                                                {row.base_node.content}
-                                                            </div>
-                                                        </>
-                                                    ) : (
-                                                        <div className="h-100 d-flex flex-column align-items-center justify-content-center bg-light-subtle rounded dashed-border p-3">
-                                                            <i className="ri-add-circle-line ri-2x text-muted mb-2"></i>
-                                                            <span className="text-muted italic small text-center">(Dòng mới - Không có trong bản gốc)</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {/* Cột Dự thảo */}
-                                                <div className={`${colClass} p-3 border-end draft-cell`}>
-                                                    {row.draft_node ? (
-                                                        <>
-                                                            <div className="d-flex justify-content-between mb-2">
-                                                                {row.draft_node.node_type === 'Điều' ? (
-                                                                    <div className="fw-bold fs-14 text-primary mb-1 w-100">{row.draft_node.node_label}</div>
-                                                                ) : (
-                                                                    <Badge color="primary">{formatNodeLabel(row.draft_node.node_label)}</Badge>
-                                                                )}
-                                                            </div>
-                                                             <div 
-                                                                className="node-content text-justify legislative-text"
-                                                                dangerouslySetInnerHTML={{ __html: row.diff_content }}
-                                                            />
-                                                        </>
-                                                    ) : (
-                                                        <div className="h-100 d-flex align-items-center justify-content-center bg-light-subtle rounded dashed-border">
-                                                            <span className="text-muted italic small">(Không có nội dung tương ứng - Bãi bỏ)</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {/* Cột Thuyết minh */}
-                                                {(hasExplanations || (row.base_node && row.base_node.explanation)) && (
-                                                    <div className="col-4 p-3 explanation-cell border-start">
-                                                        <div className="d-flex justify-content-between mb-2">
-                                                            <Badge color="warning" outline className="text-uppercase">Thuyết minh</Badge>
-                                                            {editingExpId !== (row.draft_node?.id || row.base_node?.id) && (
-                                                                <Button 
-                                                                    size="xs" 
-                                                                    color="link" 
-                                                                    className="p-0 text-decoration-none"
-                                                                    onClick={() => {
-                                                                        const tid = row.draft_node?.id || row.base_node?.id;
-                                                                        setEditingExpId(tid);
-                                                                        setTempExpContent(row.display_explanation || "");
-                                                                    }}
-                                                                >
-                                                                    <i className="ri-pencil-line"></i> Sửa
-                                                                </Button>
                                                             )}
                                                         </div>
-                                                        {editingExpId === (row.draft_node?.id || row.base_node?.id) ? (
-                                                            <div className="d-flex flex-column gap-2">
-                                                                <Input 
-                                                                    type="textarea" 
-                                                                    rows="4"
-                                                                    className="form-control-sm"
-                                                                    value={tempExpContent}
-                                                                    onChange={(e) => setTempExpContent(e.target.value)}
-                                                                    autoFocus
-                                                                />
-                                                                <div className="d-flex gap-2 justify-content-end">
-                                                                    <Button size="xs" color="soft-danger" onClick={() => setEditingExpId(null)}>Hủy</Button>
-                                                                    <Button size="xs" color="primary" onClick={() => handleSaveExplanation(row.draft_node?.id || row.base_node?.id)}>Lưu</Button>
+
+                                                        {/* Cột Dự thảo */}
+                                                        <div className={`${colClass} p-3 border-end draft-cell`}>
+                                                            {row.draft_node ? (
+                                                                <>
+                                                                    <div className="d-flex justify-content-between mb-2">
+                                                                        {row.draft_node.node_type === 'Điều' ? (
+                                                                            <div className="fw-bold fs-14 text-primary mb-1 w-100">{row.draft_node.node_label}</div>
+                                                                        ) : (
+                                                                            <Badge color="primary">{formatNodeLabel(row.draft_node.node_label)}</Badge>
+                                                                        )}
+                                                                    </div>
+                                                                     <div 
+                                                                        className="node-content text-justify legislative-text"
+                                                                        dangerouslySetInnerHTML={{ __html: row.diff_content }}
+                                                                    />
+                                                                </>
+                                                            ) : (
+                                                                <div className="h-100 d-flex align-items-center justify-content-center bg-light-subtle rounded dashed-border">
+                                                                    <span className="text-muted italic small">(Không có nội dung tương ứng - Bãi bỏ)</span>
                                                                 </div>
-                                                            </div>
-                                                        ) : (
-                                                            <div 
-                                                                className="node-content text-justify text-muted small bg-warning-subtle p-2 rounded border-start border-3 border-warning cursor-pointer" 
-                                                                style={{ whiteSpace: 'pre-wrap' }}
-                                                                onClick={() => {
-                                                                    const tid = row.draft_node?.id || row.base_node?.id;
-                                                                    setEditingExpId(tid);
-                                                                    setTempExpContent(row.display_explanation || "");
-                                                                }}
-                                                                title="Nhấn để chỉnh sửa"
-                                                            >
-                                                                {row.display_explanation || <em className="text-muted">(Chưa có thuyết minh - Nhấn để thêm)</em>}
+                                                            )}
+                                                        </div>
+
+                                                        {/* Cột Thuyết minh */}
+                                                        {(hasExplanations || (row.base_node && row.base_node.explanation)) && (
+                                                            <div className="col-4 p-3 explanation-cell border-start">
+                                                                <div className="d-flex justify-content-between mb-2">
+                                                                    <Badge color="warning" outline className="text-uppercase">Thuyết minh</Badge>
+                                                                    {editingExpId !== (row.draft_node?.id || row.base_node?.id) && (
+                                                                        <Button 
+                                                                            size="xs" 
+                                                                            color="link" 
+                                                                            className="p-0 text-decoration-none"
+                                                                            onClick={() => {
+                                                                                const tid = row.draft_node?.id || row.base_node?.id;
+                                                                                setEditingExpId(tid);
+                                                                                setTempExpContent(row.display_explanation || "");
+                                                                            }}
+                                                                        >
+                                                                            <i className="ri-pencil-line"></i> Sửa
+                                                                        </Button>
+                                                                    )}
+                                                                </div>
+                                                                {editingExpId === (row.draft_node?.id || row.base_node?.id) ? (
+                                                                    <div className="d-flex flex-column gap-2">
+                                                                        <Input 
+                                                                            type="textarea" 
+                                                                            rows="4"
+                                                                            className="form-control-sm"
+                                                                            value={tempExpContent}
+                                                                            onChange={(e) => setTempExpContent(e.target.value)}
+                                                                            autoFocus
+                                                                        />
+                                                                        <div className="d-flex gap-2 justify-content-end">
+                                                                            <Button size="xs" color="soft-danger" onClick={() => setEditingExpId(null)}>Hủy</Button>
+                                                                            <Button size="xs" color="primary" onClick={() => handleSaveExplanation(row.draft_node?.id || row.base_node?.id)}>Lưu</Button>
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div 
+                                                                        className="node-content text-justify text-muted small bg-warning-subtle p-2 rounded border-start border-3 border-warning cursor-pointer" 
+                                                                        style={{ whiteSpace: 'pre-wrap' }}
+                                                                        onClick={() => {
+                                                                            const tid = row.draft_node?.id || row.base_node?.id;
+                                                                            setEditingExpId(tid);
+                                                                            setTempExpContent(row.display_explanation || "");
+                                                                        }}
+                                                                        title="Nhấn để chỉnh sửa"
+                                                                    >
+                                                                        {row.display_explanation || <em className="text-muted">(Chưa có thuyết minh - Nhấn để thêm)</em>}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         )}
                                                     </div>
-                                                )}
+                                                ))}
                                             </div>
-                                        ))}
-                                    </div>
-                                </SimpleBar>
-                            </CardBody>
-                        </Card>
-                    </Col>
-                    {showAIWorkbench && (
-                        <Col lg={4}>
-                            <SimpleBar style={{ maxHeight: "calc(100vh - 180px)" }}>
-                                <AIWorkbench versionId={versionId} />
-                            </SimpleBar>
-                        </Col>
-                    )}
-                </Row>
+                                        </SimpleBar>
+                                    </CardBody>
+                                </Card>
+                            </Col>
+                            {showAIWorkbench && (
+                                <Col lg={4}>
+                                    <SimpleBar style={{ maxHeight: "calc(100vh - 180px)" }}>
+                                        <AIWorkbench versionId={versionId} />
+                                    </SimpleBar>
+                                </Col>
+                            )}
+                        </Row>
+                    </TabPane>
+
+                    <TabPane tabId="2">
+                        <ComparisonSyncTab 
+                            versionId={versionId} 
+                            gsheetUrlProp={data.explanation_sheet_url}
+                            onSyncSuccess={fetchWorkspaceData}
+                        />
+                    </TabPane>
+                </TabContent>
 
                 {/* Modal để chọn ánh xạ thủ công */}
                 <Modal isOpen={mappingModal} toggle={() => setMappingModal(false)} className="modal-dialog-centered">
@@ -455,12 +497,6 @@ const ComparisonWorkspace = () => {
                 </Modal>
 
                 <ToastContainer />
-                <ExplanationSyncModal 
-                    isOpen={advancedSyncModal}
-                    toggle={() => setAdvancedSyncModal(!advancedSyncModal)}
-                    versionId={versionId}
-                    onSyncSuccess={fetchWorkspaceData}
-                />
 
                 <input 
                   type="file" 
