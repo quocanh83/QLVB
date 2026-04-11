@@ -217,7 +217,7 @@ const ImportFeedbackModal = ({ show, onHide, documentId, onImportSuccess }) => {
                                                     <Badge color="success" className="badge-outline-success">MỚI</Badge>
                                                 )}
                                                 {row.is_duplicate && (
-                                                    <UncontrolledTooltip target={`dup-tool-${idx}`}>
+                                                    <UncontrolledTooltip target={`dup-tool-${idx}`} fade={false}>
                                                         Hệ thống phát hiện nội dung này đã tồn tại trong dự thảo.
                                                     </UncontrolledTooltip>
                                                 )}

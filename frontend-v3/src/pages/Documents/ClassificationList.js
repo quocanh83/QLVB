@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, CardBody, CardHeader, Button, Table, Spinner, Badge, Pagination, PaginationItem, PaginationLink } from 'reactstrap';
+import { Container, Row, Col, Card, CardBody, CardHeader, Button, Table, Spinner, Badge, Pagination, PaginationItem, PaginationLink, Input, Label, FormGroup } from 'reactstrap';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { getAuthHeader } from '../../helpers/api_helper';
@@ -18,10 +18,16 @@ const ClassificationList = () => {
     const [selectedDoc, setSelectedDoc] = useState(null);
     const [exporting, setExporting] = useState(false);
 
+    // Filters
+    const [filterStatus, setFilterStatus] = useState('all');
+    const [filterCategory, setFilterCategory] = useState('all');
+    const [categories, setCategories] = useState([]);
+
     useEffect(() => {
         if (!selectedDoc) {
             fetchDocuments();
         }
+        fetchCategories();
     }, [page, selectedDoc]);
 
     const fetchDocuments = async () => {
@@ -41,14 +47,45 @@ const ClassificationList = () => {
         }
     };
 
+    const fetchCategories = async () => {
+        try {
+            const res = await axios.get('/api/settings/agency-categories/', getAuthHeader());
+            const data = res.data?.results || res.results || res || [];
+            setCategories(data);
+        } catch (e) {
+            console.error("Lỗi tải danh mục đơn vị", e);
+        }
+    };
+
     const handleExport = async (docId) => {
         setExporting(true);
         try {
             const response = await axios.get(`/api/documents/${docId}/export_consultation_status/`, {
                 ...getAuthHeader(),
+                params: {
+                    status: filterStatus,
+                    category_id: filterCategory
+                },
                 responseType: 'blob'
             });
-            const url = window.URL.createObjectURL(new Blob([response.data]));
+
+            // Kiểm tra nếu trả về không phải là blob Word (có thể là lỗi JSON nếu interceptor không bắt được)
+            if (response && response.type === 'application/json') {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    try {
+                        const errorData = JSON.parse(reader.result);
+                        toast.error("Lỗi xuất file: " + (errorData.error || "Không xác định"));
+                    } catch (e) {
+                        toast.error("Lỗi hệ thống khi xuất báo cáo.");
+                    }
+                };
+                reader.readAsText(response);
+                return;
+            }
+
+            // Với interceptor trả về response.data, response ở đây chính là Blob
+            const url = window.URL.createObjectURL(new Blob([response]));
             const link = document.createElement('a');
             link.href = url;
             link.setAttribute('download', `Tien_do_gop_y_${docId}.docx`);
@@ -57,7 +94,7 @@ const ClassificationList = () => {
             link.remove();
             toast.success("Đã tải xuống báo cáo tiến độ!");
         } catch (e) {
-            toast.error("Lỗi khi xuất báo cáo.");
+            toast.error("Lỗi kết nối khi xuất báo cáo.");
         } finally {
             setExporting(false);
         }
@@ -74,7 +111,16 @@ const ClassificationList = () => {
     };
 
     const renderDetailView = () => {
-        const summary = selectedDoc.consultation_summary || [];
+        let summary = selectedDoc.consultation_summary || [];
+        
+        // Frontend local filtering for UI display
+        if (filterStatus === 'responded') summary = summary.filter(item => item.has_response);
+        else if (filterStatus === 'pending') summary = summary.filter(item => !item.has_response);
+        
+        if (filterCategory !== 'all') {
+            summary = summary.filter(item => String(item.agency_category_id) === String(filterCategory));
+        }
+        
         return (
             <div className="fade-in">
                 <div className="mb-4 d-flex justify-content-between align-items-center">
@@ -83,20 +129,49 @@ const ClassificationList = () => {
                             <i className="ri-arrow-left-line label-icon align-middle fs-16 me-2"></i> Quay lại danh sách
                         </Button>
                     </div>
-                    <div>
-                        <Button color="success" onClick={() => handleExport(selectedDoc.id)} disabled={exporting} className="shadow-none">
-                            {exporting ? <Spinner size="sm" className="me-2" /> : <i className="ri-file-word-line align-bottom me-1"></i>}
-                            Xuất báo cáo tiến độ
+                    <div className="d-flex gap-2">
+                        <Button color="success" onClick={() => handleExport(selectedDoc.id)} disabled={exporting} className="shadow-none btn-label waves-effect waves-light">
+                            <i className="ri-file-word-line label-icon align-middle fs-16 me-2"></i> 
+                            {exporting ? "Đang xử lý..." : "Xuất báo cáo Word"}
                         </Button>
                     </div>
                 </div>
+
+                <Card className="border-0 shadow-sm overflow-hidden mb-4">
+                    <CardBody className="bg-light-subtle py-3">
+                        <Row className="align-items-end g-3">
+                            <Col md={4}>
+                                <Label className="form-label text-muted fs-12 mb-1">Trạng thái góp ý</Label>
+                                <Input type="select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="form-select-sm">
+                                    <option value="all">Tất cả đơn vị</option>
+                                    <option value="responded">Đã góp ý</option>
+                                    <option value="pending">Chưa góp ý</option>
+                                </Input>
+                            </Col>
+                            <Col md={4}>
+                                <Label className="form-label text-muted fs-12 mb-1">Nhóm đơn vị</Label>
+                                <Input type="select" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="form-select-sm">
+                                    <option value="all">Tất cả nhóm</option>
+                                    {categories.map(cat => (
+                                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                    ))}
+                                </Input>
+                            </Col>
+                            <Col md={4}>
+                                <div className="text-end text-muted fs-11 italic">
+                                    * Bộ lọc sẽ được áp dụng khi xuất báo cáo.
+                                </div>
+                            </Col>
+                        </Row>
+                    </CardBody>
+                </Card>
 
                 <Card className="border-0 shadow-sm overflow-hidden">
                     <CardHeader className="p-3 bg-primary-subtle border-0">
                         <div className="d-flex justify-content-between align-items-center">
                             <h5 className="card-title mb-0 fw-bold text-primary">Theo dõi lấy ý kiến: {selectedDoc.project_name}</h5>
                             <span className="badge bg-primary text-white px-3 py-2 fs-12">
-                                Tổng số: {summary.length} cơ quan
+                                Hiển thị: {summary.length} cơ quan
                             </span>
                         </div>
                     </CardHeader>
@@ -144,7 +219,7 @@ const ClassificationList = () => {
                                     )) : (
                                         <tr>
                                             <td colSpan="6" className="text-center py-5 text-muted italic">
-                                                Chưa có cơ quan nào được chọn để lấy ý kiến cho bản dự thảo này.
+                                                Không tìm thấy đơn vị nào thỏa mãn bộ lọc.
                                             </td>
                                         </tr>
                                     )}

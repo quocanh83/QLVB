@@ -157,7 +157,7 @@ const ProjectAssignment = () => {
                                                                             id={`lead-btn-${doc.id}`}
                                                                         >
                                                                             <i className="ri-user-star-line"></i> Chủ trì
-                                                                            <UncontrolledTooltip target={`lead-btn-${doc.id}`}>Gán người lãnh đạo</UncontrolledTooltip>
+                                                                            <UncontrolledTooltip target={`lead-btn-${doc.id}`} fade={false}>Gán người lãnh đạo</UncontrolledTooltip>
                                                                         </Button>
                                                                     )}
                                                                     
@@ -170,7 +170,7 @@ const ProjectAssignment = () => {
                                                                         id={`node-btn-${doc.id}`}
                                                                     >
                                                                         <i className="ri-user-add-line"></i> Chuyên viên
-                                                                        <UncontrolledTooltip target={`node-btn-${doc.id}`}>Gán chuyên viên giải trình</UncontrolledTooltip>
+                                                                        <UncontrolledTooltip target={`node-btn-${doc.id}`} fade={false}>Gán chuyên viên giải trình</UncontrolledTooltip>
                                                                     </Button>
                                                                 </div>
                                                             </td>

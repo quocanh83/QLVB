@@ -604,29 +604,46 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'], permission_classes=[])
     def export_consultation_status(self, request, pk=None):
-        """Xuất báo cáo theo dõi tiến độ góp ý của các cơ quan (Dạng bảng Word)"""
+        """Xuất báo cáo theo dõi tiến độ góp ý của các cơ quan (Dạng bảng Word) với bộ lọc"""
         try:
             doc_obj = self.get_object()
+            status_filter = request.GET.get('status', 'all')
+            category_id = request.GET.get('category_id', 'all')
             
             # 1. Lấy dữ liệu tổng hợp
-            invited_agencies = {a.id: a for a in doc_obj.consulted_agencies.all()}
+            invited_agencies_qs = doc_obj.consulted_agencies.all()
+            if category_id != 'all':
+                invited_agencies_qs = invited_agencies_qs.filter(agency_category_id=category_id)
+            
+            invited_agencies = {a.id: a for a in invited_agencies_qs}
+            
             all_responses = doc_obj.responses.all().select_related('agency').order_by('created_at')
             responses_dict = {r.agency_id: r for r in all_responses}
-            all_agency_ids = set(invited_agencies.keys()) | set(responses_dict.keys())
+            
+            # Chỉ lấy các đơn vị thỏa mãn điều kiện category
+            all_agency_ids = set(invited_agencies.keys())
+            # Nếu status là all hoặc responded, chúng ta có thể bổ sung các đơn vị đã góp ý nhưng không nằm trong danh sách mời (vãng lai)
+            # Tuy nhiên thông thường chỉ báo cáo trên danh sách được mời.
             
             summary = []
             for aid in all_agency_ids:
                 resp = responses_dict.get(aid)
                 agency = invited_agencies.get(aid)
-                if not agency and resp:
-                    agency = resp.agency
                 if not agency: continue
+
+                # Áp dụng lọc theo trạng thái
+                if status_filter == 'responded' and not resp:
+                    continue
+                if status_filter == 'pending' and resp:
+                    continue
+
                 summary.append({
                     "agency_name": agency.name,
-                    "official_number": resp.official_number if resp else "---",
+                    "official_number": str(resp.official_number) if resp and resp.official_number else "---",
                     "official_date": resp.official_date.strftime('%d/%m/%Y') if resp and resp.official_date else "---",
                     "status": "Đã góp ý" if resp else "Đang chờ"
                 })
+            
             summary.sort(key=lambda x: x['agency_name'])
 
             # 2. Tạo file Word
@@ -636,16 +653,40 @@ class DocumentViewSet(viewsets.ModelViewSet):
             import io
 
             doc = Document()
-            style = doc.styles['Normal']
-            font = style.font
-            font.name = 'Times New Roman'
-            font.size = Pt(13)
+            # Cấu hình font mặc định cho toàn bộ tài liệu
+            for style in doc.styles:
+                if hasattr(style, 'font'):
+                    style.font.name = 'Times New Roman'
+                    style.font.size = Pt(13)
 
             title = doc.add_paragraph()
             title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            run = title.add_run(f"BÁO CÁO THEO DÕI TIẾN ĐỘ GÓP Ý\n{doc_obj.project_name.upper()}")
+            run = title.add_run(f"BÁO CÁO THEO DÕI TIẾN ĐỘ GÓP Ý")
             run.bold = True
             run.font.size = Pt(14)
+            
+            title2 = doc.add_paragraph()
+            title2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run2 = title2.add_run(doc_obj.project_name.upper())
+            run2.bold = True
+            run2.font.size = Pt(13)
+
+            # Thêm thông tin bộ lọc vào báo cáo nếu có
+            if status_filter != 'all' or category_id != 'all':
+                filter_info = []
+                if status_filter == 'responded': filter_info.append("Đã góp ý")
+                elif status_filter == 'pending': filter_info.append("Chưa góp ý")
+                
+                if category_id != 'all':
+                    from core.models import AgencyCategory
+                    cat = AgencyCategory.objects.filter(id=category_id).first()
+                    if cat: filter_info.append(f"Nhóm: {cat.name}")
+                
+                f_para = doc.add_paragraph()
+                f_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                f_run = f_para.add_run(f"(Bộ lọc: {', '.join(filter_info)})")
+                f_run.italic = True
+                f_run.font.size = Pt(11)
 
             doc.add_paragraph()
 
@@ -682,7 +723,9 @@ class DocumentViewSet(viewsets.ModelViewSet):
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
             return response
         except Exception as e:
-            return Response({"error": str(e)}, status=500)
+            import traceback
+            print(traceback.format_exc())
+            return HttpResponse(f"Lỗi hệ thống khi tạo báo cáo: {str(e)}", status=500)
 
     @action(detail=False, methods=['post'])
     def match_agencies_from_file(self, request):

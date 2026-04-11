@@ -163,7 +163,7 @@ const ComparisonDashboard = () => {
                                                             <Link to={`/comparisons/${item.id}`} className="btn btn-sm btn-soft-info me-2" id={`view-${item.id}`}>
                                                                 <i className="ri-eye-fill"></i>
                                                             </Link>
-                                                            <UncontrolledTooltip placement="top" target={`view-${item.id}`}>Xem chi tiết & Lịch sử</UncontrolledTooltip>
+                                                            <UncontrolledTooltip placement="top" target={`view-${item.id}`} fade={false}>Xem chi tiết & Lịch sử</UncontrolledTooltip>
                                                         </td>
                                                     </tr>
                                                 ))}

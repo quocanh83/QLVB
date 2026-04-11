@@ -96,6 +96,7 @@ class DocumentListSerializer(serializers.ModelSerializer):
             summary.append({
                 "agency_id": aid,
                 "agency_name": agency.name,
+                "agency_category_id": agency.agency_category_id,
                 "has_response": resp is not None,
                 "official_number": resp.official_number if resp else None,
                 "official_date": resp.official_date if resp else None,
