@@ -602,6 +602,88 @@ class DocumentViewSet(viewsets.ModelViewSet):
             print(traceback.format_exc())
             return Response({"error": f"Lỗi trong quá trình xuất báo cáo: {str(e)}"}, status=500)
 
+    @action(detail=True, methods=['get'], permission_classes=[])
+    def export_consultation_status(self, request, pk=None):
+        """Xuất báo cáo theo dõi tiến độ góp ý của các cơ quan (Dạng bảng Word)"""
+        try:
+            doc_obj = self.get_object()
+            
+            # 1. Lấy dữ liệu tổng hợp
+            invited_agencies = {a.id: a for a in doc_obj.consulted_agencies.all()}
+            all_responses = doc_obj.responses.all().select_related('agency').order_by('created_at')
+            responses_dict = {r.agency_id: r for r in all_responses}
+            all_agency_ids = set(invited_agencies.keys()) | set(responses_dict.keys())
+            
+            summary = []
+            for aid in all_agency_ids:
+                resp = responses_dict.get(aid)
+                agency = invited_agencies.get(aid)
+                if not agency and resp:
+                    agency = resp.agency
+                if not agency: continue
+                summary.append({
+                    "agency_name": agency.name,
+                    "official_number": resp.official_number if resp else "---",
+                    "official_date": resp.official_date.strftime('%d/%m/%Y') if resp and resp.official_date else "---",
+                    "status": "Đã góp ý" if resp else "Đang chờ"
+                })
+            summary.sort(key=lambda x: x['agency_name'])
+
+            # 2. Tạo file Word
+            from docx import Document
+            from docx.shared import Pt, Cm
+            from docx.enum.text import WD_ALIGN_PARAGRAPH
+            import io
+
+            doc = Document()
+            style = doc.styles['Normal']
+            font = style.font
+            font.name = 'Times New Roman'
+            font.size = Pt(13)
+
+            title = doc.add_paragraph()
+            title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = title.add_run(f"BÁO CÁO THEO DÕI TIẾN ĐỘ GÓP Ý\n{doc_obj.project_name.upper()}")
+            run.bold = True
+            run.font.size = Pt(14)
+
+            doc.add_paragraph()
+
+            table = doc.add_table(rows=1, cols=5)
+            table.style = 'Table Grid'
+            headers = ['STT', 'Cơ quan, đơn vị', 'Số văn bản', 'Ngày văn bản', 'Trạng thái']
+            hdr_cells = table.rows[0].cells
+            for i, h in enumerate(headers):
+                hdr_cells[i].text = h
+                p = hdr_cells[i].paragraphs[0]
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                run = p.runs[0]
+                run.bold = True
+
+            for i, item in enumerate(summary):
+                row_cells = table.add_row().cells
+                row_cells[0].text = str(i + 1)
+                row_cells[1].text = item['agency_name']
+                row_cells[2].text = item['official_number']
+                row_cells[3].text = item['official_date']
+                row_cells[4].text = item['status']
+                for idx in [0, 2, 3, 4]:
+                    row_cells[idx].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+            file_stream = io.BytesIO()
+            doc.save(file_stream)
+            file_stream.seek(0)
+            
+            response = HttpResponse(
+                file_stream.getvalue(),
+                content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            )
+            filename = f"Tien_do_gop_y_{doc_obj.id}.docx"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
     @action(detail=False, methods=['post'])
     def match_agencies_from_file(self, request):
         file_obj = request.FILES.get('file')

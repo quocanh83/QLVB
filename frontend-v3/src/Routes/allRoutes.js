@@ -57,6 +57,7 @@ import DocumentTypeManagement from "../pages/DocumentTypeManagement";
 import UserManagement from "../pages/UserManagement";
 import DepartmentManagement from "../pages/DepartmentManagement";
 import Agencies from "../pages/Agencies";
+import SidebarManager from "../pages/Settings/SidebarManager";
 
 //Task
 import TaskDetails from "../pages/Tasks/TaskDetails";
@@ -353,6 +354,7 @@ const authProtectedRoutes = [
   { path: "/user-management", component: <UserManagement /> },
   { path: "/departments", component: <DepartmentManagement /> },
   { path: "/agencies", component: <Agencies /> },
+  { path: "/settings/sidebar-manager", component: <SidebarManager /> },
 
   //Task
   { path: "/apps-tasks-list-view", component: <TaskList /> },

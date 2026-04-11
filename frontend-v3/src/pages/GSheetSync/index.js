@@ -675,12 +675,12 @@ const GSheetSync = () => {
                                                         </td>
                                                         <td>
                                                             <div className={classnames("p-3 border rounded fs-14", hasExpDiff ? "bg-soft-danger-dark border-danger shadow-sm" : isMissingExpOnGs ? "bg-soft-warning-dark border-warning shadow-sm" : "bg-soft-light-dark border-light-subtle")}>
-                                                                <div className="agency-label text-info opacity-75">Hệ thống (DB):</div>
-                                                                <div className="fw-medium text-white italic">{item.explanation || <em className="text-white-50">Trống</em>}</div>
+                                                                <div className="agency-label text-info opacity-75 fs-11 text-uppercase fw-bold mb-1">Hệ thống (DB):</div>
+                                                                <div className="italic" style={{ lineHeight: '1.5', color: '#ffffff', fontWeight: '600' }}>{item.explanation || <em className="text-white-25">Trống</em>}</div>
                                                                 {hasExpDiff && (
                                                                     <div className="mt-2 pt-2 border-top border-danger-subtle text-vibrant-danger">
                                                                         <i className="ri-error-warning-fill me-1"></i>
-                                                                        <strong>Sheet:</strong> {item.gs_explanation || <em className="text-muted">Trống</em>}
+                                                                        <strong>Sheet:</strong> <span style={{ color: '#ffffff', fontWeight: '600' }}>{item.gs_explanation || <em className="text-muted">Trống</em>}</span>
                                                                     </div>
                                                                 )}
                                                             </div>

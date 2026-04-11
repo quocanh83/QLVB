@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { getAuthHeader } from "../helpers/api_helper";
+import menuMaster from "./MenuConfig";
 
 const useNavData = () => {
   const history = useNavigate();
@@ -92,12 +93,10 @@ const useNavData = () => {
         const remoteConfig = remoteData.sidebar_config;
         const remoteVersion = remoteData.sidebar_version;
 
-        // Reset if version mismatch or config is empty
-        if (remoteVersion !== CURRENT_SIDEBAR_VERSION) {
-          console.log("Sidebar version mismatch, using default.");
-          localStorage.removeItem('sidebarJSONConfig');
-          setSidebarJSONConfig([]);
-          return;
+        // Use remote config if available
+        if (remoteConfig && Array.isArray(remoteConfig) && remoteConfig.length > 0) {
+          setSidebarJSONConfig(remoteConfig);
+          localStorage.setItem('sidebarJSONConfig', JSON.stringify(remoteConfig));
         }
 
         const isAdminUser = remoteData.is_staff || remoteData.is_superuser || (remoteData.roles || []).some(r => (typeof r === 'string' ? r === 'Admin' : r.role_name === 'Admin'));
@@ -197,286 +196,83 @@ const useNavData = () => {
     isMaps,
     isMultiLevel,
   ]);
-  const menuItems = [
-    {
-      id: "dashboard",
-      label: "Tổng quan",
-      icon: "las la-tachometer-alt",
-      link: "/dashboard-analytics",
-      stateVariables: isDashboard,
-      click: function (e) {
-        e.preventDefault();
-        setIsDashboard(!isDashboard);
-        setIscurrentState("Dashboard");
-        updateIconSidebar(e);
-        history("/dashboard-analytics");
-      },
-    },
-    {
-      label: "Danh mục Công việc",
-      isHeader: true,
-    },
-    {
-      id: "documents",
-      label: "Danh sách Dự thảo",
-      icon: "ri-file-list-3-line",
-      link: "/documents",
-    },
-    {
-      id: "project-assignment",
-      label: "Phân công Dự thảo",
-      icon: "ri-user-shared-2-line",
-      link: "/project-assignment",
-    },
-    {
-      id: "draft-consultation",
-      label: "Lấy ý kiến dự thảo",
-      icon: "ri-send-plane-2-line",
-      link: "/draft-consultation",
-    },
-    {
-      id: "consultation-responses",
-      label: "Văn bản góp ý",
-      icon: "ri-file-copy-2-line",
-      link: "/consultation-responses",
-    },
-    {
-      id: "draft-classification",
-      label: "Tiến độ góp ý",
-      icon: "ri-folders-line",
-      link: "/draft-classification",
-    },
-    {
-      id: "feedbacks",
-      label: "Danh sách Góp ý",
-      icon: "ri-discuss-line",
-      link: "/feedbacks",
-    },
-    {
-      id: "draft-explanation",
-      label: "Giải trình dự thảo",
-      icon: "ri-question-answer-line",
-      link: "/draft-explanation",
-    },
-    {
-      id: "feedback-intake",
-      label: "Nhập góp ý thủ công",
-      icon: "ri-chat-new-line",
-      link: "/feedback-intake",
-    },
-    {
-      id: "gsheet-sync",
-      label: "Cập nhật lên GG sheet",
-      icon: "ri-google-fill",
-      link: "/gsheet-sync",
-    },
-    {
-      id: "comparisons",
-      label: "So sánh văn bản",
-      icon: "ri-arrow-left-right-line",
-      link: "/comparisons",
-      badgeName: "Mới",
-      badgeColor: "info",
-    },
-    {
-      id: "reports",
-      label: "Báo cáo tổng hợp",
-      icon: "ri-bar-chart-2-line",
-      link: "/reports",
-      badgeName: "Mới",
-      badgeColor: "success",
-    },
-    {
-      label: "Rà soát Pháp lý",
-      isHeader: true,
-    },
-    {
-      id: "reference-reviews",
-      label: "Rà soát dẫn chiếu chéo",
-      icon: "ri-shield-check-line",
-      link: "/reference-reviews",
-    },
-    {
-      label: "Hệ thống",
-      isHeader: true,
-    },
-    {
-      id: "settings",
-      label: "Cài đặt",
-      icon: "ri-settings-4-line",
-      link: "/#",
-      stateVariables: iscurrentState === "Settings",
-      click: function (e) {
-        e.preventDefault();
-        setIscurrentState("Settings");
-      },
-      subItems: [
-        {
-          id: "document-types",
-          label: "Quản lý Loại dự thảo",
-          link: "/document-types",
-          parentId: "settings",
-        },
-        {
-          id: "agency-management",
-          label: "Quản lý Đơn vị",
-          link: "/agencies",
-          parentId: "settings",
-        },
-        {
-          id: "user-management",
-          label: "Quản lý Cán bộ",
-          link: "/user-management",
-          parentId: "settings",
-        },
-        {
-          id: "department-management",
-          label: "Quản lý Phòng ban",
-          link: "/departments",
-          parentId: "settings",
-        },
-        {
-          id: "sys-settings",
-          label: "Cấu hình chung",
-          link: "/settings",
-          parentId: "settings",
-        },
-      ],
-    },
-  ];
-  // Helper function to flatten the menu structure for lookup
-  const flattenMenuItems = (items) => {
-    let flat = {};
-    items.forEach(item => {
-      if (item.id) flat[item.id] = item;
-      if (item.subItems) {
-        flat = { ...flat, ...flattenMenuItems(item.subItems) };
-      }
-      if (item.childItems) {
-        flat = { ...flat, ...flattenMenuItems(item.childItems) };
+  const menuItems = menuMaster.map(item => {
+    // Add specific click handlers
+    if (item.id === 'dashboard') {
+      return {
+        ...item,
+        stateVariables: isDashboard,
+        click: function (e) {
+          e.preventDefault();
+          setIsDashboard(!isDashboard);
+          setIscurrentState("Dashboard");
+          updateIconSidebar(e);
+          history("/dashboard-analytics");
+        }
+      };
+    }
+    if (item.id === 'settings') {
+      return {
+        ...item,
+        stateVariables: iscurrentState === "Settings",
+        click: function (e) {
+          e.preventDefault();
+          setIscurrentState("Settings");
+        }
+      };
+    }
+    return item;
+  });
+
+  // 1. CHUẨN HÓA DỮ LIỆU CẤU HÌNH (UNFLATTEN LOGIC)
+  const buildMenuTree = (flatConfig) => {
+    const itemMap = {};
+    const tree = [];
+
+    // Tạo bản đồ tham chiếu
+    flatConfig.forEach(item => {
+      if (item.visible === false) return;
+      itemMap[item.id] = { ...item, subItems: [] };
+    });
+
+    // Xây dựng cây
+    flatConfig.forEach(item => {
+      if (item.visible === false) return;
+      if (item.parentId && itemMap[item.parentId]) {
+        itemMap[item.parentId].subItems.push(itemMap[item.id]);
+      } else {
+        tree.push(itemMap[item.id]);
       }
     });
-    return flat;
+
+    return tree;
   };
 
-  const flatMenuMap = flattenMenuItems(menuItems);
+  // 2. AUTO-MERGE: Đảm bảo các mục mới trong code không bị mất nếu config cũ chưa có
+  const mergeConfigWithMaster = (config, master) => {
+    if (!config || config.length === 0) return master;
+    
+    const configIds = new Set(config.map(it => it.id));
+    const missingInConfig = master.filter(m => m.id && !configIds.has(m.id));
+    
+    // Thêm các mục thiếu vào cuối danh sách phẳng
+    let mergedFlat = [...config];
+    missingInConfig.forEach(m => {
+        mergedFlat.push({ ...m, visible: true, depth: 0, parentId: null });
+    });
+    
+    return mergedFlat;
+  };
 
-  // FORCE DEFAULT LOGIC: If JSON config doesn't have headers or is very short, it's old and messy. Force defaults.
-  const hasNewHeaders = sidebarJSONConfig.some(it => it.isHeader && (it.label === "Danh mục Công việc" || it.label === "Hệ thống"));
-  const hasSettingsSubItems = sidebarJSONConfig.some(it => it.id === "settings" && it.subItems && it.subItems.length > 0);
-  const effectiveConfig = (!(hasNewHeaders && hasSettingsSubItems) && sidebarJSONConfig.length > 0) ? [] : sidebarJSONConfig;
-
-  // 1. Build the ordered menu list based on JSON config
   let finalMenuItems = [];
-
-  if (isAdmin) {
-    // Admins always see the master menu list fully
-    finalMenuItems = menuItems;
-  } else if (effectiveConfig && effectiveConfig.length > 0) {
-    effectiveConfig.forEach(configItem => {
-      if (!configItem.visible) return;
-
-      // Look up in our flattened map
-      const originalItem = flatMenuMap[configItem.id];
-
-      if (originalItem) {
-        // Clone the item so we don't mutate the original master list
-        const filteredItem = {
-          ...originalItem,
-          label: configItem.label || originalItem.label, // Override label if provided
-          icon: configItem.icon || originalItem.icon,   // Override icon if provided
-          isHeader: configItem.isHeader || false,       // Handle separator/header type
-        };
-
-        // If there are subItems in the config, filter the originalItem's subItems
-        if (configItem.subItems && configItem.subItems.length > 0) {
-          // If the original item had sub-items, we filter them
-          if (originalItem.subItems) {
-            filteredItem.subItems = originalItem.subItems.filter(sub => {
-              const subConfig = configItem.subItems.find(s => s.id === sub.id);
-              return subConfig ? subConfig.visible : true;
-            }).map(sub => {
-              // Apply label overrides to sub-items too
-              const subConfig = configItem.subItems.find(s => s.id === sub.id);
-              return subConfig ? { ...sub, label: subConfig.label || sub.label } : sub;
-            });
-          }
-        } else if (originalItem.subItems && configItem.id !== 'dashboard') {
-          // If no subItems config but original has them, keep all (except dashboard which we simplified)
-          // Actually, better to just keep them if they are not explicitly hidden
-        }
-
-        finalMenuItems.push(filteredItem);
-      } else if (configItem.id.toString().startsWith('custom-')) {
-        // Construct custom item
-        finalMenuItems.push({
-          id: configItem.id,
-          label: configItem.label,
-          icon: configItem.icon || "ri-external-link-line",
-          link: configItem.link,
-          isHeader: configItem.isHeader || false,
-          stateVariables: false,
-        });
-      }
-    });
-
-    // AUTO-MERGE: Ensure new items in code but missing from JSON config are still visible
-    // We check which master items were completely ignored during the JSON processing
-    const resultsIds = new Set();
-    const collectIdsFromConfig = (items) => {
-      items.forEach(it => {
-        if (it.id) resultsIds.add(it.id);
-        if (it.subItems) collectIdsFromConfig(it.subItems);
-      });
-    };
-    // Collect all IDs the user's config officially "knows about", even if hidden.
-    collectIdsFromConfig(sidebarJSONConfig);
-
-    menuItems.forEach(masterItem => {
-      // Check if it's a top-level item in the user's config
-      const isAtTopLevelInConfig = sidebarJSONConfig.some(it => it.id === masterItem.id);
-
-      if (masterItem.id && !isAtTopLevelInConfig) {
-        // If it was in the config but as a sub-item, or NOT in the config at all,
-        // and it's now a master item in the code, we must include it.
-        finalMenuItems.push(masterItem);
-      } else if (!masterItem.id && masterItem.isHeader) {
-        // Handling for headers which might not have IDs
-        const existingHeader = finalMenuItems.some(it => it.isHeader && it.label === masterItem.label);
-        if (!existingHeader) {
-          finalMenuItems.push(masterItem);
-        }
-      } else if (masterItem.subItems) {
-        // If master item exists but some of its sub-items are missing
-        masterItem.subItems.forEach(masterSub => {
-          if (masterSub.id && !resultsIds.has(masterSub.id)) {
-            // Find parent in results to append
-            const parentInFinal = finalMenuItems.find(it => it.id === masterSub.parentId);
-            if (parentInFinal) {
-              if (!parentInFinal.subItems) parentInFinal.subItems = [];
-              if (!parentInFinal.subItems.some(s => s.id === masterSub.id)) {
-                parentInFinal.subItems.push(masterSub);
-              }
-            }
-          }
-        });
-      }
-    });
+  
+  // Ưu tiên cấu hình từ JSON (do người dùng chỉnh sửa)
+  if (sidebarJSONConfig && sidebarJSONConfig.length > 0) {
+    const mergedData = mergeConfigWithMaster(sidebarJSONConfig, menuItems);
+    finalMenuItems = buildMenuTree(mergedData);
   } else {
-    // Fallback: Use the old filtering logic if JSON config is missing
-    // Admins are already handled above, but for non-admin without config, we still check old flags
-    finalMenuItems = menuItems.filter(item => {
-      if (isAdmin) return true; // Safety bypass if logic reaches here
-      if (item.id === 'qlvb' && sidebarConfig.SIDEBAR_HIDE_QLVB) return false;
-      if (item.id === 'dashboard' && sidebarConfig.SIDEBAR_HIDE_DASHBOARD) return false;
-      if (item.id === 'apps' && sidebarConfig.SIDEBAR_HIDE_APPS) return false;
-      if (['authentication', 'pages'].includes(item.id) && sidebarConfig.SIDEBAR_HIDE_PAGES) return false;
-
-      const componentIds = ['baseUi', 'advanceUi', 'widgets', 'forms', 'tables', 'charts', 'icons', 'maps', 'multilevel'];
-      if (componentIds.includes(item.id) && sidebarConfig.SIDEBAR_HIDE_COMPONENTS) return false;
-
-      return true;
-    });
+    // Nếu chưa có config thì dùng mặc định
+    finalMenuItems = menuItems;
   }
 
   return finalMenuItems;

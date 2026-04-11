@@ -11,6 +11,9 @@ import VerticalLayout from "./VerticalLayouts";
 import TwoColumnLayout from "./TwoColumnLayout";
 import { Container } from "reactstrap";
 import HorizontalLayout from "./HorizontalLayout";
+import { useSelector, useDispatch } from "react-redux";
+import { changeLayout } from "../slices/thunks";
+import { createSelector } from 'reselect';
 
 const Sidebar = ({ layoutType }) => {
 
@@ -22,6 +25,21 @@ const Sidebar = ({ layoutType }) => {
       });
     }
   });
+
+  const dispatch = useDispatch();
+
+  const selectLayoutState = (state) => state.Layout;
+  const selectLayoutProperties = createSelector(
+    selectLayoutState,
+    (layout) => ({
+      layoutTypeProp: layout.layoutType,
+    })
+  );
+  const { layoutTypeProp } = useSelector(selectLayoutProperties);
+
+  const handleLayoutChange = (type) => {
+    dispatch(changeLayout(type));
+  };
 
   const addEventListenerOnSmHoverMenu = () => {
     // add listener Sidebar Hover icon on change layout from setting
@@ -88,6 +106,24 @@ const Sidebar = ({ layoutType }) => {
               </Container>
             </SimpleBar>
             <div className="sidebar-background"></div>
+            
+            {/* Quick Switcher at bottom */}
+            <div className="sidebar-quick-switcher d-none d-lg-flex">
+               <button 
+                className={`btn btn-sm ${layoutTypeProp === 'vertical' ? 'btn-primary' : 'btn-soft-primary'} me-2`}
+                onClick={() => handleLayoutChange('vertical')}
+                title="Sidebar Dọc"
+               >
+                <i className="ri-layout-view-2"></i>
+               </button>
+               <button 
+                className={`btn btn-sm ${layoutTypeProp === 'horizontal' ? 'btn-soft-primary' : 'btn-primary'}`}
+                onClick={() => handleLayoutChange('horizontal')}
+                title="Menu Ngang"
+               >
+                <i className="ri-layout-top-line"></i>
+               </button>
+            </div>
           </React.Fragment>
         )}
       </div>

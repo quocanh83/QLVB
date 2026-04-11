@@ -507,10 +507,10 @@ const FeedbackList = () => {
                                                 >
                                                     <div className="d-flex align-items-center">
                                                         <div className="flex-grow-1 overflow-hidden">
-                                                            <h6 className={`mb-0 fs-13 text-truncate ${selectedDoc?.id === doc.id ? 'text-white' : ''}`} title={doc.project_name}>
+                                                            <h6 className={`mb-0 fs-13 text-truncate ${selectedDoc?.id === doc.id ? 'text-white' : 'text-body-emphasis'}`} title={doc.project_name}>
                                                                 {doc.project_name}
                                                             </h6>
-                                                            <div className={`text-truncate fs-12 ${selectedDoc?.id === doc.id ? 'text-white-50' : 'text-muted'}`}>
+                                                            <div className={`text-truncate fs-12 ${selectedDoc?.id === doc.id ? 'text-white-50' : 'text-muted-emphasis'}`}>
                                                                 {doc.drafting_agency || '-'}
                                                             </div>
                                                         </div>
@@ -656,12 +656,12 @@ const FeedbackList = () => {
                                                                 <td>
                                                                     <Button
                                                                         color="link"
-                                                                        className="p-0 text-primary fw-medium text-decoration-none text-start"
+                                                                        className="p-0 text-info fw-semibold text-decoration-none text-start"
                                                                         onClick={() => handleViewNode(fb.node_id, fb.node_label)}
                                                                     >
                                                                         {fb.node_label}
                                                                     </Button>
-                                                                    <div className="text-muted fs-12 mt-1 font-italic">
+                                                                    <div className="text-body-secondary fs-12 mt-1 opacity-75 italic">
                                                                         {fb.node_path}
                                                                     </div>
                                                                 </td>
@@ -669,7 +669,7 @@ const FeedbackList = () => {
                                                                     <div className="d-flex flex-wrap gap-1">
                                                                         {fb.assigned_users && fb.assigned_users.length > 0 ? (
                                                                             fb.assigned_users.map(u => (
-                                                                                <Badge key={u.id} color="soft-primary" className="text-primary border border-primary-subtle">
+                                                                                <Badge key={u.id} color="info" className="badge-soft-info border border-info-subtle">
                                                                                     {u.full_name}
                                                                                 </Badge>
                                                                             ))
@@ -684,15 +684,15 @@ const FeedbackList = () => {
                                                                     </div>
                                                                 </td>
                                                                 <td>
-                                                                    <Badge color="soft-info" className="text-muted fs-14 mt-1 ">{fb.contributing_agency}</Badge>
+                                                                    <Badge color="soft-info" className="text-info fs-13 mt-1 fw-bold">{fb.contributing_agency}</Badge>
                                                                 </td>
                                                                 <td>
                                                                     {fb.explanation ? (
-                                                                        <div style={{ whiteSpace: 'normal', fontSize: '16px', borderLeft: '3px solid var(--vz-success)' }} className="p-2 bg-light-subtle rounded text-body">
-                                                                            <span className="fw-medium">{fb.explanation}</span>
+                                                                        <div style={{ whiteSpace: 'normal', fontSize: '15px', borderLeft: '4px solid #0ab39c', backgroundColor: 'rgba(10, 179, 156, 0.15)' }} className="p-2 rounded shadow-sm">
+                                                                            <span style={{ color: '#ffffff', fontWeight: '600', display: 'block' }}>{fb.explanation}</span>
                                                                         </div>
                                                                     ) : (
-                                                                        <span className="text-muted italic opacity-50 px-2 font-italic border-start">Chưa giải trình</span>
+                                                                        <span className="text-white-50 italic opacity-50 px-2 font-italic border-start">Chưa giải trình</span>
                                                                     )}
                                                                 </td>
                                                                 <td>

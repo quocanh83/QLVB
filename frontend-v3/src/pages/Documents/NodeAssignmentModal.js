@@ -203,7 +203,9 @@ const NodeAssignmentModal = ({ isOpen, toggle, doc, onSuccess }) => {
                         <td style={{ paddingLeft: `${level * 20 + 12}px` }}>
                             <div className="d-flex align-items-center">
                                 {level > 0 && <i className="ri-corner-down-right-line me-2 text-muted"></i>}
-                                <span className={level === 0 ? "fw-bold" : ""}>{node.node_label}</span>
+                                <span className={classnames("flex-grow-1", { "fw-semibold text-primary": level === 0, "text-body": level > 0 })}>
+                                    {node.node_label}
+                                </span>
                             </div>
                         </td>
                         <td>
