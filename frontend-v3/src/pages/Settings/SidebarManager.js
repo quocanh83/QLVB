@@ -164,6 +164,8 @@ const IconPickerModal = ({ isOpen, toggle, onSelect }) => {
 
 const SidebarManager = () => {
     const [items, setItems] = useState([]);
+    const [mobileItems, setMobileItems] = useState([]);
+    const [activeMainTab, setActiveMainTab] = useState("1");
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -171,6 +173,7 @@ const SidebarManager = () => {
     const [isEditModal, setIsEditModal] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
     const [isAdding, setIsAdding] = useState(false);
+    const [editSource, setEditSource] = useState("sidebar"); // sidebar or mobile
 
     // Icon Picker state
     const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
@@ -198,12 +201,27 @@ const SidebarManager = () => {
             try {
                 const response = await axios.get("/api/accounts/profile/", getAuthHeader());
                 const remoteData = response.data || response;
-                const remoteConfig = remoteData.sidebar_config || [];
                 
+                // Sidebar Config
+                const remoteConfig = remoteData.sidebar_config || [];
                 if (!remoteConfig || remoteConfig.length === 0) {
                     setItems(flattenItems(menuMaster));
                 } else {
                     setItems(remoteConfig);
+                }
+
+                // Mobile Nav Config
+                const remoteMobileConfig = remoteData.mobile_nav_config || [];
+                if (!remoteMobileConfig || remoteMobileConfig.length === 0) {
+                    setMobileItems([
+                        { label: "Tổng quan", icon: "ri-dashboard-2-line", link: "/dashboard-analytics", visible: true, id: 'm1' },
+                        { label: "Dự thảo", icon: "ri-file-list-3-line", link: "/documents-modern", visible: true, id: 'm2' },
+                        { label: "Plus", isPlus: true, link: "/feedback-intake", visible: true, id: 'm3' },
+                        { label: "Góp ý", icon: "ri-chat-3-line", link: "/feedbacks", visible: true, id: 'm4' },
+                        { label: "Tài khoản", icon: "ri-user-line", link: "/organization", visible: true, id: 'm5' }
+                    ]);
+                } else {
+                    setMobileItems(remoteMobileConfig);
                 }
             } catch (error) {
                 console.error("Failed to fetch sidebar config", error);
@@ -217,10 +235,17 @@ const SidebarManager = () => {
 
     const onDragEnd = (result) => {
         if (!result.destination) return;
-        const newItems = Array.from(items);
-        const [reorderedItem] = newItems.splice(result.source.index, 1);
-        newItems.splice(result.destination.index, 0, reorderedItem);
-        setItems(newItems);
+        if (activeMainTab === "1") {
+            const newItems = Array.from(items);
+            const [reorderedItem] = newItems.splice(result.source.index, 1);
+            newItems.splice(result.destination.index, 0, reorderedItem);
+            setItems(newItems);
+        } else {
+            const newMobileItems = Array.from(mobileItems);
+            const [reorderedItem] = newMobileItems.splice(result.source.index, 1);
+            newMobileItems.splice(result.destination.index, 0, reorderedItem);
+            setMobileItems(newMobileItems);
+        }
     };
 
     const toggleVisibility = (id) => {
@@ -229,15 +254,23 @@ const SidebarManager = () => {
 
     const deleteItem = (id) => {
         if (window.confirm("Bạn có chắc chắn muốn xóa mục này?")) {
-            setItems(items.filter(item => item.id !== id));
+            if (activeMainTab === "1") {
+                setItems(items.filter(item => item.id !== id));
+            } else {
+                setMobileItems(mobileItems.filter(item => item.id !== id));
+            }
         }
     };
 
     const handleSave = async () => {
         setSaving(true);
         try {
-            await axios.patch("/api/accounts/profile/", { sidebar_config: items }, getAuthHeader());
+            await axios.patch("/api/accounts/profile/", { 
+                sidebar_config: items,
+                mobile_nav_config: mobileItems 
+            }, getAuthHeader());
             window.dispatchEvent(new CustomEvent('sidebar-config-update', { detail: items }));
+            window.dispatchEvent(new CustomEvent('mobile-nav-config-update', { detail: mobileItems }));
             toast.success("Đã lưu cấu hình Sidebar thành công!");
         } catch (error) {
             console.error("Failed to save config", error);
@@ -247,13 +280,15 @@ const SidebarManager = () => {
         }
     };
 
-    const openEditModal = (item) => {
+    const openEditModal = (item, source = "sidebar") => {
         setEditingItem({ ...item });
+        setEditSource(source);
         setIsAdding(false);
         setIsEditModal(true);
     };
 
-    const openAddModal = () => {
+    const openAddModal = (source = "sidebar") => {
+        setEditSource(source);
         setEditingItem({
             id: `custom-${Date.now()}`,
             label: "",
@@ -262,21 +297,24 @@ const SidebarManager = () => {
             visible: true,
             parentId: null,
             depth: 0,
-            isHeader: false
+            isHeader: false,
+            isPlus: false
         });
         setIsAdding(true);
         setIsEditModal(true);
     };
 
     const saveItemChanges = () => {
-        if (!editingItem.label) {
+        if (!editingItem.label && !editingItem.isPlus) {
             toast.error("Vui lòng nhập tên hiển thị");
             return;
         }
         if (isAdding) {
-            setItems([...items, editingItem]);
+            if (editSource === "sidebar") setItems([...items, editingItem]);
+            else setMobileItems([...mobileItems, editingItem]);
         } else {
-            setItems(items.map(it => it.id === editingItem.id ? editingItem : it));
+            if (editSource === "sidebar") setItems(items.map(it => it.id === editingItem.id ? editingItem : it));
+            else setMobileItems(mobileItems.map(it => it.id === editingItem.id ? editingItem : it));
         }
         setIsEditModal(false);
     };
@@ -295,70 +333,168 @@ const SidebarManager = () => {
                 <Container fluid>
                     <BreadCrumb title="Quản lý Sidebar" pageTitle="Cài đặt" />
                     
-                    <Row>
-                        <Col lg={12}>
-                            <Card>
-                                <CardHeader className="d-flex align-items-center justify-content-between">
-                                    <h5 className="card-title mb-0">Thiết kế Cấu trúc Sidebar</h5>
-                                    <div className="flex-shrink-0">
-                                        <Button color="success" size="sm" onClick={openAddModal} className="me-2">
-                                            <i className="ri-add-line align-bottom"></i> Thêm mục mới
-                                        </Button>
-                                        <Button color="soft-secondary" size="sm" onClick={resetToDefault} className="me-2">
-                                            <i className="ri-refresh-line align-bottom"></i> Mặc định
-                                        </Button>
-                                        <Button color="primary" size="sm" onClick={handleSave} disabled={saving}>
-                                            <i className="ri-save-line align-bottom"></i> {saving ? "Đang lưu..." : "Lưu hệ thống"}
-                                        </Button>
-                                    </div>
-                                </CardHeader>
-                                <CardBody>
-                                    <DragDropContext onDragEnd={onDragEnd}>
-                                        <Droppable droppableId="sidebar-items">
-                                            {(provided) => (
-                                                <div {...provided.droppableProps} ref={provided.innerRef} className="list-group list-group-flush border rounded shadow-sm">
-                                                    {items.map((item, index) => (
-                                                        <Draggable key={item.id} draggableId={item.id.toString()} index={index}>
-                                                            {(provided, snapshot) => (
-                                                                <div
-                                                                    ref={provided.innerRef}
-                                                                    {...provided.draggableProps}
-                                                                    {...provided.dragHandleProps}
-                                                                    style={{
-                                                                        ...provided.draggableProps.style,
-                                                                        marginLeft: `${item.depth * 30}px`,
-                                                                    }}
-                                                                    className={`list-group-item d-flex align-items-center justify-content-between ${item.visible ? '' : 'bg-light opacity-50'} ${snapshot.isDragging ? 'bg-soft-primary shadow' : ''}`}
-                                                                >
-                                                                    <div className="d-flex align-items-center flex-grow-1">
-                                                                        <i className="ri-drag-move-2-line me-3 text-muted fs-16"></i>
-                                                                        {item.isHeader ? (
-                                                                            <span className="badge bg-soft-info text-info text-uppercase fw-bold me-2" style={{fontSize: '10px'}}>Nhóm</span>
-                                                                        ) : (
-                                                                            <i className={`${item.icon || 'ri-record-circle-line'} me-3 fs-18 text-primary`}></i>
-                                                                        )}
-                                                                        <span className={`fs-14 ${item.isHeader ? 'fw-bold text-muted' : 'fw-medium'}`}>{item.label}</span>
-                                                                    </div>
-                                                                    <div className="d-flex align-items-center">
-                                                                        <div className="form-check form-switch me-3" title="Ẩn/Hiện">
-                                                                            <Input type="switch" className="form-check-input" checked={item.visible} onChange={() => toggleVisibility(item.id)}/>
+                    <Nav pills className="nav-pills-custom mb-4 gap-2">
+                        <NavItem>
+                            <NavLink
+                                className={classnames({ active: activeMainTab === '1' }, "rounded-pill py-2 px-4 fw-bold fs-13")}
+                                onClick={() => setActiveMainTab('1')}
+                                style={{ cursor: 'pointer' }}
+                            >
+                                <i className="ri-layout-left-line me-1"></i> Cấu trúc Sidebar
+                            </NavLink>
+                        </NavItem>
+                        <NavItem>
+                            <NavLink
+                                className={classnames({ active: activeMainTab === '2' }, "rounded-pill py-2 px-4 fw-bold fs-13")}
+                                onClick={() => setActiveMainTab('2')}
+                                style={{ cursor: 'pointer' }}
+                            >
+                                <i className="ri-smartphone-line me-1"></i> Menu di động (Bottom Nav)
+                            </NavLink>
+                        </NavItem>
+                    </Nav>
+                    
+                    <TabContent activeTab={activeMainTab}>
+                        <TabPane tabId="1">
+                            <Row>
+                                <Col lg={12}>
+                                    <Card>
+                                        <CardHeader className="d-flex align-items-center justify-content-between">
+                                            <h5 className="card-title mb-0">Thiết kế Cấu trúc Sidebar</h5>
+                                            <div className="flex-shrink-0">
+                                                <Button color="success" size="sm" onClick={() => openAddModal("sidebar")} className="me-2">
+                                                    <i className="ri-add-line align-bottom"></i> Thêm mục mới
+                                                </Button>
+                                                <Button color="soft-secondary" size="sm" onClick={resetToDefault} className="me-2">
+                                                    <i className="ri-refresh-line align-bottom"></i> Mặc định
+                                                </Button>
+                                                <Button color="primary" size="sm" onClick={handleSave} disabled={saving}>
+                                                    <i className="ri-save-line align-bottom"></i> {saving ? "Đang lưu..." : "Lưu hệ thống"}
+                                                </Button>
+                                            </div>
+                                        </CardHeader>
+                                        <CardBody>
+                                            <DragDropContext onDragEnd={onDragEnd}>
+                                                <Droppable droppableId="sidebar-items">
+                                                    {(provided) => (
+                                                        <div {...provided.droppableProps} ref={provided.innerRef} className="list-group list-group-flush border rounded shadow-sm">
+                                                            {items.map((item, index) => (
+                                                                <Draggable key={item.id} draggableId={item.id.toString()} index={index}>
+                                                                    {(provided, snapshot) => (
+                                                                        <div
+                                                                            ref={provided.innerRef}
+                                                                            {...provided.draggableProps}
+                                                                            {...provided.dragHandleProps}
+                                                                            style={{
+                                                                                ...provided.draggableProps.style,
+                                                                                marginLeft: `${item.depth * 30}px`,
+                                                                            }}
+                                                                            className={`list-group-item d-flex align-items-center justify-content-between ${item.visible ? '' : 'bg-light opacity-50'} ${snapshot.isDragging ? 'bg-soft-primary shadow' : ''}`}
+                                                                        >
+                                                                            <div className="d-flex align-items-center flex-grow-1">
+                                                                                <i className="ri-drag-move-2-line me-3 text-muted fs-16"></i>
+                                                                                {item.isHeader ? (
+                                                                                    <span className="badge bg-soft-info text-info text-uppercase fw-bold me-2" style={{fontSize: '10px'}}>Nhóm</span>
+                                                                                ) : (
+                                                                                    <i className={`${item.icon || 'ri-record-circle-line'} me-3 fs-18 text-primary`}></i>
+                                                                                )}
+                                                                                <span className={`fs-14 ${item.isHeader ? 'fw-bold text-muted' : 'fw-medium'}`}>{item.label}</span>
+                                                                            </div>
+                                                                            <div className="d-flex align-items-center">
+                                                                                <div className="form-check form-switch me-3" title="Ẩn/Hiện">
+                                                                                    <Input type="switch" className="form-check-input" checked={item.visible} onChange={() => toggleVisibility(item.id)}/>
+                                                                                </div>
+                                                                                <Button color="soft-primary" size="sm" className="btn-icon me-1" onClick={() => openEditModal(item, "sidebar")}><i className="ri-edit-line"></i></Button>
+                                                                                <Button color="soft-danger" size="sm" className="btn-icon" onClick={() => deleteItem(item.id)}><i className="ri-delete-bin-line"></i></Button>
+                                                                            </div>
                                                                         </div>
-                                                                        <Button color="soft-primary" size="sm" className="btn-icon me-1" onClick={() => openEditModal(item)}><i className="ri-edit-line"></i></Button>
-                                                                        <Button color="soft-danger" size="sm" className="btn-icon" onClick={() => deleteItem(item.id)}><i className="ri-delete-bin-line"></i></Button>
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                        </Draggable>
-                                                    ))}
-                                                    {provided.placeholder}
-                                                </div>
-                                            )}
-                                        </Droppable>
-                                    </DragDropContext>
-                                </CardBody>
-                            </Card>
-                        </Col>
-                    </Row>
+                                                                    )}
+                                                                </Draggable>
+                                                            ))}
+                                                            {provided.placeholder}
+                                                        </div>
+                                                    )}
+                                                </Droppable>
+                                            </DragDropContext>
+                                        </CardBody>
+                                    </Card>
+                                </Col>
+                            </Row>
+                        </TabPane>
+
+                        <TabPane tabId="2">
+                            <Row>
+                                <Col lg={12}>
+                                    <Card>
+                                        <CardHeader className="d-flex align-items-center justify-content-between">
+                                            <div className="flex-grow-1">
+                                                <h5 className="card-title mb-1">Cấu hình Menu Di động</h5>
+                                                <p className="text-muted mb-0 fs-12">Tùy chỉnh các nút chức năng trên thanh điều hướng dưới cùng (Bottom Nav). Tối đa 5 mục.</p>
+                                            </div>
+                                            <div className="flex-shrink-0">
+                                                <Button color="success" size="sm" onClick={() => openAddModal("mobile")} className="me-2" disabled={mobileItems.length >= 6}>
+                                                    <i className="ri-add-line align-bottom"></i> Thêm mục
+                                                </Button>
+                                                <Button color="primary" size="sm" onClick={handleSave} disabled={saving}>
+                                                    <i className="ri-save-line align-bottom"></i> {saving ? "Đang lưu..." : "Lưu hệ thống"}
+                                                </Button>
+                                            </div>
+                                        </CardHeader>
+                                        <CardBody>
+                                            <div className="alert alert-info border-0 rounded-3 mb-4">
+                                                <i className="ri-information-line me-2 align-middle fs-16"></i>
+                                                <strong>Lưu ý:</strong> Nút "Plus" ở chính giữa thường dùng để truy cập nhanh tính năng quan trọng nhất (ví dụ: Tiếp nhận góp ý).
+                                            </div>
+
+                                            <DragDropContext onDragEnd={onDragEnd}>
+                                                <Droppable droppableId="mobile-nav-items">
+                                                    {(provided) => (
+                                                        <div {...provided.droppableProps} ref={provided.innerRef} className="list-group list-group-flush border rounded shadow-sm">
+                                                            {mobileItems.map((item, index) => (
+                                                                <Draggable key={item.id} draggableId={item.id.toString()} index={index}>
+                                                                    {(provided, snapshot) => (
+                                                                        <div
+                                                                            ref={provided.innerRef}
+                                                                            {...provided.draggableProps}
+                                                                            {...provided.dragHandleProps}
+                                                                            className={`list-group-item d-flex align-items-center justify-content-between ${item.visible ? '' : 'bg-light opacity-50'} ${snapshot.isDragging ? 'bg-soft-primary shadow' : ''}`}
+                                                                        >
+                                                                            <div className="d-flex align-items-center flex-grow-1">
+                                                                                <i className="ri-drag-move-2-line me-3 text-muted fs-16"></i>
+                                                                                {item.isPlus ? (
+                                                                                    <div className="text-primary fw-bold d-flex align-items-center">
+                                                                                        <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style={{width: '32px', height: '32px'}}>
+                                                                                            <i className="ri-add-line"></i>
+                                                                                        </div>
+                                                                                        Nút Hành động (Plus)
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <>
+                                                                                        <i className={`${item.icon || 'ri-record-circle-line'} me-3 fs-18 text-info`}></i>
+                                                                                        <span className="fs-14 fw-medium">{item.label}</span>
+                                                                                    </>
+                                                                                )}
+                                                                            </div>
+                                                                            <div className="d-flex align-items-center">
+                                                                                <div className="ms-2 me-4 text-muted fs-11 italic">{item.link}</div>
+                                                                                <Button color="soft-primary" size="sm" className="btn-icon me-1" onClick={() => openEditModal(item, "mobile")}><i className="ri-edit-line"></i></Button>
+                                                                                <Button color="soft-danger" size="sm" className="btn-icon" onClick={() => deleteItem(item.id)}><i className="ri-delete-bin-line"></i></Button>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </Draggable>
+                                                            ))}
+                                                            {provided.placeholder}
+                                                        </div>
+                                                    )}
+                                                </Droppable>
+                                            </DragDropContext>
+                                        </CardBody>
+                                    </Card>
+                                </Col>
+                            </Row>
+                        </TabPane>
+                    </TabContent>
                 </Container>
 
                 {/* Edit Modal */}
@@ -406,9 +542,16 @@ const SidebarManager = () => {
                                 </Col>
                                 <Col lg={12}>
                                     <div className="d-flex gap-4">
-                                        <FormGroup check>
-                                            <Label check><Input type="checkbox" checked={editingItem.isHeader} onChange={(e) => setEditingItem({ ...editingItem, isHeader: e.target.checked, link: e.target.checked ? "" : editingItem.link })}/>{' '}Tiêu đề nhóm</Label>
-                                        </FormGroup>
+                                        {editSource === "sidebar" && (
+                                            <FormGroup check>
+                                                <Label check><Input type="checkbox" checked={editingItem.isHeader} onChange={(e) => setEditingItem({ ...editingItem, isHeader: e.target.checked, link: e.target.checked ? "" : editingItem.link })}/>{' '}Tiêu đề nhóm</Label>
+                                            </FormGroup>
+                                        )}
+                                        {editSource === "mobile" && (
+                                            <FormGroup check>
+                                                <Label check><Input type="checkbox" checked={editingItem.isPlus} onChange={(e) => setEditingItem({ ...editingItem, isPlus: e.target.checked })}/>{' '}Nút Hành động (Plus)</Label>
+                                            </FormGroup>
+                                        )}
                                         <FormGroup check>
                                             <Label check><Input type="checkbox" checked={editingItem.visible} onChange={(e) => setEditingItem({ ...editingItem, visible: e.target.checked })}/>{' '}Hiển thị</Label>
                                         </FormGroup>

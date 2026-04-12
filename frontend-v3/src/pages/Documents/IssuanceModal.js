@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, ModalHeader, ModalBody, ModalFooter, Button, Form, FormGroup, Label, Input, Row, Col, Spinner } from 'reactstrap';
+import { Modal, ModalHeader, ModalBody, ModalFooter, Form, FormGroup, Label, Input, Row, Col } from 'reactstrap';
 import Select from 'react-select';
 import axios from 'axios';
 import { getAuthHeader } from '../../helpers/api_helper';
 import { toast } from 'react-toastify';
+import { ModernButton } from '../../Components/Common/ModernUI';
 
 const IssuanceModal = ({ isOpen, toggle, doc, onSuccess }) => {
     const [formData, setFormData] = useState({
@@ -51,7 +52,6 @@ const IssuanceModal = ({ isOpen, toggle, doc, onSuccess }) => {
             const res = await axios.post('/api/documents/match_agencies_from_file/', data, getAuthHeader());
             const matchedIds = res.matched_ids || [];
             
-            // Merge with existing or replace? User said "đánh dấu các đơn vị", so merge
             const currentIds = new Set(formData.consulted_agencies);
             matchedIds.forEach(id => currentIds.add(id));
             
@@ -71,7 +71,6 @@ const IssuanceModal = ({ isOpen, toggle, doc, onSuccess }) => {
         const data = new FormData();
         data.append('issuance_number', formData.issuance_number);
         data.append('issuance_date', formData.issuance_date);
-        // ManyToMany field needs multiple entries in FormData or a stringified list depending on backend
         formData.consulted_agencies.forEach(id => {
             data.append('consulted_agencies', id);
         });
@@ -81,7 +80,6 @@ const IssuanceModal = ({ isOpen, toggle, doc, onSuccess }) => {
         }
 
         try {
-            // Using PATCH for partial update
             await axios.patch(`/api/documents/${doc.id}/`, data, getAuthHeader());
             toast.success("Cập nhật thông tin lấy ý kiến dự thảo thành công.");
             onSuccess();
@@ -96,91 +94,63 @@ const IssuanceModal = ({ isOpen, toggle, doc, onSuccess }) => {
     const agencyOptions = agencies.map(a => ({ value: a.id, label: a.name }));
     const selectedAgencies = agencyOptions.filter(opt => formData.consulted_agencies.includes(opt.value));
 
-    const selectStyles = {
-        control: (base, state) => ({
-            ...base,
-            background: "var(--vz-input-bg)",
-            borderColor: state.isFocused ? "var(--vz-input-focus-border-color)" : "var(--vz-input-border)",
-            color: "var(--vz-body-color)",
-        }),
-        menu: (base) => ({
-            ...base,
-            background: "var(--vz-choices-bg, #ffffff)",
-            borderColor: "var(--vz-input-border)",
-            zIndex: 9999
-        }),
-        option: (base, state) => ({
-            ...base,
-            background: state.isSelected ? "var(--vz-primary)" : state.isFocused ? "var(--vz-primary-light, #eef1f6)" : "transparent",
-            color: state.isSelected ? "#fff" : "var(--vz-body-color)",
-            cursor: "pointer",
-        }),
-        multiValue: (base) => ({
-            ...base,
-            background: "var(--vz-primary-light, #eef1f6)",
-            color: "var(--vz-primary, #405189)",
-        }),
-        multiValueLabel: (base) => ({
-            ...base,
-            color: "var(--vz-primary, #405189)",
-        }),
-        singleValue: (base) => ({
-            ...base,
-            color: "var(--vz-body-color)",
-        }),
-    };
-
     return (
-        <Modal isOpen={isOpen} toggle={toggle} centered size="lg">
-            <ModalHeader toggle={toggle} className="bg-light p-3">
+        <Modal isOpen={isOpen} toggle={toggle} centered size="lg" contentClassName="designkit-wrapper">
+            <ModalHeader toggle={toggle} className="modal-header-info">
+                <i className="ri-send-plane-fill me-2 text-info"></i>
                 Lấy ý kiến dự thảo
             </ModalHeader>
             <Form onSubmit={handleSubmit}>
-                <ModalBody>
+                <ModalBody className="p-4">
                     <Row>
                         <Col lg={6}>
-                            <FormGroup>
-                                <Label className="form-label">Số văn bản lấy ý kiến <span className="text-danger">*</span></Label>
+                            <FormGroup className="mb-3">
+                                <Label className="fw-bold mb-2">Số văn bản lấy ý kiến <span className="text-danger">*</span></Label>
                                 <Input 
+                                    className="bg-dark-light border-dark text-white"
                                     type="text" 
                                     placeholder="Ví dụ: 123/BXD-VP" 
                                     value={formData.issuance_number}
                                     onChange={(e) => setFormData({ ...formData, issuance_number: e.target.value })}
                                     required
+                                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--kit-border)', color: 'white' }}
                                 />
                             </FormGroup>
                         </Col>
                         <Col lg={6}>
-                            <FormGroup>
-                                <Label className="form-label">Ngày lấy ý kiến <span className="text-danger">*</span></Label>
+                            <FormGroup className="mb-3">
+                                <Label className="fw-bold mb-2">Ngày lấy ý kiến <span className="text-danger">*</span></Label>
                                 <Input 
+                                    className="bg-dark-light border-dark text-white"
                                     type="date" 
                                     value={formData.issuance_date}
                                     onChange={(e) => setFormData({ ...formData, issuance_date: e.target.value })}
                                     required
+                                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--kit-border)', color: 'white' }}
                                 />
                             </FormGroup>
                         </Col>
                         
                         <Col lg={12}>
-                            <FormGroup>
-                                <Label className="form-label">Đính kèm văn bản lấy ý kiến (PDF/Scan)</Label>
+                            <FormGroup className="mb-3">
+                                <Label className="fw-bold mb-2">Đính kèm văn bản lấy ý kiến (PDF/Scan)</Label>
                                 <Input 
+                                    className="bg-dark-light border-dark text-white"
                                     type="file" 
                                     onChange={(e) => setIssuanceFile(e.target.files[0])}
+                                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--kit-border)', color: 'white' }}
                                 />
                             </FormGroup>
                         </Col>
 
                         <Col lg={12}>
-                            <hr className="my-3" />
-                            <div className="d-flex justify-content-between align-items-center mb-2">
-                                <Label className="form-label mb-0">Danh sách đơn vị được lấy ý kiến</Label>
+                            <div className="border-top my-4" style={{ borderColor: 'var(--kit-border) !important' }}></div>
+                            <div className="d-flex justify-content-between align-items-center mb-3">
+                                <Label className="fw-bold mb-0">Đơn vị nhận ý kiến</Label>
                                 <div className="text-end">
-                                    <Label for="match-file" className="btn btn-soft-info btn-sm mb-0 cursor-pointer">
+                                    <Label for="match-file" className="btn btn-soft-info btn-sm mb-0 cursor-pointer" style={{ borderRadius: '20px' }}>
                                         <i className="ri-search-eye-line align-bottom me-1"></i> 
-                                        Quét danh sách từ tệp 
-                                        {matching && <Spinner size="sm" className="ms-1" />}
+                                        {matching ? "Đang quét..." : "Quét từ tệp"}
                                     </Label>
                                     <Input 
                                         type="file" 
@@ -192,28 +162,32 @@ const IssuanceModal = ({ isOpen, toggle, doc, onSuccess }) => {
                                 </div>
                             </div>
                             
-                            <FormGroup>
+                            <FormGroup className="mb-0">
                                 <Select
                                     isMulti
                                     options={agencyOptions}
                                     value={selectedAgencies}
                                     onChange={(selected) => setFormData({ ...formData, consulted_agencies: (selected || []).map(s => s.value) })}
                                     placeholder="Chọn các đơn vị..."
-                                    styles={selectStyles}
+                                    classNamePrefix="react-select"
                                     menuPortalTarget={document.body}
+                                    styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
                                 />
-                                <small className="text-muted mt-1 d-block italic">
-                                    * Bạn có thể chọn thủ công hoặc sử dụng chức năng <b>"Quét từ tệp"</b> để hệ thống tự động nhận diện đơn vị.
-                                </small>
+                                <div className="mt-3 p-3 rounded" style={{ background: 'rgba(6, 182, 212, 0.05)', border: '1px dashed rgba(6, 182, 212, 0.3)' }}>
+                                    <p className="text-info fs-12 mb-0 italic">
+                                        <i className="ri-information-line me-2"></i>
+                                        Sử dụng chức năng <b>"Quét từ tệp"</b> (Word/Excel) để hệ thống tự động nhận diện danh sách đơn vị từ nội dung văn bản.
+                                    </p>
+                                </div>
                             </FormGroup>
                         </Col>
                     </Row>
                 </ModalBody>
                 <ModalFooter>
-                    <Button color="light" onClick={toggle}>Đóng</Button>
-                    <Button color="primary" type="submit" disabled={loading || matching}>
-                        {loading ? "Đang lưu..." : "Xác nhận lấy ý kiến"}
-                    </Button>
+                    <ModernButton variant="ghost" onClick={toggle} disabled={loading}>Hủy</ModernButton>
+                    <ModernButton variant="primary" type="submit" loading={loading} disabled={matching}>
+                        Xác nhận Lấy ý kiến
+                    </ModernButton>
                 </ModalFooter>
             </Form>
         </Modal>

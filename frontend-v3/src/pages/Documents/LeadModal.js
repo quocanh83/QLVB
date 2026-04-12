@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, ModalHeader, ModalBody, ModalFooter, Form, FormGroup, Label, Button, Spinner, Alert } from 'reactstrap';
+import { Modal, ModalHeader, ModalBody, ModalFooter, Form, FormGroup, Label, Spinner, Alert } from 'reactstrap';
 import Select from 'react-select';
 import axios from 'axios';
 import { getAuthHeader } from '../../helpers/api_helper';
 import { toast } from 'react-toastify';
+import { ModernButton } from '../../Components/Common/ModernUI';
 
 const LeadModal = ({ isOpen, toggle, doc, users, onSuccess }) => {
-    // Chuyển danh sách ID sang format của react-select { value, label }
     const [selectedLeads, setSelectedLeads] = useState([]);
     const [loading, setLoading] = useState(false);
 
@@ -49,34 +49,38 @@ const LeadModal = ({ isOpen, toggle, doc, users, onSuccess }) => {
     };
 
     return (
-        <Modal isOpen={isOpen} toggle={toggle} centered>
-            <ModalHeader toggle={toggle} className="bg-info text-white">
+        <Modal isOpen={isOpen} toggle={toggle} centered contentClassName="designkit-wrapper">
+            <ModalHeader toggle={toggle} className="modal-header-indigo">
+                <i className="ri-user-star-line me-2 text-primary"></i>
                 Phân công Cán bộ Chủ trì
             </ModalHeader>
             <Form onSubmit={handleSubmit}>
                 <ModalBody className="p-4">
-                    <p className="text-muted mb-4 uppercase fs-11 fw-bold">Dự thảo: {doc?.project_name}</p>
+                    <p className="mb-4" style={{ fontSize: '0.75rem', fontWeight: 700, opacity: 0.6, textTransform: 'uppercase' }}>
+                        Dự thảo: {doc?.project_name}
+                    </p>
                     <FormGroup className="mb-3">
-                        <Label className="form-label fw-bold">Chọn Cán bộ Chủ trì (có thể chọn nhiều)</Label>
+                        <Label className="fw-bold mb-2" style={{ color: 'var(--kit-text-2)' }}>Chọn Cán bộ Chủ trì (có thể chọn nhiều)</Label>
                         <Select
                             isMulti
                             options={userOptions}
                             value={selectedLeads}
                             onChange={(newValue) => setSelectedLeads(newValue)}
                             placeholder="Tìm kiếm và chọn..."
+                            className="react-select-container"
                             classNamePrefix="react-select"
                         />
                     </FormGroup>
-                    <Alert color="warning" className="mt-3 fs-12 mb-0 border-dashed border-warning">
+                    <Alert color="warning" className="mt-3 fs-12 mb-0 border-dashed border-warning" style={{ background: 'rgba(245, 158, 11, 0.05)', color: '#f59e0b' }}>
                         <i className="ri-information-line me-2"></i>
                         Những người được chọn sẽ có quyền Phân công chuyên viên và Phê duyệt giải trình cho dự thảo này.
                     </Alert>
                 </ModalBody>
                 <ModalFooter>
-                    <Button color="light" onClick={toggle} disabled={loading}>Hủy</Button>
-                    <Button color="info" type="submit" disabled={loading} className="text-white">
-                        {loading ? <Spinner size="sm" /> : "Xác nhận Lựa chọn"}
-                    </Button>
+                    <ModernButton variant="ghost" onClick={toggle} disabled={loading}>Hủy</ModernButton>
+                    <ModernButton variant="primary" type="submit" loading={loading}>
+                        Xác nhận Lựa chọn
+                    </ModernButton>
                 </ModalFooter>
             </Form>
         </Modal>

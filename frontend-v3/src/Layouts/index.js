@@ -7,6 +7,7 @@ import withRouter from '../Components/Common/withRouter';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import Footer from './Footer';
+import MobileBottomNav from '../Components/Common/MobileBottomNav';
 import axios from 'axios';
 import { getAuthHeader } from '../helpers/api_helper';
 
@@ -64,6 +65,8 @@ const Layout = (props) => {
         sidebarVisibilitytype
     } = useSelector(selectLayoutProperties);
 
+    const [mobileNavConfig, setMobileNavConfig] = useState([]);
+
     /*
     layout settings
     */
@@ -83,7 +86,27 @@ const Layout = (props) => {
                 console.error("Failed to sync sidebar config", e);
             }
         };
+
+        const fetchProfileConfig = async () => {
+            try {
+                const res = await axios.get('/api/accounts/profile/', getAuthHeader());
+                const data = res.data || res;
+                if (data.mobile_nav_config) {
+                    setMobileNavConfig(data.mobile_nav_config);
+                }
+            } catch (e) {
+                console.error("Failed to fetch profile config", e);
+            }
+        };
+
         fetchSidebarConfig();
+        fetchProfileConfig();
+
+        const handleUpdate = (e) => {
+            if (e.detail) setMobileNavConfig(e.detail);
+        };
+        window.addEventListener('mobile-nav-config-update', handleUpdate);
+        return () => window.removeEventListener('mobile-nav-config-update', handleUpdate);
     }, []);
 
     useEffect(() => {
@@ -164,6 +187,7 @@ const Layout = (props) => {
                 <div className="main-content">{props.children}
                     <Footer />
                 </div>
+                <MobileBottomNav items={mobileNavConfig} />
             </div>
         </React.Fragment>
 

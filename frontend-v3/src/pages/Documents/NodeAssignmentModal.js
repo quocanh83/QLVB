@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Modal, ModalHeader, ModalBody, ModalFooter, Table, Button, Spinner, Nav, NavItem, NavLink, TabContent, TabPane, Input, InputGroup } from 'reactstrap';
+import { Modal, ModalHeader, ModalBody, ModalFooter, Table, Spinner, Nav, NavItem, NavLink, TabContent, TabPane, Input, InputGroup } from 'reactstrap';
 import Select from 'react-select';
 import axios from 'axios';
 import { getAuthHeader } from '../../helpers/api_helper';
 import { toast } from 'react-toastify';
 import { useProfile } from "../../Components/Hooks/UserHooks";
+import { ModernButton } from '../../Components/Common/ModernUI';
 import classnames from 'classnames';
 
 const NodeAssignmentModal = ({ isOpen, toggle, doc, onSuccess }) => {
@@ -21,7 +22,6 @@ const NodeAssignmentModal = ({ isOpen, toggle, doc, onSuccess }) => {
 
     const isAdmin = useMemo(() => {
         if (!userProfile) return false;
-        // Kiểm tra nhiều trường hợp: Django (is_staff) hoặc FakeBackend (role === 'admin')
         const roles = userProfile.roles || [];
         return (
             userProfile.is_staff === true || 
@@ -32,10 +32,8 @@ const NodeAssignmentModal = ({ isOpen, toggle, doc, onSuccess }) => {
         );
     }, [userProfile]);
 
-    // Danh sách các loại node được phép phân công (Bỏ qua Khoản, Điểm)
     const assignableTypes = ['Chương', 'Mục', 'Điều', 'Phụ lục', 'Vấn đề khác', 'Tiểu mục'];
 
-    // Lọc danh sách cán bộ có thể phân công
     const eligibleUsers = useMemo(() => {
         if (isAdmin) return users;
         return users.filter(u => u.department_id === userProfile?.department_id);
@@ -46,7 +44,6 @@ const NodeAssignmentModal = ({ isOpen, toggle, doc, onSuccess }) => {
         label: `${u.full_name || u.username} (${u.department_name || 'N/A'})`
     }));
 
-    // Tạo danh sách các Điều/Khoản dạng phẳng để chọn trong Tab 2
     const nodeOptions = useMemo(() => {
         const options = [];
         const flatten = (list) => {
@@ -122,7 +119,6 @@ const NodeAssignmentModal = ({ isOpen, toggle, doc, onSuccess }) => {
         });
     };
 
-    // Hàm phân tích chuỗi như "1-5, 10, 12-15"
     const parseRangeText = (text) => {
         if (!text) return [];
         const result = [];
@@ -141,7 +137,7 @@ const NodeAssignmentModal = ({ isOpen, toggle, doc, onSuccess }) => {
                 if (!isNaN(num)) result.push(num);
             }
         });
-        return [...new Set(result)]; // Xóa trùng
+        return [...new Set(result)];
     };
 
     const handleQuickAssign = (userId) => {
@@ -151,9 +147,7 @@ const NodeAssignmentModal = ({ isOpen, toggle, doc, onSuccess }) => {
         
         const matchedNodeIds = nodeOptions
             .filter(n => {
-                // Chỉ gán cho loại 'Điều' khi nhập số
                 if (n.type !== 'Điều') return false;
-                // Tìm số trong nhãn (vd: "Điều 5" -> 5)
                 const match = n.label.match(/\d+/);
                 return match && targetNumbers.includes(parseInt(match[0]));
             })
@@ -203,7 +197,7 @@ const NodeAssignmentModal = ({ isOpen, toggle, doc, onSuccess }) => {
                         <td style={{ paddingLeft: `${level * 20 + 12}px` }}>
                             <div className="d-flex align-items-center">
                                 {level > 0 && <i className="ri-corner-down-right-line me-2 text-muted"></i>}
-                                <span className={classnames("flex-grow-1", { "fw-semibold text-primary": level === 0, "text-body": level > 0 })}>
+                                <span className={classnames("flex-grow-1", { "fw-semibold text-primary": level === 0, "text-body": level > 0 })} style={{ color: level === 0 ? "var(--kit-primary)" : "inherit" }}>
                                     {node.node_label}
                                 </span>
                             </div>
@@ -246,19 +240,21 @@ const NodeAssignmentModal = ({ isOpen, toggle, doc, onSuccess }) => {
             return (
                 <tr key={userId}>
                     <td className="fw-medium">
-                        {user.full_name || user.username}
+                        <div style={{ color: 'var(--kit-text)' }}>{user.full_name || user.username}</div>
                         <div className="text-muted fs-11">{user.department_name || 'N/A'}</div>
                     </td>
                     <td>
                         <div className="mb-2">
                             <InputGroup size="sm">
                                 <Input 
+                                    className="bg-dark-light border-dark text-white"
                                     placeholder="Nhập dải Điều (vd: 1-5, 10, 12-15)" 
                                     value={quickInputs[userId] || ""}
                                     onChange={(e) => setQuickInputs(prev => ({ ...prev, [userId]: e.target.value }))}
                                     onKeyPress={(e) => e.key === 'Enter' && handleQuickAssign(userId)}
+                                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--kit-border)', color: 'white' }}
                                 />
-                                <Button color="info" outline onClick={() => handleQuickAssign(userId)}>Gán nhanh</Button>
+                                <ModernButton variant="primary" onClick={() => handleQuickAssign(userId)} style={{ padding: '0 10px', minHeight: '32px' }}>Gán nhanh</ModernButton>
                             </InputGroup>
                         </div>
                         <Select
@@ -278,18 +274,27 @@ const NodeAssignmentModal = ({ isOpen, toggle, doc, onSuccess }) => {
     };
 
     return (
-        <Modal isOpen={isOpen} toggle={toggle} size="xl" scrollable centered>
-            <ModalHeader toggle={toggle} className="bg-success text-white p-3">
-                <span className="fs-16">Phân công Giải trình - {doc?.project_name}</span>
+        <Modal isOpen={isOpen} toggle={toggle} size="xl" scrollable centered contentClassName="designkit-wrapper">
+            <ModalHeader toggle={toggle} className="modal-header-success">
+                <i className="ri-user-add-line me-2 text-success"></i>
+                <span className="fs-16 fw-bold">Phân công Giải trình - {doc?.project_name}</span>
             </ModalHeader>
             <ModalBody className="p-0">
-                <div className="bg-light px-3 pt-3 border-bottom">
-                    <Nav tabs className="nav-tabs-custom nav-success border-bottom-0">
+                <div className="bg-transparent px-3 pt-3 border-bottom" style={{ borderColor: 'var(--kit-border) !important' }}>
+                    <Nav tabs className="nav-tabs-custom nav-success border-bottom-0 gap-4">
                         <NavItem>
                             <NavLink
                                 className={classnames({ active: activeTab === '1' })}
                                 onClick={() => setActiveTab('1')}
-                                style={{ cursor: 'pointer' }}
+                                style={{ 
+                                    cursor: 'pointer', 
+                                    border: 'none', 
+                                    color: activeTab === '1' ? 'var(--kit-primary)' : 'var(--kit-text-3)',
+                                    fontWeight: activeTab === '1' ? 700 : 400,
+                                    background: 'transparent',
+                                    paddingBottom: '12px',
+                                    borderBottom: activeTab === '1' ? '2px solid var(--kit-primary)' : 'none'
+                                }}
                             >
                                 <i className="ri-node-tree me-1 align-middle"></i> Theo Điều / Khoản
                             </NavLink>
@@ -298,7 +303,15 @@ const NodeAssignmentModal = ({ isOpen, toggle, doc, onSuccess }) => {
                             <NavLink
                                 className={classnames({ active: activeTab === '2' })}
                                 onClick={() => setActiveTab('2')}
-                                style={{ cursor: 'pointer' }}
+                                style={{ 
+                                    cursor: 'pointer', 
+                                    border: 'none', 
+                                    color: activeTab === '2' ? 'var(--kit-primary)' : 'var(--kit-text-3)',
+                                    fontWeight: activeTab === '2' ? 700 : 400,
+                                    background: 'transparent',
+                                    paddingBottom: '12px',
+                                    borderBottom: activeTab === '2' ? '2px solid var(--kit-primary)' : 'none'
+                                }}
                             >
                                 <i className="ri-group-line me-1 align-middle"></i> Theo Chuyên viên
                             </NavLink>
@@ -309,17 +322,17 @@ const NodeAssignmentModal = ({ isOpen, toggle, doc, onSuccess }) => {
                 {loading ? (
                     <div className="text-center p-5">
                         <Spinner color="primary" />
-                        <p className="mt-2">Đang tải dữ liệu...</p>
+                        <p className="mt-2 text-muted">Đang tải dữ liệu...</p>
                     </div>
                 ) : (
                     <TabContent activeTab={activeTab}>
                         <TabPane tabId="1">
                             <div className="table-responsive">
-                                <Table className="align-middle table-nowrap mb-0">
-                                    <thead className="table-light sticky-top">
+                                <Table className="align-middle mb-0 table-transparent">
+                                    <thead className="sticky-top" style={{ background: 'var(--kit-surface-2)', zIndex: 10 }}>
                                         <tr>
-                                            <th>Cấu trúc Dự thảo</th>
-                                            <th style={{ width: "45%" }}>Chuyên viên phụ trách</th>
+                                            <th style={{ color: 'var(--kit-text-3)', borderBottom: '1px solid var(--kit-border)' }}>Cấu trúc Dự thảo</th>
+                                            <th style={{ width: "45%", color: 'var(--kit-text-3)', borderBottom: '1px solid var(--kit-border)' }}>Chuyên viên phụ trách</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -330,11 +343,11 @@ const NodeAssignmentModal = ({ isOpen, toggle, doc, onSuccess }) => {
                         </TabPane>
                         <TabPane tabId="2">
                             <div className="table-responsive">
-                                <Table className="align-middle table-nowrap mb-0">
-                                    <thead className="table-light sticky-top">
+                                <Table className="align-middle mb-0 table-transparent">
+                                    <thead className="sticky-top" style={{ background: 'var(--kit-surface-2)', zIndex: 10 }}>
                                         <tr>
-                                            <th style={{ width: "30%" }}>Họ và tên Cán bộ</th>
-                                            <th>Điều / Khoản phụ trách</th>
+                                            <th style={{ width: "30%", color: 'var(--kit-text-3)', borderBottom: '1px solid var(--kit-border)' }}>Họ và tên Cán bộ</th>
+                                            <th style={{ color: 'var(--kit-text-3)', borderBottom: '1px solid var(--kit-border)' }}>Điều / Khoản phụ trách</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -349,12 +362,12 @@ const NodeAssignmentModal = ({ isOpen, toggle, doc, onSuccess }) => {
             <ModalFooter>
                 <div className="flex-grow-1 fs-12 text-muted px-2">
                     <i className="ri-information-line me-1 text-info"></i>
-                    {isAdmin ? "Quyền Admin: Phân công toàn cục" : `Đang phân công cho ${userProfile?.department_name || 'phòng ban của bạn'}`}
+                    {isAdmin ? "Quyền Admin: Phân công toàn cục" : `Đang phân công cho ${userProfile?.department_name || 'phòng ban'}`}
                 </div>
-                <Button color="light" onClick={toggle} disabled={saving}>Đóng</Button>
-                <Button color="success" onClick={handleSubmit} disabled={saving} className="btn-load">
-                    {saving ? <Spinner size="sm" /> : "Lưu dữ liệu phân công"}
-                </Button>
+                <ModernButton variant="ghost" onClick={toggle} disabled={saving}>Hủy</ModernButton>
+                <ModernButton variant="primary" onClick={handleSubmit} loading={saving}>
+                    Lưu phân công
+                </ModernButton>
             </ModalFooter>
         </Modal>
     );

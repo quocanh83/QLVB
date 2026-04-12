@@ -6,12 +6,17 @@ import classnames from 'classnames';
 import { getAuthHeader } from '../../helpers/api_helper';
 import { toast } from 'react-toastify';
 import BreadCrumb from '../../Components/Common/BreadCrumb';
+import { 
+    ModernCard, ModernBadge, ModernButton, 
+    ModernHeader, ModernSearchBox, ModernTable 
+} from '../../Components/Common/ModernUI';
 import Select from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import SimpleBar from 'simplebar-react';
 import { useDropzone } from 'react-dropzone';
 import OCRComparisonView from './OCRComparisonView';
 import PageSelector from './PageSelector';
+import './FeedbackIntake.css';
 
 const FeedbackIntake = () => {
     const [documents, setDocuments] = useState([]);
@@ -81,74 +86,105 @@ const FeedbackIntake = () => {
     const selectStyles = {
         control: (base, state) => ({
             ...base,
-            background: "var(--vz-input-bg)",
-            borderColor: state.isFocused ? "var(--vz-input-focus-border-color)" : "var(--vz-input-border)",
-            color: "var(--vz-body-color)",
+            background: "var(--vz-input-bg, rgba(255,255,255,0.05))",
+            borderColor: state.isFocused ? "var(--vz-primary, #405189)" : "var(--vz-input-border, rgba(255,255,255,0.1))",
+            color: "var(--vz-body-color, #ffffff)",
+            borderRadius: '12px',
+            padding: '4px 8px',
+            boxShadow: 'none',
+            '&:hover': {
+                borderColor: "var(--vz-primary, #405189)"
+            }
         }),
         menu: (base) => ({
             ...base,
-            background: "var(--vz-choices-bg, #ffffff)",
-            borderColor: "var(--vz-input-border)",
-            boxShadow: "0 5px 15px rgba(0,0,0,0.1)",
-            zIndex: 9999
+            background: "var(--vz-choices-bg, #1a1b1e)",
+            borderColor: "rgba(255,255,255,0.1)",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+            zIndex: 9999,
+            borderRadius: '12px',
+            overflow: 'hidden'
         }),
         option: (base, state) => ({
             ...base,
             background: state.isSelected 
-                ? "var(--vz-primary)" 
+                ? "var(--vz-primary, #405189)" 
                 : state.isFocused 
-                    ? "var(--vz-primary-light, #eef1f6)" 
-                    : "var(--vz-choices-bg, #ffffff)",
+                    ? "rgba(64, 81, 137, 0.15)" 
+                    : "transparent",
             color: state.isSelected 
                 ? "#fff" 
-                : state.isFocused 
-                    ? "var(--vz-primary, #405189)" 
-                    : "var(--vz-body-color)",
-            borderBottom: "1px solid var(--vz-input-border)",
+                : "#ced4da",
             padding: "12px 15px",
-            fontSize: "15px",
-            fontWeight: "600",
+            fontSize: "14px",
+            fontWeight: "500",
             cursor: "pointer",
+            borderBottom: "1px solid rgba(255,255,255,0.03)",
             ":last-child": {
                 borderBottom: "none"
             },
             ":active": {
-                background: "var(--vz-primary)",
+                background: "var(--vz-primary, #405189)",
                 color: "#fff"
             }
         }),
         singleValue: (base) => ({
             ...base,
-            color: "var(--vz-body-color)",
+            color: "#ffffff",
             fontSize: "15px",
             fontWeight: "600",
         }),
         input: (base) => ({
             ...base,
-            color: "var(--vz-body-color)",
-            fontSize: "15px",
-            fontWeight: "600",
-        }),
-        multiValue: (base) => ({
-            ...base,
-            background: "var(--vz-primary-light, #eef1f6)",
-            color: "var(--vz-primary, #405189)",
-        }),
-        multiValueLabel: (base) => ({
-            ...base,
-            color: "var(--vz-primary, #405189)",
+            color: "#ffffff",
         }),
         placeholder: (base) => ({
             ...base,
-            color: "var(--vz-input-placeholder-color, #adb5bd)",
+            color: "rgba(255,255,255,0.5)",
         }),
         dropdownIndicator: (base) => ({
             ...base,
-            color: "var(--vz-input-placeholder-color)",
+            color: "rgba(255,255,255,0.3)",
         }),
         indicatorSeparator: (base) => ({
             ...base,
-            backgroundColor: "var(--vz-input-border)",
+            backgroundColor: "rgba(255,255,255,0.1)",
+        })
+    };
+
+    const compactSelectStyles = {
+        ...selectStyles,
+        control: (base, state) => ({
+            ...selectStyles.control(base, state),
+            minHeight: '28px',
+            padding: '0',
+            border: 'none',
+            background: 'transparent'
+        }),
+        valueContainer: (base) => ({
+            ...base,
+            padding: '0 4px',
+        }),
+        singleValue: (base) => ({
+            ...base,
+            fontSize: '11px',
+            fontWeight: '600',
+            color: 'var(--vz-primary)',
+            margin: '0'
+        }),
+        indicatorsContainer: (base) => ({
+            ...base,
+            height: '28px',
+        }),
+        input: (base) => ({
+            ...base,
+            fontSize: '11px',
+            margin: '0',
+            padding: '0'
+        }),
+        placeholder: (base) => ({
+            ...base,
+            fontSize: '11px',
         })
     };
 
@@ -593,367 +629,349 @@ const FeedbackIntake = () => {
 
     return (
         <React.Fragment>
-            <div className="page-content">
-                <Container fluid>
-                    <BreadCrumb title="Tiếp nhận Góp ý" pageTitle="Quản lý" />
-                    
-                    <Card className="border-0 shadow-sm mb-4">
-                        <CardBody className="p-3">
-                            <Row className="align-items-center">
-                                <Col md={6}>
-                                    <FormGroup className="mb-0">
-                                        <Label className="form-label fw-bold text-muted text-uppercase fs-11 mb-1">Dự thảo văn bản cần góp ý</Label>
+            <div className="designkit-wrapper">
+                <div className="modern-page-content">
+                    <ModernHeader 
+                        title="Tiếp nhận Góp ý" 
+                        subtitle="Nhập liệu, bóc tách DOCX và OCR/AI"
+                        actions={
+                            <div className="d-flex gap-2">
+                                <ModernButton variant="ghost" onClick={() => navigate(-1)}>
+                                    <i className="ri-arrow-left-line"></i> Quay lại
+                                </ModernButton>
+                                <ModernButton 
+                                    variant="primary" 
+                                    onClick={handleSave} 
+                                    disabled={saving || feedbacks.filter(f => f.import_mode !== 'skip').length === 0 || !selectedDocId}
+                                >
+                                    {saving ? <Spinner size="sm" /> : <><i className="ri-save-3-line"></i> Lưu {feedbacks.filter(f => f.import_mode !== 'skip').length} góp ý</>}
+                                </ModernButton>
+                            </div>
+                        }
+                    />
+
+                    <Container fluid className="px-0">
+                        <ModernCard className="mb-4 shadow-sm border-0" style={{ background: 'rgba(255, 255, 255, 0.02)' }}>
+                            <Row className="align-items-center g-3 p-2">
+                                <Col lg={6}>
+                                    <div className="p-3">
+                                        <Label className="text-muted fw-bold small text-uppercase mb-2">Dự thảo văn bản cần góp ý <span className="text-danger">*</span></Label>
                                         <Select
-                                            id="docSelect"
                                             value={documents.find(d => d.id === selectedDocId) ? { value: selectedDocId, label: documents.find(d => d.id === selectedDocId).project_name } : null}
                                             onChange={(opt) => setSelectedDocId(opt ? opt.value : null)}
                                             options={documents.map(d => ({ value: d.id, label: d.project_name }))}
-                                            placeholder="Chọn dự thảo..."
-                                            isClearable
+                                            placeholder="-- Tìm và chọn dự thảo --"
                                             styles={selectStyles}
                                             menuPortalTarget={document.body}
-                                            menuPosition="fixed"
                                         />
-                                    </FormGroup>
+                                    </div>
                                 </Col>
-                                <Col md={6} className="text-end pt-3 pt-md-0">
-                                    <Button 
-                                        color="primary" 
-                                        className="btn-label waves-effect waves-light shadow-none px-4" 
-                                        onClick={handleSave} 
-                                        disabled={saving || feedbacks.filter(f => f.import_mode !== 'skip').length === 0 || !selectedDocId}
-                                    >
-                                        <i className="ri-save-3-line label-icon align-middle fs-16 me-2"></i> 
-                                        {saving ? "Đang lưu..." : `Lưu ${feedbacks.filter(f => f.import_mode !== 'skip').length} góp ý vào hệ thống`}
-                                    </Button>
+                                <Col lg={6} className="d-flex align-items-end justify-content-lg-end gap-3 p-3">
+                                    {selectedDocId && (
+                                        <div className="p-2 px-3 rounded-pill bg-primary-subtle border border-primary-subtle d-flex align-items-center gap-2">
+                                            <div className="pulse-dot"></div>
+                                            <span className="text-primary fw-bold fs-12">Đang nạp dữ liệu cho: {documents.find(d => d.id === selectedDocId)?.project_name}</span>
+                                        </div>
+                                    )}
                                 </Col>
                             </Row>
-                        </CardBody>
-                    </Card>
+                        </ModernCard>
 
-                    <Nav pills className="nav-pills nav-custom nav-primary mb-3">
-                        <NavItem>
-                            <NavLink
-                                className={classnames({ active: activeTab === '1' })}
-                                onClick={() => toggleTab('1')}
-                                style={{ cursor: 'pointer', fontWeight: activeTab === '1' ? '700' : '500', borderRadius: '30px', padding: '10px 25px' }}
-                            >
-                                <i className="ri-edit-2-line align-bottom me-1"></i> 1. Nhập theo Điều/Khoản
-                            </NavLink>
-                        </NavItem>
-                        <NavItem>
-                            <NavLink
-                                className={classnames({ active: activeTab === '2' })}
-                                onClick={() => toggleTab('2')}
-                                style={{ cursor: 'pointer', fontWeight: activeTab === '2' ? '700' : '500', borderRadius: '30px', padding: '10px 25px' }}
-                            >
-                                <i className="ri-file-upload-line align-bottom me-1"></i> 2. Nhập từ File (.docx)
-                            </NavLink>
-                        </NavItem>
-                        <NavItem>
-                            <NavLink
-                                className={classnames({ active: activeTab === '3' })}
-                                onClick={() => toggleTab('3')}
-                                style={{ cursor: 'pointer', fontWeight: activeTab === '3' ? '700' : '500', borderRadius: '30px', padding: '10px 25px' }}
-                            >
-                                <i className="ri-image-line align-bottom me-1"></i> 3. Nhập từ ảnh và PDF
-                            </NavLink>
-                        </NavItem>
-                        <NavItem>
-                            <NavLink
-                                className={classnames({ active: activeTab === '4' })}
-                                onClick={() => toggleTab('4')}
-                                style={{ cursor: 'pointer', fontWeight: activeTab === '4' ? '700' : '500', borderRadius: '30px', padding: '10px 25px' }}
-                            >
-                                <i className="ri-google-line align-bottom me-1"></i> 4. Nhập từ GG sheet
-                            </NavLink>
-                        </NavItem>
-                    </Nav>
+                        <div className="modern-tabs-container mb-4">
+                            <Nav pills className="nav-pills-custom">
+                                <NavItem>
+                                    <NavLink
+                                        className={classnames("tab-manual", { active: activeTab === '1' })}
+                                        onClick={() => toggleTab('1')}
+                                    >
+                                        <div className="tab-icon-wrap"><i className="ri-edit-box-line"></i></div>
+                                        <span>NHẬP THỦ CÔNG</span>
+                                    </NavLink>
+                                </NavItem>
+                                <NavItem>
+                                    <NavLink
+                                        className={classnames("tab-word", { active: activeTab === '2' })}
+                                        onClick={() => toggleTab('2')}
+                                    >
+                                        <div className="tab-icon-wrap"><i className="ri-file-word-line"></i></div>
+                                        <span>NHẬP FILE WORD</span>
+                                    </NavLink>
+                                </NavItem>
+                                <NavItem>
+                                    <NavLink
+                                        className={classnames("tab-ai", { active: activeTab === '3' })}
+                                        onClick={() => toggleTab('3')}
+                                    >
+                                        <div className="tab-icon-wrap"><i className="ri-camera-lens-line"></i></div>
+                                        <span>QUÉT ẢNH / PDF (AI)</span>
+                                    </NavLink>
+                                </NavItem>
+                                <NavItem>
+                                    <NavLink
+                                        className={classnames("tab-gsheet", { active: activeTab === '4' })}
+                                        onClick={() => toggleTab('4')}
+                                    >
+                                        <div className="tab-icon-wrap"><i className="ri-google-fill"></i></div>
+                                        <span>GOOGLE SHEETS</span>
+                                    </NavLink>
+                                </NavItem>
+                            </Nav>
+                        </div>
 
                     <TabContent activeTab={activeTab}>
                         {/* TAB 1: MANUAL NODE ENTRY */}
                         <TabPane tabId="1">
-                            <Row>
-                                <Col lg={2}>
-                                    <Card className="border-0 shadow-sm mb-0" style={{ minHeight: '600px' }}>
-                                        <CardHeader className="bg-light-subtle py-2 border-bottom border-light">
-                                            <div className="d-flex align-items-center gap-2">
-                                                <div className="flex-grow-1 position-relative">
-                                                    <Input 
-                                                        type="text" 
-                                                        className="form-control form-control-sm ps-5" 
-                                                        placeholder="Tìm..." 
-                                                        value={nodeSearch}
-                                                        onChange={(e) => setNodeSearch(e.target.value)}
-                                                    />
-                                                    <i className="ri-search-line position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
-                                                </div>
+                            <div className="workspace-pane-layout">
+                                {/* Sidebar: Danh mục Điều/Khoản */}
+                                <div className="pane-sidebar">
+                                    <ModernCard className="h-100 p-0 overflow-hidden d-flex flex-column border-0 shadow-sm">
+                                        <div className="p-3 border-bottom border-white-5">
+                                            <h6 className="text-white-60 fw-bold small text-uppercase mb-3">Cấu trúc dự thảo</h6>
+                                            <div className="position-relative">
+                                                <Input 
+                                                    type="text" 
+                                                    className="form-control ps-5 bg-white-5 border-white-10 text-white" 
+                                                    placeholder="Tìm nhanh..." 
+                                                    value={nodeSearch}
+                                                    onChange={(e) => setNodeSearch(e.target.value)}
+                                                />
+                                                <i className="ri-search-2-line position-absolute top-50 start-0 translate-middle-y ms-3 text-white-40"></i>
                                             </div>
-                                        </CardHeader>
-                                        <CardBody className="p-0 overflow-hidden">
-                                            <SimpleBar style={{ maxHeight: '550px' }} className="p-2">
-                                                {!selectedDocId ? (
-                                                    <div className="text-center py-5 text-muted small italic">Chọn dự thảo...</div>
-                                                ) : filteredNodes.length > 0 ? (
-                                                    <div className="list-group list-group-flush border-dashed">
-                                                        {filteredNodes.map((n) => (
-                                                            <button 
-                                                                key={n.id} 
-                                                                type="button" 
-                                                                className={classnames("list-group-item list-group-item-action border-0 mb-1 rounded-1 py-1 px-2 d-flex flex-column", {
-                                                                    "active bg-primary-subtle text-primary": selectedNodeId === n.id
-                                                                })}
-                                                                onClick={() => setSelectedNodeId(n.unique_id || n.id)}
-                                                            >
-                                                                <div className="d-flex justify-content-between align-items-start w-100">
-                                                                    <span className={classnames("fs-13 text-truncate", { "fw-bold text-primary": n.type === 'Appendix', "fw-medium": n.type !== 'Appendix' })}>{n.label}</span>
-                                                                </div>
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <div className="text-center py-5 text-muted small">Trống...</div>
-                                                )}
-                                            </SimpleBar>
-                                        </CardBody>
-                                    </Card>
-                                </Col>
-
-                                <Col lg={10}>
-                                    <Card className="border-0 shadow-sm mb-0">
-                                        <CardHeader className="bg-light-subtle py-3">
-                                            <h6 className="card-title mb-0 fw-bold">
-                                                <i className="ri-reply-line align-bottom me-1 text-primary"></i> 
-                                                Nhập nội dung góp ý cho: <span className="text-primary">{nodes.find(n => n.id === selectedNodeId)?.label || "..."}</span>
-                                            </h6>
-                                        </CardHeader>
-                                        <CardBody className="bg-body-tertiary">
-                                            <div className="p-3 bg-card-custom rounded border border-light-subtle shadow-sm mb-4">
-                                                <Row>
-                                                    <Col md={6}>
-                                                        <FormGroup>
-                                                            <div className="d-flex align-items-center justify-content-between mb-1">
-                                                                <Label className="fs-13 fw-bold text-muted text-uppercase mb-0">Cơ quan tham vấn</Label>
-                                                                <Button color="link" size="sm" className="p-0 text-primary fw-medium fs-12" onClick={() => toggleAgencyModal('manual')}>
-                                                                    <i className="ri-add-line align-bottom me-1"></i> Thêm nhanh
-                                                                </Button>
+                                        </div>
+                                        <div className="flex-grow-1 overflow-auto p-2" style={{ maxHeight: 'calc(100vh - 400px)' }}>
+                                            {filteredNodes.length > 0 ? (
+                                                <div className="node-list-modern">
+                                                    {filteredNodes.map((n) => (
+                                                        <div 
+                                                            key={n.id} 
+                                                            className={classnames("node-item-modern", {
+                                                                "active": selectedNodeId === n.unique_id || selectedNodeId === n.id
+                                                            })}
+                                                            onClick={() => setSelectedNodeId(n.unique_id || n.id)}
+                                                        >
+                                                            <div className="d-flex align-items-center gap-2">
+                                                                <div className={classnames("node-indicator", n.type === 'Appendix' ? 'bg-indigo' : 'bg-primary')}></div>
+                                                                <span className="node-label text-truncate">{n.label}</span>
                                                             </div>
-                                                            <CreatableSelect
-                                                                isClearable
-                                                                value={agencies.find(a => a.id === manualEntry.agency_id) ? { value: manualEntry.agency_id, label: agencies.find(a => a.id === manualEntry.agency_id).name } : (manualEntry.contributing_agency ? {label: manualEntry.contributing_agency, value: null} : null)}
-                                                                onChange={(opt) => {
-                                                                    setManualEntry({
-                                                                        ...manualEntry,
-                                                                        agency_id: opt && !opt.__isNew__ ? opt.value : null,
-                                                                        contributing_agency: opt ? opt.label : ''
-                                                                    });
-                                                                }}
-                                                                options={agencies.map(a => ({ value: a.id, label: a.name }))}
-                                                                placeholder="Chọn hoặc nhập tên cơ quan..."
-                                                                formatCreateLabel={(inputValue) => `Thêm cơ quan mới: "${inputValue}"`}
-                                                                styles={selectStyles}
-                                                                menuPortalTarget={document.body}
-                                                                menuPosition="fixed"
-                                                            />
-                                                        </FormGroup>
-                                                    </Col>
-                                                </Row>
-                                                <FormGroup className="mb-3">
-                                                    <Label className="fs-13 fw-bold text-muted text-uppercase mb-1">Nội dung góp ý</Label>
-                                                    <Input 
-                                                        type="textarea" 
-                                                        rows={4} 
-                                                        className="form-control border-light-subtle bg-light-subtle text-body fs-14" 
-                                                        placeholder="Nhập nội dung góp ý chi tiết tại đây..."
-                                                        value={manualEntry.content}
-                                                        onChange={(e) => setManualEntry({ ...manualEntry, content: e.target.value })}
-                                                        disabled={!selectedNodeId}
-                                                    />
-                                                </FormGroup>
-                                                <Row>
-                                                    <Col md={6}>
-                                                        <FormGroup className="mb-3">
-                                                            <Label className="fs-13 fw-bold text-muted text-uppercase mb-1">Lý do / Cơ sở</Label>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="text-center py-5 text-muted small italic">Chưa chọn dự thảo hoặc không tìm thấy dữ liệu</div>
+                                            )}
+                                        </div>
+                                    </ModernCard>
+                                </div>
+
+                                {/* Content: Form nhập liệu thủ công */}
+                                <div className="pane-content flex-grow-1">
+                                    <ModernCard className="border-0 bg-transparent p-0 shadow-none">
+                                        <div className="p-4 rounded-4 mb-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                            <div className="d-flex align-items-center justify-content-between mb-4">
+                                                <h5 className="mb-0 text-white d-flex align-items-center gap-2">
+                                                    <i className="ri-edit-circle-line text-primary"></i>
+                                                    Nhập góp ý cho: <span className="text-primary-gradient fw-bold">
+                                                        {nodes.find(n => n.id === selectedNodeId || n.unique_id === selectedNodeId)?.label || "---"}
+                                                    </span>
+                                                </h5>
+                                                {selectedNodeId && <ModernBadge color="primary">ĐANG SOẠN THẢO</ModernBadge>}
+                                            </div>
+
+                                            <Row className="g-4">
+                                                <Col lg={7} md={12}>
+                                                    <FormGroup className="mb-4">
+                                                        <div className="d-flex align-items-center justify-content-between mb-2">
+                                                            <Label className="text-muted fw-bold small text-uppercase mb-0">Đơn vị góp ý</Label>
+                                                            <ModernButton variant="ghost" className="btn-sm py-0" onClick={() => toggleAgencyModal('manual')}>
+                                                                <i className="ri-add-line"></i> THÊM NHANH
+                                                            </ModernButton>
+                                                        </div>
+                                                        <CreatableSelect
+                                                            isClearable
+                                                            value={agencies.find(a => a.id === manualEntry.agency_id) ? { value: manualEntry.agency_id, label: agencies.find(a => a.id === manualEntry.agency_id).name } : (manualEntry.contributing_agency ? {label: manualEntry.contributing_agency, value: null} : null)}
+                                                            onChange={(opt) => setManualEntry({
+                                                                ...manualEntry,
+                                                                agency_id: opt && !opt.__isNew__ ? opt.value : null,
+                                                                contributing_agency: opt ? opt.label : ''
+                                                            })}
+                                                            options={agencies.map(a => ({ value: a.id, label: a.name }))}
+                                                            placeholder="Chọn hoặc nhập tên đơn vị..."
+                                                            styles={selectStyles}
+                                                            menuPortalTarget={document.body}
+                                                        />
+                                                    </FormGroup>
+
+                                                    <FormGroup className="mb-4">
+                                                        <Label className="text-muted fw-bold small text-uppercase mb-2">Nội dung góp ý <span className="text-danger">*</span></Label>
+                                                        <Input 
+                                                            type="textarea" 
+                                                            rows={6} 
+                                                            className="bg-transparent border-light-subtle text-white fs-15 lh-base" 
+                                                            style={{ borderRadius: '15px', padding: '15px' }}
+                                                            placeholder="Nhập nội dung góp ý chi tiết tại đây..."
+                                                            value={manualEntry.content}
+                                                            onChange={(e) => setManualEntry({ ...manualEntry, content: e.target.value })}
+                                                            disabled={!selectedNodeId}
+                                                        />
+                                                    </FormGroup>
+                                                </Col>
+
+                                                <Col lg={5} md={12}>
+                                                    <div className="d-flex flex-column gap-3 h-100">
+                                                        <FormGroup className="mb-0">
+                                                            <Label className="text-muted fw-bold small text-uppercase mb-2">Lý do / Cơ sở pháp lý</Label>
                                                             <Input 
-                                                                type="text" 
-                                                                className="form-control border-light-subtle bg-light-subtle text-body fs-13" 
-                                                                placeholder="Nhập lý do..."
+                                                                type="textarea" 
+                                                                rows={3}
+                                                                className="bg-transparent border-light-subtle text-white fs-13" 
+                                                                placeholder="Nhập lý do hoặc căn cứ..."
                                                                 value={manualEntry.reason}
                                                                 onChange={(e) => setManualEntry({ ...manualEntry, reason: e.target.value })}
                                                                 disabled={!selectedNodeId}
                                                             />
                                                         </FormGroup>
-                                                    </Col>
-                                                    <Col md={6}>
-                                                        <FormGroup className="mb-3">
-                                                            <Label className="fs-13 fw-bold text-muted text-uppercase mb-1">Ghi chú</Label>
+
+                                                        <FormGroup className="mb-0">
+                                                            <Label className="text-danger fw-bold small text-uppercase mb-2 d-flex align-items-center gap-1">
+                                                                <i className="ri-error-warning-line"></i> Nội dung cần xin ý kiến lãnh đạo
+                                                            </Label>
                                                             <Input 
-                                                                type="text" 
-                                                                className="form-control border-light-subtle bg-light-subtle text-body fs-13" 
-                                                                placeholder="Nhập ghi chú..."
-                                                                value={manualEntry.note}
-                                                                onChange={(e) => setManualEntry({ ...manualEntry, note: e.target.value })}
+                                                                type="textarea" 
+                                                                rows={3}
+                                                                className="bg-danger-subtle border-danger-subtle text-white fs-13" 
+                                                                placeholder="Nhập nội dung cần xin ý kiến chuyên sâu..."
+                                                                value={manualEntry.need_opinion}
+                                                                onChange={(e) => setManualEntry({ ...manualEntry, need_opinion: e.target.value })}
                                                                 disabled={!selectedNodeId}
                                                             />
                                                         </FormGroup>
-                                                    </Col>
-                                                    <Col md={12}>
-                                                       <FormGroup className="mb-3">
-                                                           <Label className="fs-13 fw-bold text-danger text-uppercase mb-1">
-                                                               <i className="ri-error-warning-fill me-1"></i> Nội dung cần xin ý kiến lãnh đạo
-                                                           </Label>
-                                                           <Input 
-                                                               type="textarea" 
-                                                               rows={2}
-                                                               className="form-control border-danger-subtle bg-danger-subtle text-body fs-13" 
-                                                               placeholder="Nhập nội dung cần xin ý kiến (nếu có)..."
-                                                               value={manualEntry.need_opinion}
-                                                               onChange={(e) => setManualEntry({ ...manualEntry, need_opinion: e.target.value })}
-                                                               disabled={!selectedNodeId}
-                                                           />
-                                                       </FormGroup>
-                                                   </Col>
-                                                </Row>
-                                                <div className="text-end">
-                                                    <Button color="success" className="px-4 shadow-none" onClick={handleAddManualToSession} disabled={!selectedNodeId || !manualEntry.content}>
-                                                        <i className="ri-add-line align-middle me-1"></i> Thêm vào danh sách chờ
-                                                    </Button>
+
+                                                        <div className="mt-auto pt-3">
+                                                            <ModernButton 
+                                                                variant="primary" 
+                                                                className="w-100 py-3 shadow-neon" 
+                                                                onClick={handleAddManualToSession} 
+                                                                disabled={!selectedNodeId || !manualEntry.content}
+                                                            >
+                                                                <i className="ri-add-fill fs-18"></i> THÊM VÀO GIỎ CHỜ
+                                                            </ModernButton>
+                                                        </div>
+                                                    </div>
+                                                </Col>
+                                            </Row>
+                                        </div>
+
+                                        <div className="mt-4">
+                                            <div className="d-flex align-items-center justify-content-between mb-3 px-2">
+                                                <h6 className="text-muted fw-bold small text-uppercase mb-0">Danh sách chờ lưu ({feedbacks.filter(f => f.key.startsWith('manual')).length})</h6>
+                                            </div>
+                                            <div className="overflow-auto pe-2" style={{ maxHeight: '400px' }}>
+                                                <div className="d-flex flex-column gap-3">
+                                                    {feedbacks.filter(f => f.key.startsWith('manual')).map((fb) => (
+                                                        <ModernCard key={fb.key} className="p-3 border-0" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                                                            <div className="d-flex justify-content-between align-items-start mb-2">
+                                                                <div className="d-flex align-items-center gap-2">
+                                                                    <ModernBadge color="primary">{fb.node_label}</ModernBadge>
+                                                                    <span className="text-white fw-bold fs-13">{fb.contributing_agency}</span>
+                                                                </div>
+                                                                <button className="btn btn-sm btn-ghost-danger p-0" onClick={() => removeFeedback(fb.key)}>
+                                                                    <i className="ri-delete-bin-line fs-16"></i>
+                                                                </button>
+                                                            </div>
+                                                            <p className="mb-0 text-muted-light fs-14 lh-base text-justify">{fb.content}</p>
+                                                        </ModernCard>
+                                                    ))}
+                                                    {feedbacks.filter(f => f.key.startsWith('manual')).length === 0 && (
+                                                        <div className="text-center py-5 rounded-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.05)' }}>
+                                                            <i className="ri-inbox-line display-6 text-muted d-block mb-2"></i>
+                                                            <p className="text-muted small mb-0 opacity-50 italic">Bạn chưa nhập góp ý nào...</p>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
-
-                                            {/* List of currently added feedbacks in this session */}
-                                            <h6 className="fw-bold mb-3 d-flex align-items-center">
-                                                <i className="ri-list-check-2 align-bottom me-2 text-success"></i> 
-                                                Danh sách đã nhập ({feedbacks.filter(f => f.key.startsWith('manual')).length})
-                                            </h6>
-                                            <div style={{ maxHeight: '350px', overflowY: 'auto' }} className="pe-2">
-                                                {feedbacks.filter(f => f.key.startsWith('manual')).map((fb) => (
-                                                    <Card key={fb.key} className="border-0 mb-2 shadow-sm bg-card-custom">
-                                                        <CardBody className="p-2 position-relative">
-                                                            <div className="d-flex justify-content-between align-items-start mb-1 pe-4">
-                                                                <span className="badge bg-primary-subtle text-primary fs-12">{fb.node_label}</span>
-                                                                <span className="text-muted fs-12 fw-bold">{fb.contributing_agency}</span>
-                                                            </div>
-                                                            <p className="mb-0 fs-14 text-body">{fb.content}</p>
-                                                            {fb.need_opinion && (
-                                                                <div className="mt-1">
-                                                                    <Badge color="danger" className="text-uppercase fs-10 d-block text-wrap text-start p-2 shadow-none">
-                                                                        <i className="ri-error-warning-line me-1"></i> Xin ý kiến: {fb.need_opinion}
-                                                                    </Badge>
-                                                                </div>
-                                                            )}
-                                                            <Button 
-                                                                color="soft-danger" 
-                                                                size="sm" 
-                                                                className="btn-icon position-absolute top-0 end-0 m-2 shadow-none" 
-                                                                onClick={() => removeFeedback(fb.key)}
-                                                                style={{ width: '24px', height: '24px' }}
-                                                            >
-                                                                <i className="ri-close-line fs-14"></i>
-                                                            </Button>
-                                                        </CardBody>
-                                                    </Card>
-                                                ))}
-                                                {feedbacks.filter(f => f.key.startsWith('manual')).length === 0 && (
-                                                    <div className="text-center py-4 bg-light-subtle rounded border border-dashed text-muted fs-12">
-                                                        Chưa có góp ý nào được nhập thủ công.
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </CardBody>
-                                    </Card>
-                                </Col>
-                            </Row>
+                                        </div>
+                                    </ModernCard>
+                                </div>
+                            </div>
                         </TabPane>
 
                         {/* TAB 2: DOCX INTAKE */}
                         <TabPane tabId="2">
-                            <Row>
-                                <Col lg={4}>
-                                    <Card className="border-0 shadow-sm h-100 mb-0">
-                                        <CardHeader className="bg-light-subtle py-3 mt-0 text-center">
-                                            <h6 className="card-title mb-1 fw-bold"><i className="ri-file-word-2-line align-bottom me-1"></i> Tải File (.docx) góp ý</h6>
-                                            <p className="text-muted mb-0 fs-11">Hỗ trợ định dạng Word (.docx)</p>
-                                        </CardHeader>
-                                        <CardBody className="bg-body-tertiary">
+                            <Row className="g-4">
+                                <Col lg={4} md={12}>
+                                    <ModernCard className="h-100 border-0 shadow-sm overflow-hidden">
+                                        <div className="p-3 text-center border-bottom border-light-subtle bg-indigo-subtle bg-opacity-10">
+                                            <h6 className="fw-bold mb-1 indigo-text"><i className="ri-file-word-2-line align-bottom me-1"></i> Nhập chuẩn từ File (.docx)</h6>
+                                            <p className="text-muted mb-0 small">Hỗ trợ tự động bóc tách AI</p>
+                                        </div>
+                                        <div className="p-4">
                                             <div 
                                                 {...getRootProps()} 
                                                 className={classnames(
-                                                    "p-5 border rounded-3 text-center mb-4 shadow-sm transition-all",
-                                                    isDragActive ? "border-primary bg-primary-subtle" : "border-dashed bg-card-custom",
-                                                    !selectedDocId ? "opacity-50 grayscale-1" : "cursor-pointer"
+                                                    "modern-dropzone p-5 mb-4",
+                                                    isDragActive ? "active" : "",
+                                                    !selectedDocId ? "disabled" : ""
                                                 )}
-                                                style={{ borderStyle: 'dashed', borderWidth: '2px', cursor: !selectedDocId ? 'not-allowed' : 'pointer' }}
                                             >
                                                 <input {...getInputProps()} />
-                                                <div className="mb-3">
+                                                <div className="dz-icon mb-3">
                                                     <i className={classnames(
-                                                        "display-4 opacity-50 d-block",
-                                                        isDragActive ? "ri-download-cloud-2-line text-primary" : "ri-file-word-line text-muted"
+                                                        "display-4",
+                                                        isDragActive ? "ri-download-cloud-2-line indigo-text" : "ri-file-word-line text-muted"
                                                     )}></i>
                                                 </div>
                                                 {!selectedDocId ? (
-                                                    <div className="text-danger fw-medium">
-                                                        <i className="ri-information-line align-middle me-1"></i> 
-                                                        Vui lòng chọn dự thảo ở trên trước
+                                                    <div className="text-danger small fw-bold">
+                                                        <i className="ri-error-warning-line me-1"></i> Vui lòng chọn dự thảo
                                                     </div>
                                                 ) : file ? (
                                                     <div>
-                                                        <h5 className="text-success fw-bold mb-1">
-                                                            <i className="ri-file-word-2-fill align-bottom me-1"></i> {file.name}
-                                                        </h5>
-                                                        <p className="text-muted small mb-0">{(file.size / 1024).toFixed(2)} KB - Sẵn sàng xử lý</p>
+                                                        <h6 className="text-primary fw-bold mb-1 text-truncate px-2">{file.name}</h6>
+                                                        <p className="text-muted small">{(file.size / 1024).toFixed(2)} KB</p>
                                                     </div>
                                                 ) : (
                                                     <div>
-                                                        <h5 className="fw-bold mb-1">Kéo thả File Word vào đây</h5>
-                                                        <p className="text-muted mb-0">Hoặc nhấp để chọn tệp</p>
+                                                        <h6 className="fw-bold mb-1 text-white">Kéo thả File Word vào đây</h6>
+                                                        <p className="text-muted small mb-0">Hoặc nhấp để chọn tệp</p>
                                                     </div>
                                                 )}
                                             </div>
 
-                                            <Button 
-                                                color="primary" 
-                                                className="w-100 btn-label waves-effect waves-light shadow-none py-2 mb-3" 
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    parseFile();
-                                                }} 
+                                            <ModernButton 
+                                                variant="primary" 
+                                                className="w-100 py-3 mb-3 shadow-neon" 
+                                                onClick={(e) => { e.stopPropagation(); parseFile(); }} 
                                                 disabled={!file || uploading}
                                             >
-                                                <i className="ri-file-word-line label-icon align-middle fs-16 me-2"></i> 
-                                                {uploading ? "Đang xử lý..." : "Phân rã file .docx"}
-                                            </Button>
+                                                {uploading ? <Spinner size="sm" /> : <><i className="ri-magic-line me-2"></i> BẮT ĐẦU PHÂN TÍCH AI</>}
+                                            </ModernButton>
 
-                                            <div className="p-3 bg-secondary-subtle rounded-3 border border-dashed border-secondary shadow-none">
-                                                <p className="text-secondary mb-0 fs-12 lh-base">
-                                                    <i className="ri-information-line align-middle me-1"></i>
-                                                    Hệ thống sẽ tự động nhận diện cấu trúc văn bản góp ý của bạn dựa trên các từ khóa như "Tại Điều...", "Tại Khoản...", "Sửa đổi..." để map vào đúng phần tử dự thảo.
+                                            <div className="p-3 rounded-4 bg-indigo bg-opacity-10 border border-indigo border-opacity-10">
+                                                <p className="text-indigo-subtle mb-0 small lh-base italic">
+                                                    <i className="ri-information-line me-1"></i>
+                                                    Hệ thống AI sẽ tự động map nội dung vào các Điều/Khoản tương ứng trong dự thảo.
                                                 </p>
                                             </div>
-                                        </CardBody>
-                                    </Card>
+                                        </div>
+                                    </ModernCard>
                                 </Col>
 
-                                <Col lg={8}>
-                                    <Card className="border-0 shadow-sm h-100 mb-0 overflow-hidden">
-                                        <CardHeader className="bg-primary-subtle py-3 border-bottom border-primary border-opacity-10 d-flex justify-content-between align-items-center">
-                                            <h6 className="card-title mb-0 fw-bold">
-                                                <i className="ri-list-settings-line align-bottom me-1 text-primary"></i> 
-                                                Kết quả phân rã ({feedbacks.filter(f => f.key.startsWith('file')).length})
+                                <Col lg={8} md={12}>
+                                    <ModernCard className="h-100 border-0 shadow-sm p-0 overflow-hidden">
+                                        <div className="p-3 border-bottom border-light-subtle d-flex justify-content-between align-items-center bg-dark bg-opacity-10">
+                                            <h6 className="fw-bold mb-0">
+                                                <i className="ri-check-double-line text-success me-2"></i>
+                                                Kết quả bóc tách ({feedbacks.filter(f => f.key.startsWith('file')).length})
                                             </h6>
-                                        </CardHeader>
-                                        <CardBody className="p-3">
-                                            {/* Global Agency Info Inputs */}
+                                        </div>
+                                        <div className="p-0">
+                                            {/* Global Setting for Word Import */}
                                             {feedbacks.filter(f => f.key.startsWith('file')).length > 0 && (
-                                                <div className="p-3 bg-light border rounded-3 mb-3 shadow-sm">
-                                                    <Row className="g-3">
+                                                <div className="p-3 border-bottom border-light-subtle bg-light bg-opacity-5">
+                                                    <Row className="g-3 align-items-end">
                                                         <Col md={7}>
-                                                            <div className="d-flex align-items-center justify-content-between mb-1">
-                                                                <Label className="form-label fw-bold text-uppercase fs-11 text-muted mb-0">Cơ quan góp ý (Góp chung):</Label>
-                                                                <Button color="link" size="sm" className="p-0 text-primary fw-medium fs-11" onClick={() => toggleAgencyModal('global')}>
-                                                                    <i className="ri-add-line align-bottom me-1"></i> Thêm nhanh
-                                                                </Button>
+                                                            <div className="d-flex align-items-center justify-content-between mb-2">
+                                                                <Label className="text-muted fw-bold small text-uppercase mb-0">Đơn vị góp ý (Áp dụng chung)</Label>
                                                             </div>
                                                             <CreatableSelect
                                                                 isClearable
@@ -963,219 +981,188 @@ const FeedbackIntake = () => {
                                                                     setGlobalAgency(opt ? opt.label : '');
                                                                 }}
                                                                 options={agencies.map(a => ({ value: a.id, label: a.name }))}
-                                                                placeholder="Chọn hoặc nhập tên cơ quan..."
-                                                                formatCreateLabel={(inputValue) => `Thêm mới: "${inputValue}"`}
+                                                                placeholder="Tìm hoặc gõ tên đơn vị..."
                                                                 styles={selectStyles}
+                                                                menuPortalTarget={document.body}
                                                             />
                                                         </Col>
                                                         <Col md={5}>
-                                                            <Label className="form-label fw-bold text-uppercase fs-11 text-muted">Số công văn:</Label>
+                                                            <Label className="text-muted fw-bold small text-uppercase mb-2">Số/Ký hiệu công văn</Label>
                                                             <Input 
                                                                 type="text" 
-                                                                placeholder="Ví dụ: 123/BC-BXD..." 
+                                                                placeholder="VD: 123/BC-BXD" 
                                                                 value={globalDocNumber}
                                                                 onChange={(e) => setGlobalDocNumber(e.target.value)}
-                                                                className="form-control border-light-subtle"
+                                                                className="bg-light-subtle border-light-subtle"
                                                             />
                                                         </Col>
                                                     </Row>
                                                 </div>
                                             )}
 
-                                            <div className="table-responsive" style={{ maxHeight: '650px' }}>
-                                                <Table className="align-middle mb-0 table-hover">
-                                                    <thead className="table-light fs-13">
-                                                        <tr className="text-uppercase fw-bold">
-                                                            <th scope="col" style={{ width: '60%' }}>Nội dung góp ý</th>
-                                                            <th scope="col" style={{ width: '25%' }}>Điều/Khoản</th>
-                                                            <th scope="col" className="text-center" style={{ width: '10%' }}>Xin ý kiến</th>
-                                                            <th scope="col" className="text-center" style={{ width: '5%' }}>Xóa</th>
+                                            <div className="table-responsive">
+                                                <ModernTable 
+                                                    headers={[
+                                                        { key: 'content', label: 'NỘI DUNG PHÁT HIỆN', width: '55%' },
+                                                        { key: 'node', label: 'ĐIỀU/KHOẢN MAP', width: '30%' },
+                                                        { key: 'delete', label: '', className: 'text-center', width: '50px' }
+                                                    ]}
+                                                >
+                                                    {feedbacks.filter(f => f.key.startsWith('file')).length > 0 ? feedbacks.filter(f => f.key.startsWith('file')).map((fb) => (
+                                                        <tr key={fb.key}>
+                                                            <td>
+                                                                <Input 
+                                                                    type="textarea" 
+                                                                    rows={2} 
+                                                                    value={fb.content} 
+                                                                    onChange={(e) => updateFeedbackField(fb.key, 'content', e.target.value)}
+                                                                    className="table-input-modern fs-13"
+                                                                />
+                                                            </td>
+                                                            <td>
+                                                                <Select
+                                                                    value={nodes.find(n => n.id === fb.node_id) ? { value: fb.node_id, label: nodes.find(n => n.id === fb.node_id).label } : { value: null, label: 'Chung' }}
+                                                                    onChange={(opt) => updateFeedbackField(fb.key, 'node_id', opt ? opt.value : null)}
+                                                                    options={[
+                                                                        { value: null, label: 'Góp ý chung' },
+                                                                        ...nodes.filter(n => n.type !== 'Văn bản').map(n => ({ value: n.id, label: n.label }))
+                                                                    ]}
+                                                                    styles={compactSelectStyles}
+                                                                    menuPortalTarget={document.body}
+                                                                />
+                                                            </td>
+                                                            <td className="text-center">
+                                                                <button className="btn btn-sm btn-ghost-danger p-0" onClick={() => removeFeedback(fb.key)}>
+                                                                    <i className="ri-delete-bin-line fs-16"></i>
+                                                                </button>
+                                                            </td>
                                                         </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {feedbacks.filter(f => f.key.startsWith('file')).length > 0 ? feedbacks.filter(f => f.key.startsWith('file')).map((fb) => (
-                                                            <tr key={fb.key}>
-                                                                <td className="p-2">
-                                                                    <Input 
-                                                                        type="textarea" 
-                                                                        rows={4} 
-                                                                        value={fb.content} 
-                                                                        onChange={(e) => updateFeedbackField(fb.key, 'content', e.target.value)}
-                                                                        className="form-control border-light-subtle bg-light-subtle fb-table-input fw-medium fs-14"
-                                                                        style={{ padding: '12px' }}
-                                                                    />
-                                                                </td>
-                                                                <td className="p-2">
-                                                                    <Select
-                                                                        value={nodes.find(n => n.id === fb.node_id) ? { value: fb.node_id, label: nodes.find(n => n.id === fb.node_id).label } : { value: null, label: 'Chung' }}
-                                                                        onChange={(opt) => updateFeedbackField(fb.key, 'node_id', opt ? opt.value : null)}
-                                                                        options={[
-                                                                            { value: null, label: 'Chung' },
-                                                                            ...nodes.filter(n => n.type !== 'Văn bản').map(n => ({ value: n.id, label: n.label }))
-                                                                        ]}
-                                                                        placeholder="Mức..."
-                                                                        isClearable
-                                                                        menuPortalTarget={document.body}
-                                                                        menuPosition="fixed"
-                                                                        styles={selectStyles}
-                                                                    />
-                                                                </td>
-                                                                <td className="p-2">
-                                                                    <Input 
-                                                                        type="textarea" 
-                                                                        rows={2} 
-                                                                        className="form-control form-control-sm fs-12 border-danger-subtle bg-danger-subtle fb-table-input shadow-none" 
-                                                                        placeholder="..."
-                                                                        value={fb.need_opinion || ""}
-                                                                        onChange={(e) => updateFeedbackField(fb.key, 'need_opinion', e.target.value)}
-                                                                    />
-                                                                </td>
-                                                                <td className="text-center p-2">
-                                                                    <Button color="soft-danger" size="sm" className="btn-icon shadow-none" onClick={() => removeFeedback(fb.key)}>
-                                                                        <i className="ri-delete-bin-line fs-16"></i>
-                                                                    </Button>
-                                                                </td>
-                                                            </tr>
-                                                        )) : (
-                                                            <tr>
-                                                                <td colSpan="4" className="text-center py-5 text-muted bg-body-tertiary">
-                                                                    <div className="py-5">
-                                                                        <div className="mb-4">
-                                                                            <i className="ri-file-word-line display-3 text-primary opacity-25"></i>
-                                                                        </div>
-                                                                        <h5 className="text-body fw-bold">Chưa có dữ liệu từ File Word</h5>
-                                                                        <p className="fs-14 mb-0">Hệ thống sẽ phân rã nội dung ngay sau khi bạn tải tệp .docx và nhấn nút "Phân rã file .docx".</p>
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                        )}
-                                                    </tbody>
-                                                </Table>
+                                                    )) : (
+                                                        <tr>
+                                                            <td colSpan="3" className="text-center py-5 border-0 bg-transparent text-muted small italic opacity-50">
+                                                                <i className="ri-file-word-line display-6 d-block mb-2"></i>
+                                                                Dữ liệu AI bóc tách sẽ hiển thị tại đây...
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </ModernTable>
                                             </div>
-                                        </CardBody>
-                                    </Card>
+                                        </div>
+                                    </ModernCard>
                                 </Col>
                             </Row>
                         </TabPane>
 
-                        {/* TAB 3: IMAGE/PDF INTAKE (Cloned from Tab 2) */}
+                        {/* TAB 3: IMAGE/PDF INTAKE (AI/OCR) */}
                         <TabPane tabId="3">
-                            {showOCRReview ? (
-                                <OCRComparisonView 
-                                    pages={ocrResult} 
-                                    onConfirm={handleConfirmOCR} 
-                                    onCancel={() => setShowOCRReview(false)} 
-                                    loading={uploading2}
-                                />
-                            ) : showPageSelector ? (
-                                <PageSelector 
-                                    previews={pdfInfo.previews} 
-                                    totalPages={pdfInfo.total_pages} 
-                                    onProcessedSelect={startOCR} 
-                                    loading={uploading2}
-                                />
-                            ) : (
-                                <Row>
-                                    <Col lg={4}>
-                                        <Card className="border-0 shadow-sm h-100 mb-0">
-                                            <CardHeader className="bg-light-subtle py-3 mt-0 text-center">
-                                                <h6 className="card-title mb-1 fw-bold"><i className="ri-image-add-line align-bottom me-1"></i> Tải Ảnh hoặc PDF góp ý</h6>
-                                                <p className="text-muted mb-0 fs-11">Hỗ trợ .pdf, .jpg, .png</p>
-                                            </CardHeader>
-                                            <CardBody className="bg-body-tertiary">
-                                                <div 
-                                                    {...getRootProps2()} 
-                                                    className={classnames(
-                                                        "p-5 border rounded-3 text-center mb-4 shadow-sm transition-all",
-                                                        isDragActive2 ? "border-primary bg-primary-subtle" : "border-dashed bg-card-custom",
-                                                        !selectedDocId ? "opacity-50 grayscale-1" : "cursor-pointer"
-                                                    )}
-                                                    style={{ borderStyle: 'dashed', borderWidth: '2px', cursor: !selectedDocId ? 'not-allowed' : 'pointer' }}
-                                                >
-                                                    <input {...getInputProps2()} />
-                                                    <div className="mb-3">
-                                                        <i className={classnames(
-                                                            "display-4 opacity-50 d-block",
-                                                            isDragActive2 ? "ri-download-cloud-2-line text-primary" : "ri-camera-lens-line text-muted"
-                                                        )}></i>
+                            <div className="workspace-pane-layout d-block">
+                                {showOCRReview ? (
+                                    <div className="w-100">
+                                        <OCRComparisonView 
+                                            pages={ocrResult} 
+                                            onConfirm={handleConfirmOCR} 
+                                            onCancel={() => setShowOCRReview(false)} 
+                                            loading={uploading2}
+                                        />
+                                    </div>
+                                ) : showPageSelector ? (
+                                    <div className="w-100">
+                                        <PageSelector 
+                                            previews={pdfInfo.previews} 
+                                            totalPages={pdfInfo.total_pages} 
+                                            onProcessedSelect={startOCR} 
+                                            loading={uploading2}
+                                        />
+                                    </div>
+                                ) : (
+                                    <Row className="g-4">
+                                        <Col xl={4} lg={12}>
+                                            <ModernCard className="h-100 border-0 shadow-sm overflow-hidden">
+                                                <div className="p-3 text-center border-bottom border-light-subtle bg-info-subtle bg-opacity-10">
+                                                    <h6 className="fw-bold mb-1 text-info"><i className="ri-camera-lens-line align-bottom me-1"></i> Quét Ảnh / PDF (AI)</h6>
+                                                    <p className="text-muted mb-0 small">Hỗ trợ .pdf, .jpg, .png</p>
+                                                </div>
+                                                <div className="p-4">
+                                                    <div 
+                                                        {...getRootProps2()} 
+                                                        className={classnames(
+                                                            "modern-dropzone p-5 mb-4",
+                                                            isDragActive2 ? "active" : "",
+                                                            !selectedDocId ? "disabled" : ""
+                                                        )}
+                                                    >
+                                                        <input {...getInputProps2()} />
+                                                        <div className="dz-icon mb-3">
+                                                            <i className={classnames(
+                                                                "display-4",
+                                                                isDragActive2 ? "ri-download-cloud-2-line text-info" : "ri-camera-lens-line text-muted"
+                                                            )}></i>
+                                                        </div>
+                                                        {!selectedDocId ? (
+                                                            <div className="text-danger small fw-bold text-center">
+                                                                <i className="ri-error-warning-line me-1"></i> Vui lòng chọn dự thảo
+                                                            </div>
+                                                        ) : file2 ? (
+                                                            <div className="text-center">
+                                                                <h6 className="text-info fw-bold mb-1 text-truncate px-2">{file2.name}</h6>
+                                                                <p className="text-muted small">{(file2.size / 1024).toFixed(2)} KB</p>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="text-center">
+                                                                <h6 className="fw-bold mb-1 text-white">Kéo thả Ảnh/PDF vào đây</h6>
+                                                                <p className="text-muted small mb-0">Hoặc nhấp để chọn tệp</p>
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                    {!selectedDocId ? (
-                                                        <div className="text-danger fw-medium">
-                                                            <i className="ri-information-line align-middle me-1"></i> 
-                                                            Vui lòng chọn dự thảo ở trên trước
-                                                        </div>
-                                                    ) : file2 ? (
-                                                        <div>
-                                                            <h5 className="text-success fw-bold mb-1">
-                                                                <i className="ri-file-pdf-line align-bottom me-1"></i> {file2.name}
-                                                            </h5>
-                                                            <p className="text-muted small mb-0">{(file2.size / 1024).toFixed(2)} KB - Sẵn sàng xử lý</p>
-                                                        </div>
-                                                    ) : (
-                                                        <div>
-                                                            <h5 className="fw-bold mb-1">Kéo thả Ảnh/PDF vào đây</h5>
-                                                            <p className="text-muted mb-0">Hoặc nhấp để chọn tệp</p>
-                                                        </div>
-                                                    )}
+
+                                                    <ModernButton 
+                                                        variant="info" 
+                                                        className="w-100 py-3 mb-3 shadow-sm border-0" 
+                                                        onClick={(e) => { e.stopPropagation(); parseFile2(); }} 
+                                                        disabled={!file2 || uploading2}
+                                                    >
+                                                        {uploading2 ? <Spinner size="sm" /> : <><i className="ri-scan-2-line me-2"></i> XEM TRƯỚC & QUÉT</>}
+                                                    </ModernButton>
+
+                                                    <div className="p-3 rounded-4 bg-info bg-opacity-5 border border-info border-opacity-10">
+                                                        <p className="text-info-subtle mb-0 small lh-base italic text-center">
+                                                            <i className="ri-information-line me-1"></i>
+                                                            Công nghệ AI mới nhất giúp nhận diện bảng biểu và cấu trúc pháp luật chính xác.
+                                                        </p>
+                                                    </div>
                                                 </div>
-
-                                                <Button 
-                                                    color="info" 
-                                                    className="w-100 btn-label waves-effect waves-light shadow-none py-2 mb-3" 
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        parseFile2();
-                                                    }} 
-                                                    disabled={!file2 || uploading2}
-                                                >
-                                                    <i className="ri-scan-2-line label-icon align-middle fs-16 me-2"></i> 
-                                                    {uploading2 ? "Đang đọc file..." : "Xem trước & Chọn trang quét"}
-                                                </Button>
-
-                                                <div className="p-3 bg-info-subtle rounded-3 border border-dashed border-info shadow-none">
-                                                    <p className="text-info mb-0 fs-12 lh-base">
-                                                        <i className="ri-information-line align-middle me-1"></i>
-                                                        Hệ thống sử dụng công nghệ <b>Mistral AI OCR</b> mới nhất để nhận diện bảng biểu và cấu trúc pháp luật chính xác 99%. Bạn có thể chọn từng trang để tối ưu chi phí.
-                                                    </p>
+                                            </ModernCard>
+                                        </Col>
+                                        <Col lg={8} md={12}>
+                                            <ModernCard className="h-100 border-0 shadow-sm p-0 overflow-hidden">
+                                                <div className="p-3 border-bottom border-light-subtle d-flex justify-content-between align-items-center bg-dark bg-opacity-10">
+                                                    <h6 className="fw-bold mb-0">
+                                                        <i className="ri-ai-generate text-info me-2"></i>
+                                                        Kết quả quét AI ({feedbacks.filter(f => f.key.startsWith('ocr')).length})
+                                                    </h6>
                                                 </div>
-                                            </CardBody>
-                                        </Card>
-                                    </Col>
-
-                                    <Col lg={8}>
-                                        <Card className="border-0 shadow-sm h-100 mb-0 overflow-hidden">
-                                            <CardHeader className="bg-info-subtle py-3 border-bottom border-info border-opacity-10 d-flex justify-content-between align-items-center">
-                                                <h6 className="card-title mb-0 fw-bold">
-                                                    <i className="ri-list-settings-line align-bottom me-1 text-info"></i> 
-                                                    Kết quả trích xuất ({feedbacks.filter(f => f.key.startsWith('ocr')).length})
-                                                </h6>
-                                            </CardHeader>
-                                            <CardBody className="p-3">
-                                                <div className="table-responsive" style={{ maxHeight: '650px' }}>
-                                                    <Table className="align-middle mb-0 table-hover">
-                                                        <thead className="table-light fs-13">
-                                                            <tr className="text-uppercase fw-bold">
-                                                                <th scope="col" style={{ width: '40%' }}>Nội dung góp ý</th>
-                                                                <th scope="col" style={{ width: '25%' }}>Cơ quan góp ý</th>
-                                                                <th scope="col" style={{ width: '25%' }}>Điều/Khoản tương ứng</th>
-                                                                <th scope="col" className="text-center" style={{ width: '5%' }}>Xin ý kiến</th>
-                                                                <th scope="col" className="text-center" style={{ width: '5%' }}>Xóa</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
+                                                <div className="p-0">
+                                                    <div className="table-responsive text-white">
+                                                        <ModernTable 
+                                                            headers={[
+                                                                { key: 'content', label: 'NỘI DUNG BÓC TÁCH', width: '45%' },
+                                                                { key: 'agency', label: 'ĐƠN VỊ', width: '25%' },
+                                                                { key: 'node', label: 'ĐIỀU/KHOẢN MAP', width: '25%' },
+                                                                { key: 'delete', label: '', className: 'text-center', width: '40px' }
+                                                            ]}
+                                                        >
                                                             {feedbacks.filter(f => f.key.startsWith('ocr')).length > 0 ? feedbacks.filter(f => f.key.startsWith('ocr')).map((fb) => (
                                                                 <tr key={fb.key}>
-                                                                    <td className="p-2">
+                                                                    <td>
                                                                         <Input 
                                                                             type="textarea" 
-                                                                            rows={4} 
+                                                                            rows={2} 
                                                                             value={fb.content} 
                                                                             onChange={(e) => updateFeedbackField(fb.key, 'content', e.target.value)}
-                                                                            className="form-control border-light-subtle bg-light-subtle fb-table-input fw-medium fs-14"
-                                                                            style={{ padding: '12px' }}
+                                                                            className="table-input-modern fs-13"
                                                                         />
                                                                     </td>
-                                                                    <td className="p-2">
+                                                                    <td>
                                                                         <CreatableSelect
                                                                             isClearable
                                                                             value={agencies.find(a => a.id === fb.agency_id) ? { value: fb.agency_id, label: agencies.find(a => a.id === fb.agency_id).name } : (fb.contributing_agency ? {label: fb.contributing_agency, value: null} : null)}
@@ -1184,88 +1171,70 @@ const FeedbackIntake = () => {
                                                                                 updateFeedbackField(fb.key, 'contributing_agency', opt ? opt.label : '');
                                                                             }}
                                                                             options={agencies.map(a => ({ value: a.id, label: a.name }))}
-                                                                            placeholder="Cơ quan..."
-                                                                            formatCreateLabel={(inputValue) => `Mới: "${inputValue}"`}
+                                                                            styles={compactSelectStyles}
                                                                             menuPortalTarget={document.body}
-                                                                            menuPosition="fixed"
-                                                                            styles={selectStyles}
                                                                         />
                                                                     </td>
-                                                                    <td className="p-2">
+                                                                    <td>
                                                                         <Select
                                                                             value={nodes.find(n => n.id === fb.node_id) ? { value: fb.node_id, label: nodes.find(n => n.id === fb.node_id).label } : { value: null, label: 'Chung' }}
                                                                             onChange={(opt) => updateFeedbackField(fb.key, 'node_id', opt ? opt.value : null)}
                                                                             options={[
-                                                                                { value: null, label: 'Chung' },
+                                                                                { value: null, label: 'Góp ý chung' },
                                                                                 ...nodes.filter(n => n.type !== 'Văn bản').map(n => ({ value: n.id, label: n.label }))
                                                                             ]}
-                                                                            placeholder="Mức..."
-                                                                            isClearable
+                                                                            styles={compactSelectStyles}
                                                                             menuPortalTarget={document.body}
-                                                                            menuPosition="fixed"
-                                                                            styles={selectStyles}
                                                                         />
                                                                     </td>
-                                                                    <td className="p-2">
-                                                                        <Input 
-                                                                            type="textarea" 
-                                                                            rows={2} 
-                                                                            className="form-control form-control-sm fs-12 border-danger-subtle bg-danger-subtle fb-table-input shadow-none" 
-                                                                            placeholder="..."
-                                                                            value={fb.need_opinion || ""}
-                                                                            onChange={(e) => updateFeedbackField(fb.key, 'need_opinion', e.target.value)}
-                                                                        />
-                                                                    </td>
-                                                                    <td className="text-center p-2">
-                                                                        <Button color="soft-danger" size="sm" className="btn-icon shadow-none" onClick={() => removeFeedback(fb.key)}>
+                                                                    <td className="text-center">
+                                                                        <button className="btn btn-sm btn-ghost-danger p-0" onClick={() => removeFeedback(fb.key)}>
                                                                             <i className="ri-delete-bin-line fs-16"></i>
-                                                                        </Button>
+                                                                        </button>
                                                                     </td>
                                                                 </tr>
                                                             )) : (
                                                                 <tr>
-                                                                    <td colSpan="4" className="text-center py-5 text-muted bg-body-tertiary">
-                                                                        <div className="py-5">
-                                                                            <div className="mb-4">
-                                                                                <i className="ri-camera-lens-line display-3 text-info opacity-25"></i>
-                                                                            </div>
-                                                                            <h5 className="text-body fw-bold">Chưa có dữ liệu từ Ảnh/PDF</h5>
-                                                                            <p className="fs-14 mb-0">Hệ thống sẽ bóc tách dữ liệu ngay sau khi bạn tải tệp và nhấn nút "Xem trước & Chọn trang quét".</p>
-                                                                        </div>
+                                                                    <td colSpan="4" className="text-center py-5 border-0 bg-transparent text-muted small italic opacity-50">
+                                                                        <i className="ri-camera-lens-line display-6 d-block mb-2"></i>
+                                                                        Dữ liệu bóc tách từ ảnh/PDF sẽ hiển thị tại đây...
                                                                     </td>
                                                                 </tr>
                                                             )}
-                                                        </tbody>
-                                                    </Table>
+                                                        </ModernTable>
+                                                    </div>
                                                 </div>
-                                            </CardBody>
-                                        </Card>
-                                    </Col>
-                                </Row>
-                            )}
+                                            </ModernCard>
+                                        </Col>
+                                    </Row>
+                                )}
+                            </div>
                         </TabPane>
                         {/* TAB 4: GOOGLE SHEETS IMPORT */}
                         <TabPane tabId="4">
-                            <Card className="border-0 shadow-sm mb-4">
-                                <CardHeader className="bg-light-subtle d-flex align-items-center justify-content-between">
-                                    <h6 className="card-title mb-0 fw-bold"><i className="ri-google-line align-bottom me-1 text-success"></i> Nhập trực tiếp từ Google Sheets</h6>
-                                    <Badge color="info" className="fs-10">Anyone with link can view</Badge>
-                                </CardHeader>
-                                <CardBody className="bg-body-tertiary">
-                                    <div className="p-4 bg-card-custom rounded border border-light-subtle shadow-sm mb-4">
-                                        <Row className="align-items-center">
-                                            <Col md={7}>
-                                                <Label className="form-label fw-bold small text-muted text-uppercase mb-2">Đường dẫn Google Sheets</Label>
-                                                <Input 
-                                                    type="text" 
-                                                    placeholder="https://docs.google.com/spreadsheets/d/.../edit#gid=..." 
-                                                    value={gsUrl}
-                                                    onChange={(e) => setGsUrl(e.target.value)}
-                                                    className="form-control-lg border-2"
-                                                />
+                            <ModernCard className="border-0 shadow-sm overflow-hidden mb-4">
+                                <div className="p-3 border-bottom border-light-subtle d-flex align-items-center justify-content-between bg-success-subtle bg-opacity-10">
+                                    <h6 className="card-title mb-0 fw-bold success-text"><i className="ri-google-fill align-bottom me-2"></i> Đồng bộ trực tiếp từ Google Sheets</h6>
+                                    <ModernBadge color="success">KẾT NỐI API</ModernBadge>
+                                </div>
+                                <div className="p-4">
+                                    <div className="p-4 rounded-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                        <Row className="align-items-end g-4">
+                                            <Col lg={7} md={12}>
+                                                <Label className="text-muted fw-bold small text-uppercase mb-2">Đường dẫn Google Sheets</Label>
+                                                <div className="position-relative">
+                                                    <Input 
+                                                        type="text" 
+                                                        placeholder="https://docs.google.com/spreadsheets/d/.../edit#gid=..." 
+                                                        value={gsUrl}
+                                                        onChange={(e) => setGsUrl(e.target.value)}
+                                                        className="form-control-lg bg-light-subtle ps-5 border-light-subtle text-white fs-14"
+                                                    />
+                                                    <i className="ri-links-line position-absolute top-50 start-0 translate-middle-y ms-3 text-muted fs-18"></i>
+                                                </div>
                                             </Col>
-                                            <Col md={3}>
-                                                <div className="form-check form-switch form-switch-md">
+                                            <Col lg={3} md={12}>
+                                                <div className="form-check form-switch form-switch-md mb-2 pb-1">
                                                     <Input 
                                                         className="form-check-input" 
                                                         type="checkbox" 
@@ -1273,313 +1242,201 @@ const FeedbackIntake = () => {
                                                         checked={saveGsUrl}
                                                         onChange={(e) => setSaveGsUrl(e.target.checked)}
                                                     />
-                                                    <Label className="form-check-label text-muted fs-12" htmlFor="saveGsUrlSwitch">
-                                                        Lưu lại đường dẫn này cho dự thảo
+                                                    <Label className="form-check-label text-muted small fw-bold" htmlFor="saveGsUrlSwitch">
+                                                        Ghi nhớ liên kết cho văn bản này
                                                     </Label>
                                                 </div>
                                             </Col>
-                                            <Col md={2}>
-                                                <Button 
-                                                    color="success" 
-                                                    size="lg" 
-                                                    className="w-100 shadow-none" 
+                                            <Col lg={2} md={12}>
+                                                <ModernButton 
+                                                    variant="success" 
+                                                    className="w-100 py-3 shadow-neon-success" 
                                                     onClick={handleAnalyzeGsUrl}
                                                     disabled={analyzingGs || !selectedDocId}
                                                 >
-                                                    {analyzingGs ? <Spinner size="sm" /> : <><i className="ri-refresh-line align-bottom me-2"></i> Tải</>}
-                                                </Button>
+                                                    {analyzingGs ? <Spinner size="sm" /> : <><i className="ri-refresh-line me-2"></i> TẢI DỮ LIỆU</>}
+                                                </ModernButton>
                                             </Col>
                                         </Row>
                                     </div>
-
-                                    <style>{`
-                                        .is-dup-cell {
-                                            background-color: rgba(var(--vz-warning-rgb), 0.05) !important;
-                                            color: var(--vz-body-color) !important;
-                                            font-weight: 500;
-                                        }
-                                        .corner-badge {
-                                            position: absolute;
-                                            top: 2px;
-                                            right: 2px;
-                                            z-index: 10;
-                                            font-size: 8px !important;
-                                            padding: 1px 3px !important;
-                                            pointer-events: none;
-                                            border-radius: 3px;
-                                            background-color: var(--vz-warning) !important;
-                                            color: #000 !important;
-                                            font-weight: 800;
-                                        }
-                                        .row-diff {
-                                            border-left: 4px solid var(--vz-primary) !important;
-                                        }
-                                        .row-unassigned {
-                                            border-left: 4px solid var(--vz-danger) !important;
-                                        }
-                                        .fb-table-input {
-                                            color: var(--vz-body-color) !important;
-                                            line-height: 1.4;
-                                        }
-                                        .fb-table-input::placeholder {
-                                            color: var(--vz-text-muted) !important;
-                                            opacity: 0.5;
-                                        }
-                                        .explanation-box {
-                                            background-color: var(--vz-light) !important;
-                                            border: 1px solid var(--vz-border-color) !important;
-                                            color: var(--vz-body-color) !important;
-                                        }
-                                    `}</style>
-
-                                    {(activeTab === '4' || activeTab === '2') && feedbacks.length > 0 && (
-                                        <>
-                                            <div className="d-flex justify-content-between align-items-center mb-3 px-1">
-                                                <div className="d-flex align-items-center gap-2">
-                                                    <Nav pills className="nav-pills-custom nav-success fs-12 p-1 bg-light rounded border border-light-subtle">
-                                                        <NavItem>
-                                                            <NavLink
-                                                                className={classnames({ active: filterMode === 'all' })}
-                                                                onClick={() => setFilterMode('all')}
-                                                                style={{ cursor: 'pointer', padding: '4px 10px' }}
-                                                            >
-                                                                Tất cả ({feedbacks.length})
-                                                            </NavLink>
-                                                        </NavItem>
-                                                        <NavItem>
-                                                            <NavLink
-                                                                className={classnames({ active: filterMode === 'diff' })}
-                                                                onClick={() => setFilterMode('diff')}
-                                                                style={{ cursor: 'pointer', padding: '4px 10px' }}
-                                                            >
-                                                                Dòng có khác biệt ({feedbacks.filter(f => !f.is_duplicate || f.explanation_status === 'new' || f.explanation_status === 'conflict').length})
-                                                            </NavLink>
-                                                        </NavItem>
-                                                        <NavItem>
-                                                            <NavLink
-                                                                className={classnames({ active: filterMode === 'unassigned' })}
-                                                                onClick={() => setFilterMode('unassigned')}
-                                                                style={{ cursor: 'pointer', padding: '4px 10px' }}
-                                                            >
-                                                                Chưa gán Điều/Khoản ({feedbacks.filter(f => !f.node_id && !f.appendix_id).length})
-                                                            </NavLink>
-                                                        </NavItem>
-                                                    </Nav>
-                                                </div>
-                                                <div className="text-muted fs-12">
-                                                    Hiển thị <b>{feedbacks.filter(f => {
-                                                        if (filterMode === 'diff') return !f.is_duplicate || f.explanation_status === 'new' || f.explanation_status === 'conflict';
-                                                        if (filterMode === 'unassigned') return !f.node_id && !f.appendix_id;
-                                                        return true;
-                                                    }).length}</b> / {feedbacks.length} dòng dữ liệu.
-                                                </div>
-                                            </div>
-                                            <div className="table-responsive rounded border border-light-subtle shadow-sm">
-                                                <Table className="table-hover mb-0 align-middle">
-                                                    <thead className="table-light fs-11 text-uppercase fw-bold">
-                                                    <tr>
-                                                        <th style={{ width: '8%' }}>Điều</th>
-                                                        <th style={{ width: '12%' }}>Đơn vị</th>
-                                                        <th style={{ width: '20%' }}>Nội dung</th>
-                                                        <th style={{ width: '10%' }}>Lý do</th>
-                                                        <th style={{ width: '10%' }}>Ghi chú</th>
-                                                        <th style={{ width: '25%' }}>Xử lý Giải trình</th>
-                                                        <th style={{ width: '7%' }} className="text-center">Xin ý kiến</th>
-                                                        <th style={{ width: '8%' }}>Lưu?</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="fs-13">
-                                                    {feedbacks.filter(f => {
-                                                        if (filterMode === 'diff') return !f.is_duplicate || f.explanation_status === 'new' || f.explanation_status === 'conflict';
-                                                        if (filterMode === 'unassigned') return !f.node_id && !f.appendix_id;
-                                                        return true; // Mode 'all'
-                                                    }).map((fb, idx) => {
-                                                        const isUnassigned = !fb.node_id && !fb.appendix_id;
-                                                        const isDiff = !fb.is_duplicate || fb.explanation_status === 'new' || fb.explanation_status === 'conflict';
-                                                        
-                                                        return (
-                                                            <tr key={fb.key} className={classnames(
-                                                                fb.is_duplicate ? "bg-light-subtle" : "",
-                                                                isUnassigned ? "row-unassigned" : "",
-                                                                isDiff && !fb.is_duplicate ? "row-diff" : ""
-                                                            )} style={{ transition: 'all 0.2s ease' }}>
-                                                                <td className="fw-medium">
-                                                                    <Select
-                                                                        value={nodes.find(n => (n.unique_id === `node-${fb.node_id}` || n.unique_id === `app-${fb.appendix_id}`)) ? { 
-                                                                            value: fb.appendix_id ? `app-${fb.appendix_id}` : `node-${fb.node_id}`, 
-                                                                            label: nodes.find(n => (n.unique_id === `node-${fb.node_id}` || n.unique_id === `app-${fb.appendix_id}`))?.label 
-                                                                        } : null}
-                                                                        onChange={(opt) => updateFeedbackField(fb.key, 'node_id', opt ? opt.value : null)}
-                                                                        options={nodes.map(n => ({ value: n.unique_id || `node-${n.id}`, label: n.label }))}
-                                                                        placeholder="Chọn..."
-                                                                        styles={selectStyles}
-                                                                        menuPortalTarget={document.body}
-                                                                    />
-                                                                </td>
-                                                                <td>
-                                                                    <CreatableSelect
-                                                                        isClearable
-                                                                        value={agencies.find(a => a.id === fb.agency_id) ? { value: fb.agency_id, label: fb.agency_id ? agencies.find(a => a.id === fb.agency_id).name : fb.agency_name } : (fb.agency_name ? {label: fb.agency_name, value: null} : null)}
-                                                                        onChange={(opt) => updateFeedbackField(fb.key, 'agency_id', opt ? opt.value : null)}
-                                                                        options={agencies.map(a => ({ value: a.id, label: a.name }))}
-                                                                        styles={{
-                                                                            ...selectStyles,
-                                                                            control: (base, state) => ({
-                                                                                ...selectStyles.control(base, state),
-                                                                                borderColor: !fb.agency_id ? "var(--vz-danger)" : selectStyles.control(base, state).borderColor,
-                                                                                boxShadow: !fb.agency_id && state.isFocused ? "0 0 0 0.1rem rgba(240, 101, 72, 0.25)" : selectStyles.control(base, state).boxShadow,
-                                                                                minHeight: '30px'
-                                                                            }),
-                                                                            singleValue: (base) => ({
-                                                                                ...selectStyles.singleValue(base),
-                                                                                fontSize: "12px",
-                                                                                fontWeight: "500"
-                                                                            }),
-                                                                            input: (base) => ({
-                                                                                ...selectStyles.input(base),
-                                                                                fontSize: "12px"
-                                                                            }),
-                                                                            placeholder: (base) => ({
-                                                                                ...selectStyles.placeholder(base),
-                                                                                fontSize: "12px"
-                                                                            })
-                                                                        }}
-                                                                        menuPortalTarget={document.body}
-                                                                        placeholder="Chọn cơ quan..."
-                                                                    />
-                                                                    {fb.official_number && <div className="mt-1"><Badge color="light" className="text-secondary border fs-10">{fb.official_number} - {fb.official_date}</Badge></div>}
-                                                                </td>
-                                                                <td>
-                                                                    <div className="rel-wrapper">
-                                                                        <Input 
-                                                                            type="textarea" 
-                                                                            rows={2} 
-                                                                            className={`form-control form-control-sm fs-13 px-2 py-1 scrollbar-hide border-0 bg-transparent fb-table-input fw-medium ${fb.is_duplicate ? 'is-dup-cell' : ''}`} 
-                                                                            value={fb.content}
-                                                                            onChange={(e) => updateFeedbackField(fb.key, 'content', e.target.value)}
-                                                                        />
-                                                                        {fb.is_duplicate && <Badge className="corner-badge">Đã có</Badge>}
-                                                                    </div>
-                                                                    {fb.is_duplicate && <div className="mt-1"><Badge color="soft-warning" className="fs-10 text-uppercase">Trùng lặp cơ sở</Badge></div>}
-                                                                </td>
-                                                                <td>
-                                                                    <div className="rel-wrapper">
-                                                                        <Input 
-                                                                            type="textarea" 
-                                                                            rows={1} 
-                                                                            className={`form-control form-control-sm fs-11 px-1 py-0 border-0 bg-transparent ${fb.is_duplicate ? 'is-dup-cell' : ''}`} 
-                                                                            value={fb.reason}
-                                                                            placeholder="..."
-                                                                            onChange={(e) => updateFeedbackField(fb.key, 'reason', e.target.value)}
-                                                                        />
-                                                                        {fb.is_duplicate && <Badge className="corner-badge">Đã có</Badge>}
-                                                                    </div>
-                                                                </td>
-                                                                <td>
-                                                                    <div className="rel-wrapper">
-                                                                        <Input 
-                                                                            type="text" 
-                                                                            className={`form-control form-control-sm fs-12 px-2 py-1 border-0 bg-transparent fb-table-input ${fb.is_duplicate ? 'is-dup-cell' : ''}`} 
-                                                                            value={fb.note}
-                                                                            placeholder="..."
-                                                                            onChange={(e) => updateFeedbackField(fb.key, 'note', e.target.value)}
-                                                                        />
-                                                                        {fb.is_duplicate && <Badge className="corner-badge">Đã có</Badge>}
-                                                                    </div>
-                                                                </td>
-                                                                <td>
-                                                                    {fb.explanation_status === 'none' ? (
-                                                                        <span className="text-muted italic fs-11 text-center d-block">Không có giải trình</span>
-                                                                    ) : (
-                                                                        <div className="d-flex flex-column gap-1 explanation-box p-2 rounded shadow-sm">
-                                                                            <div className="d-flex align-items-center justify-content-between gap-1 mb-1">
-                                                                                <Badge color={fb.explanation_status === 'conflict' ? "soft-danger" : (fb.explanation_status === 'identical' ? "soft-success" : "soft-primary")} className="fs-9 text-uppercase">
-                                                                                    {fb.explanation_status === 'conflict' ? "Cập nhật" : (fb.explanation_status === 'identical' ? "Trùng lặp" : "Mới")}
-                                                                                </Badge>
-                                                                                <select 
-                                                                                    className={classnames("form-select form-select-sm py-0 px-1 h-auto fs-10 border-0 bg-transparent fw-bold", fb.explanation_import_mode === 'skip' ? 'text-muted' : 'text-primary')}
-                                                                                    value={fb.explanation_import_mode}
-                                                                                    onChange={(e) => updateFeedbackField(fb.key, 'explanation_import_mode', e.target.value)}
-                                                                                    style={{ width: 'auto' }}
-                                                                                >
-                                                                                    <option value="overwrite">Ghi đè</option>
-                                                                                    <option value="skip">Bỏ qua</option>
-                                                                                </select>
-                                                                            </div>
-                                                                            <div className="p-1 rounded fw-medium">
-                                                                                {fb.explanation_status === 'conflict' ? (
-                                                                                    <div className="d-flex flex-column gap-1">
-                                                                                        <div className="text-body fs-11" title="Nội dung mới">
-                                                                                            <span className="text-primary me-1 fw-bold">Mới:</span> 
-                                                                                            {fb.explanation_content ? fb.explanation_content : <span className="text-danger italic">[Trống - Sẽ xóa cũ nếu ghi đè]</span>}
-                                                                                        </div>
-                                                                                        {fb.existing_explanation && (
-                                                                                            <div className="text-muted fs-10 border-top pt-1 mt-1" title="Nội dung hiện tại trong hệ thống">
-                                                                                                <span className="me-1 fw-bold">Hiện tại:</span> {fb.existing_explanation}
-                                                                                            </div>
-                                                                                        )}
-                                                                                    </div>
-                                                                                ) : (
-                                                                                    <div className="text-body fs-11 text-truncate-2-lines" title={fb.explanation_content}>
-                                                                                        {fb.explanation_content}
-                                                                                    </div>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                    )}
-                                                                </td>
-                                                                <td className="p-1">
-                                                                    <Input 
-                                                                        type="textarea" 
-                                                                        rows={2} 
-                                                                        className={classnames("form-control form-control-sm fs-11 px-1 py-1 border-0 bg-transparent fb-table-input shadow-none", fb.need_opinion ? 'bg-danger-subtle' : '')} 
-                                                                        value={fb.need_opinion || ""}
-                                                                        placeholder="..."
-                                                                        onChange={(e) => updateFeedbackField(fb.key, 'need_opinion', e.target.value)}
-                                                                    />
-                                                                    {fb.is_opinion_diff && (
-                                                                        <div className="mt-1">
-                                                                            <Badge color="soft-warning" className="fs-9 d-block text-wrap text-start shadow-none">
-                                                                                Sheet: {fb.gs_need_opinion}
-                                                                            </Badge>
-                                                                        </div>
-                                                                    )}
-                                                                </td>
-                                                                <td className="text-center">
-                                                                    <Input 
-                                                                        type="select" 
-                                                                        size="sm"
-                                                                        value={fb.import_mode}
-                                                                        onChange={(e) => updateFeedbackField(fb.key, 'import_mode', e.target.value)}
-                                                                        className={classnames("fs-11 py-0", fb.import_mode === 'skip' ? 'bg-light border-light-subtle text-muted' : 'border-primary-subtle text-primary fw-medium')}
-                                                                        style={{ height: '28px' }}
-                                                                    >
-                                                                        <option value="add_new">Lưu mới</option>
-                                                                        <option value="explanation_only">Cập nhật GT</option>
-                                                                        <option value="overwrite">Ghi đè</option>
-                                                                        <option value="skip">Bỏ qua</option>
-                                                                    </Input>
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </Table>
-                                        </div>
-                                        </>
-                                    )}
-                                </CardBody>
-                            </Card>
+                                    <div className="mt-3 p-3 rounded-4 bg-success bg-opacity-5 border border-success border-opacity-10">
+                                        <p className="text-success-subtle mb-0 small lh-base italic text-center">
+                                            <i className="ri-shield-check-line me-1"></i>
+                                            Dữ liệu sẽ được so sánh với các bản ghi hiện có để phát hiện trùng lặp hoặc mâu thuẫn.
+                                        </p>
+                                    </div>
+                                </div>
+                            </ModernCard>
                         </TabPane>
                     </TabContent>
+
+                   {/* TAB 2 & 4 PREVIEW TABLE */}
+                    {(activeTab === '4' || activeTab === '2') && feedbacks.filter(f => !f.key.startsWith('manual') && !f.key.startsWith('ocr')).length > 0 && (
+                        <div className="mt-4 px-2">
+                            <div className="d-flex justify-content-between align-items-center mb-4">
+                                <div className="d-flex align-items-center gap-3">
+                                    <h5 className="mb-0 text-white fw-bold"><i className="ri-table-line text-primary me-2"></i> Bảng đối soát kết quả</h5>
+                                    <div className="modern-pills-filter">
+                                        <div 
+                                            className={classnames("filter-item", { active: filterMode === 'all' })}
+                                            onClick={() => setFilterMode('all')}
+                                        >
+                                            Tất cả ({feedbacks.length})
+                                        </div>
+                                        <div 
+                                            className={classnames("filter-item", { active: filterMode === 'diff' })}
+                                            onClick={() => setFilterMode('diff')}
+                                        >
+                                            Dữ liệu mới ({feedbacks.filter(f => !f.is_duplicate || f.explanation_status === 'new' || f.explanation_status === 'conflict').length})
+                                        </div>
+                                        <div 
+                                            className={classnames("filter-item", { active: filterMode === 'unassigned' })}
+                                            onClick={() => setFilterMode('unassigned')}
+                                        >
+                                            Chưa map Điều ({feedbacks.filter(f => !f.node_id && !f.appendix_id).length})
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="text-primary-subtle small fw-bold">
+                                    ĐANG HIỂN THỊ: {feedbacks.filter(f => {
+                                        if (f.key.startsWith('manual') || f.key.startsWith('ocr')) return false;
+                                        if (filterMode === 'diff') return !f.is_duplicate || f.explanation_status === 'new' || f.explanation_status === 'conflict';
+                                        if (filterMode === 'unassigned') return !f.node_id && !f.appendix_id;
+                                        return true;
+                                    }).length} DÒNG
+                                </div>
+                            </div>
+
+                            <ModernTable 
+                                headers={[
+                                    { key: 'node', label: 'ĐIỀU/KHOẢN', width: '130px' },
+                                    { key: 'agency', label: 'ĐƠN VỊ GÓP Ý', width: '200px' },
+                                    { key: 'content', label: 'NỘI DUNG GÓP Ý' },
+                                    { key: 'explanation', label: 'GIẢI TRÌNH (AI)', width: '300px' },
+                                    { key: 'opinion', label: 'GHI CHÚ', width: '120px' },
+                                    { key: 'mode', label: 'QUY TRÌNH', width: '120px' }
+                                ]}
+                                loading={analyzingGs}
+                            >
+                                {feedbacks.filter(f => {
+                                    if (f.key.startsWith('manual') || f.key.startsWith('ocr')) return false;
+                                    if (filterMode === 'diff') return !f.is_duplicate || f.explanation_status === 'new' || f.explanation_status === 'conflict';
+                                    if (filterMode === 'unassigned') return !f.node_id && !f.appendix_id;
+                                    return true;
+                                }).map((fb) => {
+                                    const isUnassigned = !fb.node_id && !fb.appendix_id;
+                                    const isDiff = !fb.is_duplicate || fb.explanation_status === 'new' || fb.explanation_status === 'conflict';
+                                    
+                                    return (
+                                        <tr key={fb.key} className={classnames(
+                                            fb.is_duplicate ? "is-duplicate-row" : "",
+                                            isUnassigned ? "is-unassigned-row" : "",
+                                            isDiff && !fb.is_duplicate ? "is-diff-row" : ""
+                                        )}>
+                                            <td>
+                                                <Select
+                                                    value={nodes.find(n => (n.unique_id === `node-${fb.node_id}` || n.unique_id === `app-${fb.appendix_id}`)) ? { 
+                                                        value: fb.appendix_id ? `app-${fb.appendix_id}` : `node-${fb.node_id}`, 
+                                                        label: nodes.find(n => (n.unique_id === `node-${fb.node_id}` || n.unique_id === `app-${fb.appendix_id}`))?.label 
+                                                    } : null}
+                                                    onChange={(opt) => updateFeedbackField(fb.key, opt?.value?.startsWith('app-') ? 'appendix_id' : 'node_id', opt?.value?.split('-')[1])}
+                                                    options={nodes.map(n => ({ value: n.unique_id || `node-${n.id}`, label: n.label }))}
+                                                    placeholder="..."
+                                                    styles={compactSelectStyles}
+                                                    menuPortalTarget={document.body}
+                                                />
+                                            </td>
+                                            <td>
+                                                <CreatableSelect
+                                                    isClearable
+                                                    value={agencies.find(a => a.id === fb.agency_id) ? { value: fb.agency_id, label: agencies.find(a => a.id === fb.agency_id).name } : (fb.agency_name ? {label: fb.agency_name, value: null} : null)}
+                                                    onChange={(opt) => updateFeedbackField(fb.key, 'agency_id', opt ? opt.value : null)}
+                                                    options={agencies.map(a => ({ value: a.id, label: a.name }))}
+                                                    styles={compactSelectStyles}
+                                                    menuPortalTarget={document.body}
+                                                    placeholder="..."
+                                                />
+                                                {fb.official_number && <div className="mt-1 small-badge">{fb.official_number}</div>}
+                                            </td>
+                                            <td>
+                                                <div className="position-relative">
+                                                    <Input 
+                                                        type="textarea" 
+                                                        rows={2} 
+                                                        className="table-input-modern" 
+                                                        value={fb.content}
+                                                        onChange={(e) => updateFeedbackField(fb.key, 'content', e.target.value)}
+                                                    />
+                                                    {fb.is_duplicate && <div className="corner-tag warning">TRÙNG</div>}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {fb.explanation_status === 'none' ? (
+                                                    <span className="text-muted italic small opacity-50">Không có giải trình</span>
+                                                ) : (
+                                                    <div className={classnames("explanation-compact-card shadow-sm", fb.explanation_status)}>
+                                                        <div className="d-flex align-items-center justify-content-between mb-2">
+                                                            <span className="status-badge">
+                                                                {fb.explanation_status === 'conflict' ? "CẬP NHẬT" : (fb.explanation_status === 'identical' ? "TRÙNG LẶP" : "MỚI")}
+                                                            </span>
+                                                            <select 
+                                                                className="import-mode-select fs-11"
+                                                                value={fb.explanation_import_mode}
+                                                                onChange={(e) => updateFeedbackField(fb.key, 'explanation_import_mode', e.target.value)}
+                                                            >
+                                                                <option value="overwrite">Ghi đè</option>
+                                                                <option value="skip">Bỏ qua</option>
+                                                            </select>
+                                                        </div>
+                                                        <div className="exp-content fs-12 lh-base">
+                                                            {fb.explanation_status === 'conflict' ? (
+                                                                <>
+                                                                    <div className="text-primary-gradient fw-bold mb-1">Mới: {fb.explanation_content || "[Trống]"}</div>
+                                                                    <div className="text-muted-light border-top border-light border-opacity-10 pt-1 mt-1 opacity-75">Cũ: {fb.existing_explanation}</div>
+                                                                </>
+                                                            ) : fb.explanation_content}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td>
+                                                <Input 
+                                                    type="textarea" 
+                                                    rows={2} 
+                                                    className={classnames("table-input-modern", fb.need_opinion ? 'bg-danger-subtle bg-opacity-10 text-danger' : '')} 
+                                                    value={fb.need_opinion || ""}
+                                                    placeholder="..."
+                                                    onChange={(e) => updateFeedbackField(fb.key, 'need_opinion', e.target.value)}
+                                                />
+                                            </td>
+                                            <td>
+                                                <Input 
+                                                    type="select" 
+                                                    size="sm"
+                                                    value={fb.import_mode}
+                                                    onChange={(e) => updateFeedbackField(fb.key, 'import_mode', e.target.value)}
+                                                    className={classnames("modern-select-sm", fb.import_mode === 'skip' ? 'text-muted' : 'text-primary fw-bold')}
+                                                >
+                                                    <option value="add_new">Lưu mới</option>
+                                                    <option value="explanation_only">Cập nhật GT</option>
+                                                    <option value="overwrite">Ghi đè</option>
+                                                    <option value="skip">Bỏ qua</option>
+                                                </Input>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </ModernTable>
+                        </div>
+                    )}
                 </Container>
 
                 {/* Quick Add Agency Modal */}
                 <Modal isOpen={agencyModal} toggle={toggleAgencyModal} centered size="sm">
-                    <ModalHeader toggle={toggleAgencyModal} className="bg-light p-3">Thêm nhanh đối tượng/đơn vị</ModalHeader>
+                    <ModalHeader toggle={toggleAgencyModal} className="bg-white-5 border-bottom border-white-10 p-3">Thêm nhanh đơn vị</ModalHeader>
                     <ModalBody>
                         <FormGroup>
-                            <Label className="form-label fw-bold">Tên đơn vị mới <span className="text-danger">*</span></Label>
+                            <Label className="form-label fw-bold">Tên đơn vị <span className="text-danger">*</span></Label>
                             <Input 
                                 type="text" 
                                 placeholder="Nhập tên đơn vị..." 
@@ -1589,23 +1446,21 @@ const FeedbackIntake = () => {
                             />
                         </FormGroup>
                         <FormGroup className="mb-0">
-                            <Label className="form-label fw-bold">Phân loại đơn vị</Label>
+                            <Label className="form-label fw-bold">Phân loại</Label>
                             <CreatableSelect
                                 isClearable
-                                placeholder="Chọn hoặc gõ để thêm loại mới..."
+                                placeholder="Chọn hoặc thêm mới..."
                                 value={newAgencyCategory}
                                 onChange={(opt) => setNewAgencyCategory(opt)}
                                 options={categories.map(c => ({ value: c.id, label: c.name }))}
-                                formatCreateLabel={(inputValue) => `Thêm phân loại mới: "${inputValue}"`}
+                                formatCreateLabel={(inputValue) => `Thêm mới: "${inputValue}"`}
                                 styles={selectStyles}
+                                menuPortalTarget={document.body}
                             />
-                            <p className="text-muted small mt-2 mb-0">
-                                Bạn có thể bỏ trống phân loại nếu chưa rõ.
-                            </p>
                         </FormGroup>
                     </ModalBody>
-                    <ModalFooter className="bg-light p-2">
-                        <Button color="link" className="text-muted" onClick={toggleAgencyModal}>Hủy</Button>
+                    <ModalFooter className="bg-white-5 border-top border-white-10 p-2">
+                        <Button color="link" className="text-white-50" onClick={toggleAgencyModal}>Hủy</Button>
                         <Button color="primary" onClick={handleQuickAgencySave} disabled={addingAgency}>
                             {addingAgency ? <Spinner size="sm" className="me-2" /> : <i className="ri-save-line align-bottom me-1"></i>}
                             Lưu đơn vị
@@ -1613,6 +1468,7 @@ const FeedbackIntake = () => {
                     </ModalFooter>
                 </Modal>
             </div>
+        </div>
         </React.Fragment>
     );
 };

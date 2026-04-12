@@ -6,6 +6,10 @@ import { getAuthHeader } from '../../helpers/api_helper';
 import { toast, ToastContainer } from 'react-toastify';
 import { useParams, useNavigate } from 'react-router-dom';
 import BreadCrumb from '../../Components/Common/BreadCrumb';
+import { 
+    ModernCard, ModernBadge, ModernButton, 
+    ModernHeader, ModernSearchBox 
+} from '../../Components/Common/ModernUI';
 
 const DraftConsultation = () => {
     const { id } = useParams();
@@ -144,83 +148,139 @@ const DraftConsultation = () => {
     const alreadyConsulted = agencyOptions.filter(opt => formData.consulted_agencies.includes(opt.value));
     // Available new ones:
     const availableNewAgencies = agencyOptions.filter(opt => !formData.consulted_agencies.includes(opt.value));
-    const selectedNewAgencies = availableNewAgencies.filter(opt => newConsultedAgencies.includes(opt.value));
-
+    const selectedNewAgencies = agencyOptions.filter(opt => newConsultedAgencies.includes(opt.value));
     const selectStyles = {
         control: (base, state) => ({
             ...base,
-            background: "var(--vz-input-bg)",
-            borderColor: state.isFocused ? "var(--vz-input-focus-border-color)" : "var(--vz-input-border)",
-            color: "var(--vz-body-color)",
-        }),
-        menu: (base) => ({
-            ...base,
-            background: "var(--vz-choices-bg, #ffffff)",
-            borderColor: "var(--vz-input-border)",
-            zIndex: 9999
-        }),
-        option: (base, state) => ({
-            ...base,
-            background: state.isSelected ? "var(--vz-primary)" : state.isFocused ? "var(--vz-primary-light, #eef1f6)" : "transparent",
-            color: state.isSelected ? "#fff" : "var(--vz-body-color)",
-            cursor: "pointer",
-        }),
-        multiValue: (base) => ({
-            ...base,
-            background: "var(--vz-primary-light, #eef1f6)",
-            color: "var(--vz-primary, #405189)",
-        }),
-        multiValueLabel: (base) => ({
-            ...base,
-            color: "var(--vz-primary, #405189)",
+            background: "rgba(255, 255, 255, 0.05)",
+            borderColor: state.isFocused ? "var(--kit-primary)" : "rgba(255, 255, 255, 0.1)",
+            color: "white",
+            borderRadius: "10px",
+            minHeight: "45px",
+            boxShadow: "none"
         }),
         singleValue: (base) => ({
             ...base,
-            color: "var(--vz-body-color)",
+            color: "white",
         }),
+        menu: (base) => ({
+            ...base,
+            backgroundColor: "#1e2027",
+            zIndex: 1070,
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+        }),
+        option: (base, state) => ({
+            ...base,
+            backgroundColor: state.isSelected
+                ? "var(--kit-primary)"
+                : state.isFocused
+                    ? "rgba(255, 255, 255, 0.1)"
+                    : "transparent",
+            color: "white",
+            "&:hover": {
+                backgroundColor: "rgba(255, 255, 255, 0.1)",
+            }
+        }),
+        placeholder: (base) => ({ ...base, color: "rgba(255, 255, 255, 0.5)" }),
+        multiValue: (base) => ({
+            ...base,
+            background: "rgba(255, 255, 255, 0.1)",
+            borderRadius: "6px",
+            padding: "2px 4px"
+        }),
+        multiValueLabel: (base) => ({
+            ...base,
+            color: "white",
+            fontSize: "12px",
+            fontWeight: "600"
+        }),
+        multiValueRemove: (base) => ({
+            ...base,
+            color: "white",
+            "&:hover": { background: "transparent", color: "#ff4d4d" }
+        }),
+        input: (base) => ({ ...base, color: "white" })
+    };
+
+    const modernInputStyle = {
+        background: 'rgba(255, 255, 255, 0.03)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        color: 'white',
+        borderRadius: '12px',
+        padding: '12px 16px',
+        fontSize: '14px',
     };
 
     document.title = "Lấy ý kiến dự thảo | QLVB V3.0";
 
     return (
-        <div className="page-content">
-            <Container fluid>
-                <BreadCrumb title="Lấy ý kiến dự thảo" pageTitle="Dự thảo" />
-                <Row className="justify-content-center">
-                    <Col lg={10}>
-                        <Card>
-                            <CardBody className="p-4">
-                                <div className="mb-4">
-                                    <h5 className="mb-2">Chọn chọn văn bản lấy ý kiến</h5>
+        <React.Fragment>
+            <div className="designkit-wrapper designkit-layout-root">
+                <div className="modern-page-content">
+                    <ModernHeader 
+                        title="Lấy ý kiến dự thảo" 
+                        subtitle="Dự thảo & Phát hành văn bản tham vấn"
+                        actions={
+                            <div className="d-flex gap-2">
+                                <ModernButton variant="ghost" onClick={() => navigate(-1)}>
+                                    <i className="ri-arrow-left-line"></i> Quay lại
+                                </ModernButton>
+                                {doc && (
+                                    <ModernButton variant="primary" onClick={handleSubmit} disabled={loading || matching}>
+                                        {loading ? <Spinner size="sm" /> : <><i className="ri-send-plane-fill"></i> Xác nhận phát hành</>}
+                                    </ModernButton>
+                                )}
+                            </div>
+                        }
+                    />
+
+                    <ToastContainer closeButton={false} />
+
+                    <Row className="justify-content-center">
+                        <Col lg={11}>
+                            <ModernCard className="p-4 mb-4" style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)' }}>
+                                <div className="mb-0">
+                                    <h6 className="text-muted text-uppercase fw-bold mb-3 fs-12">1. Chọn văn bản lấy ý kiến</h6>
                                     <Select 
                                         options={documentOptions}
                                         value={selectedDocumentOption}
                                         onChange={(opt) => navigate(`/draft-consultation/${opt.value}`)}
-                                        placeholder="Tìm kiếm dự thảo..."
+                                        placeholder="Tìm kiếm dự thảo hoặc dự án Luật/Nghị định..."
                                         styles={selectStyles}
                                     />
                                     {doc && (
-                                        <p className="mt-3 text-muted">
-                                            <i className="ri-information-line align-middle me-1"></i>
-                                            Đang xử lý dự thảo: <strong>{doc.project_name}</strong>
-                                        </p>
+                                        <div className="mt-3 p-3 rounded" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                                            <div className="d-flex align-items-center gap-2">
+                                                <div className="avatar-xs flex-shrink-0">
+                                                    <div className="avatar-title bg-primary-10 text-primary rounded fs-16" style={{ background: 'rgba(99, 102, 241, 0.1)' }}>
+                                                        <i className="ri-file-text-line"></i>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <h6 className="mb-0 text-white">{doc.project_name}</h6>
+                                                    <small className="text-muted">Đang xử lý cấp ý kiến cho dự thảo này</small>
+                                                </div>
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
+                            </ModernCard>
 
-                                {fetchingDoc ? (
-                                    <div className="text-center py-5">
-                                        <Spinner color="primary" />
-                                        <p className="mt-2 text-muted">Đang tải thông tin dự thảo...</p>
-                                    </div>
-                                ) : doc ? (
-                                    <Form onSubmit={handleSubmit}>
-                                        <hr className="my-4" />
-                                        
-                                        <Row>
+                            {fetchingDoc ? (
+                                <div className="text-center py-5">
+                                    <Spinner color="primary" />
+                                    <p className="mt-2 text-muted">Đang phân tích thông tin dự thảo...</p>
+                                </div>
+                            ) : doc ? (
+                                <Form onSubmit={handleSubmit}>
+                                    <ModernCard className="p-4 mb-4" style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)' }}>
+                                        <h6 className="text-muted text-uppercase fw-bold mb-4 fs-12">2. Thông tin phát hành</h6>
+                                        <Row className="g-4">
                                             <Col lg={6}>
-                                                <FormGroup>
-                                                    <Label className="form-label">Số văn bản lấy ý kiến <span className="text-danger">*</span></Label>
+                                                <FormGroup className="mb-0">
+                                                    <Label className="text-white-50 fw-bold small text-uppercase mb-2">Số văn bản <span className="text-danger">*</span></Label>
                                                     <Input 
+                                                        style={modernInputStyle}
                                                         type="text" 
                                                         placeholder="Ví dụ: 123/BXD-VP" 
                                                         value={formData.issuance_number}
@@ -230,9 +290,10 @@ const DraftConsultation = () => {
                                                 </FormGroup>
                                             </Col>
                                             <Col lg={6}>
-                                                <FormGroup>
-                                                    <Label className="form-label">Ngày lấy ý kiến <span className="text-danger">*</span></Label>
+                                                <FormGroup className="mb-0">
+                                                    <Label className="text-white-50 fw-bold small text-uppercase mb-2">Ngày phát hành <span className="text-danger">*</span></Label>
                                                     <Input 
+                                                        style={modernInputStyle}
                                                         type="date" 
                                                         value={formData.issuance_date}
                                                         onChange={(e) => setFormData({ ...formData, issuance_date: e.target.value })}
@@ -242,97 +303,101 @@ const DraftConsultation = () => {
                                             </Col>
                                             
                                             <Col lg={12}>
-                                                <FormGroup>
-                                                    <Label className="form-label">Đính kèm văn bản lấy ý kiến (PDF/Scan)</Label>
-                                                    <Input 
-                                                        type="file" 
-                                                        onChange={(e) => setIssuanceFile(e.target.files[0])}
-                                                    />
+                                                <FormGroup className="mb-0">
+                                                    <Label className="text-muted fw-bold small">ĐÍNH KÈM VĂN BẢN (PDF/SCAN)</Label>
+                                                    <div className="modern-upload-zone p-4 rounded text-center" style={{ border: '2px dashed rgba(255,255,255,0.1)', cursor: 'pointer', background: 'rgba(255,255,255,0.02)' }}>
+                                                        <Input 
+                                                            type="file" 
+                                                            className="position-absolute opacity-0"
+                                                            style={{ height: '40px', width: '100%', left: 0, cursor: 'pointer' }}
+                                                            onChange={(e) => setIssuanceFile(e.target.files[0])}
+                                                        />
+                                                        <i className="ri-upload-cloud-2-line display-6 text-muted mb-2 d-block"></i>
+                                                        <div className="text-white fw-bold">{issuanceFile ? issuanceFile.name : "Chọn tệp tin hoặc kéo thả vào đây"}</div>
+                                                        <div className="text-muted small">Hỗ trợ các định dạng PDF, DOCX, Hình ảnh</div>
+                                                    </div>
                                                     {doc?.issuance_file && (
-                                                        <small className="text-success mt-1 d-block italic">
-                                                            <i className="ri-check-line"></i> Đã có tệp đính kèm. Upload mới để thay thế.
-                                                        </small>
+                                                        <div className="mt-2 text-success small d-flex align-items-center gap-1">
+                                                            <i className="ri-check-double-line"></i> Bản quét cũ đã tồn tại trên hệ thống
+                                                        </div>
                                                     )}
                                                 </FormGroup>
                                             </Col>
-
-                                            <Col lg={12}>
-                                                <hr className="my-4" />
-                                                
-                                                <div className="border border-dashed p-3 rounded mb-4">
-                                                    <h6 className="mb-2 text-primary"><i className="ri-community-line me-1"></i> Các đơn vị đã được lấy ý kiến</h6>
-                                                    <div className="d-flex flex-wrap gap-2">
-                                                        {alreadyConsulted.length > 0 ? alreadyConsulted.map(item => (
-                                                            <span key={item.value} className="badge rounded-pill bg-info-subtle text-info fs-12 p-2">
-                                                                {item.label}
-                                                            </span>
-                                                        )) : <span className="text-muted italic fs-13">Chưa có đơn vị nào được mời.</span>}
-                                                    </div>
-                                                </div>
-
-                                                <div className="d-flex justify-content-between align-items-center mb-3">
-                                                    <h5 className="mb-0">Phát hành thêm các đơn vị chưa được lấy ý kiến</h5>
-                                                    <div className="text-end d-flex gap-2">
-                                                        <Button 
-                                                            type="button"
-                                                            color="soft-primary" 
-                                                            size="sm" 
-                                                            onClick={() => setNewConsultedAgencies(availableNewAgencies.map(a => a.value))}
-                                                            disabled={availableNewAgencies.length === 0}
-                                                        >
-                                                            <i className="ri-check-double-line align-bottom me-1"></i> Chọn tất cả đơn vị còn lại
-                                                        </Button>
-                                                        <Label for="match-file" className="btn btn-soft-info btn-sm mb-0 cursor-pointer">
-                                                            <i className="ri-search-eye-line align-bottom me-1"></i> 
-                                                            Quét thêm từ tệp 
-                                                            {matching && <Spinner size="sm" className="ms-1" />}
-                                                        </Label>
-                                                        <Input 
-                                                            type="file" 
-                                                            id="match-file" 
-                                                            className="d-none" 
-                                                            onChange={handleFileMatch}
-                                                            accept=".docx,.xlsx"
-                                                        />
-                                                    </div>
-                                                </div>
-                                                
-                                                <FormGroup>
-                                                    <Select
-                                                        isMulti
-                                                        options={availableNewAgencies}
-                                                        value={selectedNewAgencies}
-                                                        onChange={(selected) => setNewConsultedAgencies((selected || []).map(s => s.value))}
-                                                        placeholder="Chọn thêm các đơn vị mới..."
-                                                        styles={selectStyles}
-                                                    />
-                                                    <small className="text-muted mt-2 d-block">
-                                                        * Hệ thống chỉ hiển thị các đơn vị <b>chưa</b> được lấy ý kiến cho dự thảo này.
-                                                    </small>
-                                                </FormGroup>
-                                            </Col>
                                         </Row>
-                                        
-                                        <div className="mt-4 pt-2 text-end">
-                                            <Button color="light" className="me-2" onClick={() => navigate(-1)}>Quay lại</Button>
-                                            <Button color="primary" type="submit" disabled={loading || matching}>
-                                                {loading ? <Spinner size="sm" /> : "Xác nhận phát hành thêm"}
-                                            </Button>
+                                    </ModernCard>
+
+                                    <ModernCard className="p-4" style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)' }}>
+                                        <div className="d-flex justify-content-between align-items-center mb-4">
+                                            <h6 className="text-muted text-uppercase fw-bold mb-0 fs-12">3. Danh sách đơn vị tham vấn</h6>
+                                            <div className="d-flex gap-2">
+                                                <ModernButton 
+                                                    type="button"
+                                                    variant="ghost"
+                                                    className="btn-sm"
+                                                    onClick={() => setNewConsultedAgencies(availableNewAgencies.map(a => a.value))}
+                                                    disabled={availableNewAgencies.length === 0}
+                                                >
+                                                    <i className="ri-check-double-line"></i> Chọn tất cả
+                                                </ModernButton>
+                                                <Label for="match-file" className="modern-btn ghost btn-sm mb-0">
+                                                    <i className="ri-qr-scan-2-line"></i> 
+                                                    Quét từ tệp tệp 
+                                                    {matching && <Spinner size="sm" className="ms-1" />}
+                                                </Label>
+                                                <Input 
+                                                    type="file" 
+                                                    id="match-file" 
+                                                    className="d-none" 
+                                                    onChange={handleFileMatch}
+                                                    accept=".docx,.xlsx"
+                                                />
+                                            </div>
                                         </div>
-                                    </Form>
-                                ) : (
-                                    <div className="text-center py-5 border rounded border-dashed">
-                                        <i className="ri-file-search-line display-4 text-muted mb-2"></i>
-                                        <p className="text-muted">Vui lòng chọn một dự thảo phía trên để thực hiện cấp ý kiến.</p>
+
+                                        <div className="p-3 rounded mb-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                                            <div className="text-white-50 small mb-2 fw-bold text-uppercase opacity-50">Đã được lấy ý kiến trước đó:</div>
+                                            <div className="d-flex flex-wrap gap-2">
+                                                {alreadyConsulted.length > 0 ? alreadyConsulted.map(item => (
+                                                    <ModernBadge key={item.value} color="success">
+                                                        {item.label}
+                                                    </ModernBadge>
+                                                )) : <span className="text-muted italic fs-13 opacity-50">Chưa có đơn vị nào trong danh sách cũ.</span>}
+                                            </div>
+                                        </div>
+                                        
+                                        <FormGroup>
+                                            <Label className="text-muted fw-bold small">CHỌN THÊM CÁC ĐƠN VỊ MỚI</Label>
+                                            <Select
+                                                isMulti
+                                                options={availableNewAgencies}
+                                                value={selectedNewAgencies}
+                                                onChange={(selected) => setNewConsultedAgencies((selected || []).map(s => s.value))}
+                                                placeholder="Tìm kiếm và chọn thêm đơn vị..."
+                                                styles={selectStyles}
+                                            />
+                                            <div className="mt-3 p-2 rounded bg-info-10 border border-info border-dashed text-info fs-12" style={{ background: 'rgba(41, 156, 219, 0.05)' }}>
+                                                <i className="ri-information-line me-1"></i> Danh sách này chỉ hiển thị các đơn vị <strong>chưa</strong> có trong đợt lấy ý kiến trước.
+                                            </div>
+                                        </FormGroup>
+                                    </ModernCard>
+                                </Form>
+                            ) : (
+                                <div className="text-center py-5 mt-4" style={{ background: 'rgba(255,255,255,0.02)', border: '2px dashed var(--kit-border)', borderRadius: '20px' }}>
+                                    <div className="avatar-lg mx-auto mb-4">
+                                        <div className="avatar-title bg-white-5 text-muted rounded-circle display-4" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                                            <i className="ri-folder-search-line"></i>
+                                        </div>
                                     </div>
-                                )}
-                            </CardBody>
-                        </Card>
-                    </Col>
-                </Row>
-            </Container>
-            <ToastContainer />
-        </div>
+                                    <h5 className="text-white">Chưa chọn văn bản</h5>
+                                    <p className="text-muted mx-auto" style={{ maxWidth: '350px' }}>Vui lòng chọn một dự thảo ở ô phía trên để bắt đầu quy trình phát hành văn bản lấy ý kiến.</p>
+                                </div>
+                            )}
+                        </Col>
+                    </Row>
+                </div>
+            </div>
+            <ToastContainer closeButton={false} />
+        </React.Fragment>
     );
 };
 

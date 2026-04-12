@@ -5,6 +5,10 @@ import { getAuthHeader } from '../../helpers/api_helper';
 import { ToastContainer, toast } from 'react-toastify';
 import BreadCrumb from '../../Components/Common/BreadCrumb';
 import FeatherIcon from "feather-icons-react";
+import { 
+    ModernCard, ModernTable, ModernBadge, ModernButton, 
+    ModernHeader, ModernStatWidget, ModernSearchBox 
+} from '../../Components/Common/ModernUI';
 import DeleteModal from "../../Components/Common/DeleteModal";
 
 const Agencies = () => {
@@ -244,9 +248,9 @@ const Agencies = () => {
         const label = agency.category_name || agency.category || 'Khác';
         
         return (
-            <span className="text-muted fs-14">
+            <ModernBadge color="info">
                 {label}
-            </span>
+            </ModernBadge>
         );
     };
 
@@ -268,206 +272,179 @@ const Agencies = () => {
 
     return (
         <React.Fragment>
-            <div className="page-content">
-                <Container fluid>
-                    <BreadCrumb title="Quản lý Đơn vị góp ý" pageTitle="Hệ thống" />
+            <div className="designkit-wrapper">
+                <div className="modern-page-content">
+                    <ModernHeader 
+                        title="Quản lý Đơn vị góp ý" 
+                        subtitle="Hệ thống quản trị danh mục đơn vị tham vấn"
+                        actions={
+                            <div className="d-flex gap-2">
+                                <ModernButton variant="primary" onClick={toggle}>
+                                    <i className="ri-add-line align-bottom"></i> Thêm mới
+                                </ModernButton>
+                                <ModernButton variant="ghost" onClick={toggleCategoryModal}>
+                                    <i className="ri-list-settings-line align-bottom"></i> Phân loại
+                                </ModernButton>
+                                <ModernButton variant="ghost" onClick={toggleImport}>
+                                    <i className="ri-file-upload-line align-bottom"></i> Nhập tệp
+                                </ModernButton>
+                            </div>
+                        }
+                    />
+                    
                     <ToastContainer closeButton={false} />
 
-                    <Row className="mb-4">
-                        <Col lg={12}>
-                            <div className="d-flex flex-wrap gap-3">
-                                <Card 
-                                    className={`mb-0 border border-dashed shadow-none cursor-pointer ${selectedCategory === 'all' ? 'bg-primary-subtle border-primary' : ''}`}
-                                    onClick={() => setSelectedCategory('all')}
-                                    style={{ minWidth: '160px' }}
-                                >
-                                    <CardBody className="p-3">
-                                        <div className="d-flex align-items-center">
-                                            <div className="flex-grow-1">
-                                                <p className="text-muted mb-1 text-uppercase fw-semibold fs-12">Tất cả Đơn vị</p>
-                                                <h4 className="mb-0">{agencies.length}</h4>
-                                            </div>
-                                            <div className="flex-shrink-0 avatar-sm">
-                                                <div className="avatar-title bg-primary-subtle text-primary rounded-circle fs-20">
-                                                    <i className="ri-community-line"></i>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </CardBody>
-                                </Card>
+                    <div className="modern-widgets-grid mb-4">
+                        <ModernStatWidget 
+                            title="Tất cả Đơn vị"
+                            value={agencies.length}
+                            label="Tổng số"
+                            icon="ri-community-line"
+                            color="primary"
+                            isActive={selectedCategory === 'all'}
+                            onClick={() => setSelectedCategory('all')}
+                        />
 
-                                {agencyCategories.map((cat, idx) => {
-                                    const isActive = selectedCategory === cat.id.toString();
-                                    return (
-                                        <Card 
-                                            key={cat.id}
-                                            className={`mb-0 border border-dashed shadow-none cursor-pointer ${isActive ? 'bg-info-subtle border-info' : ''}`}
-                                            onClick={() => setSelectedCategory(cat.id.toString())}
-                                            style={{ minWidth: '180px' }}
-                                        >
-                                            <CardBody className="p-3">
-                                                <div className="d-flex align-items-center">
-                                                    <div className="flex-grow-1">
-                                                        <p className="text-muted mb-1 text-uppercase fw-semibold fs-11 text-truncate" style={{maxWidth: '120px'}} title={cat.name}>{cat.name}</p>
-                                                        <h4 className="mb-0">{cat.agencies_count || 0}</h4>
-                                                    </div>
-                                                    <div className="flex-shrink-0 avatar-sm">
-                                                        <div className={`avatar-title bg-${idx % 2 === 0 ? 'info' : 'success'}-subtle text-${idx % 2 === 0 ? 'info' : 'success'} rounded-circle fs-20`}>
-                                                            <i className="ri-government-line"></i>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </CardBody>
-                                        </Card>
-                                    );
-                                })}
-                            </div>
-                        </Col>
-                    </Row>
+                        {agencyCategories.slice(0, 3).map((cat, idx) => (
+                            <ModernStatWidget 
+                                key={cat.id}
+                                title={cat.name}
+                                value={cat.agencies_count || 0}
+                                label="Đơn vị"
+                                icon="ri-government-line"
+                                color={idx % 2 === 0 ? 'info' : 'success'}
+                                isActive={selectedCategory === cat.id.toString()}
+                                onClick={() => setSelectedCategory(cat.id.toString())}
+                            />
+                        ))}
+                    </div>
 
-                    <Row className="g-4 mb-3">
-                        <Col sm="auto">
-                            <div className="d-flex gap-2">
-                                <Button color="success" onClick={toggle}>
-                                    <i className="ri-add-line align-bottom me-1"></i> Thêm mới
-                                </Button>
-                                <Button color="info" onClick={toggleCategoryModal}>
-                                    <i className="ri-list-settings-line align-bottom me-1"></i> Quản lý phân loại
-                                </Button>
-                                <Button color="soft-info" onClick={toggleImport}>
-                                    <i className="ri-file-upload-line align-bottom me-1"></i> Nhập từ tệp
-                                </Button>
-                                {selectedAgencies.length > 0 && (
-                                    <Button color="danger" onClick={handleBulkDeleteClick}>
-                                        <i className="ri-delete-bin-line align-bottom me-1"></i> Xóa mục đã chọn ({selectedAgencies.length})
-                                    </Button>
-                                )}
-                            </div>
-                        </Col>
-                        <Col sm="3" className="ms-auto d-flex gap-2">
-                            <Input 
-                                type="select"
+                    <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+                        <div className="d-flex align-items-center gap-3">
+                            <ModernSearchBox 
+                                placeholder="Tìm kiếm cơ quan..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                style={{ width: '350px' }}
+                            />
+                            {selectedAgencies.length > 0 && (
+                                <ModernButton variant="ghost" className="text-danger" onClick={handleBulkDeleteClick}>
+                                    <i className="ri-delete-bin-line align-bottom"></i> Xóa {selectedAgencies.length} mục
+                                </ModernButton>
+                            )}
+                        </div>
+                        
+                        <div className="d-flex gap-2 align-items-center">
+                            <span className="text-muted fs-12 text-uppercase fw-bold">Lọc:</span>
+                            <select 
+                                className="form-select form-select-sm bg-transparent border-light-subtle text-white"
+                                style={{ width: '200px', borderRadius: '50px', background: 'rgba(255,255,255,0.05)' }}
                                 value={selectedCategory}
                                 onChange={(e) => setSelectedCategory(e.target.value)}
-                                style={{ width: '200px' }}
                             >
                                 <option value="all">Tất cả phân loại</option>
                                 {agencyCategories.map(c => (
                                     <option key={c.id} value={c.id}>{c.name}</option>
                                 ))}
-                            </Input>
-                            <div className="search-box">
-                                <Input 
-                                    type="text" 
-                                    placeholder="Tìm kiếm..." 
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
-                                <i className="ri-search-line search-icon"></i>
-                            </div>
-                        </Col>
-                    </Row>
+                            </select>
+                        </div>
+                    </div>
 
-                    <Row>
-                        <Col lg={12}>
-                            <Card>
-                                <CardHeader>
-                                    <h5 className="card-title mb-0">Danh sách Đơn vị / Cơ quan</h5>
-                                </CardHeader>
-                                <CardBody>
-                                    <div className="table-responsive">
-                                        <Table className="table-hover table-bordered align-middle">
-                                            <thead className="table-light">
-                                                <tr>
-                                                    <th style={{ width: '40px' }}>
-                                                        <div className="form-check">
-                                                            <input 
-                                                                className="form-check-input" 
-                                                                type="checkbox" 
-                                                                onChange={handleSelectAll}
-                                                                checked={filteredAgencies.length > 0 && selectedAgencies.length === filteredAgencies.length}
-                                                            />
-                                                        </div>
-                                                    </th>
-                                                    <th style={{ width: '50px' }}>STT</th>
-                                                    <th>Tên Đơn vị / Tổ chức</th>
-                                                    <th>Phân loại</th>
-                                                    <th style={{ width: '100px' }}>Thao tác</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {loading ? (
-                                                    <tr>
-                                                        <td colSpan="5" className="text-center py-5">
-                                                            <div className="spinner-border text-primary" role="status">
-                                                                <span className="sr-only">Đang tải...</span>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ) : filteredAgencies.length > 0 ? filteredAgencies.map((agency, index) => (
-                                                    <tr key={agency.id} className={selectedAgencies.includes(agency.id) ? "table-active" : ""}>
-                                                        <td>
-                                                            <div className="form-check">
-                                                                <input 
-                                                                    className="form-check-input" 
-                                                                    type="checkbox" 
-                                                                    checked={selectedAgencies.includes(agency.id)}
-                                                                    onChange={() => handleSelectAgency(agency.id)}
-                                                                />
-                                                            </div>
-                                                        </td>
-                                                        <td className="text-center">{index + 1}</td>
-                                                        <td className="fs-15">{agency.name}</td>
-                                                        <td>{getCategoryBadge(agency)}</td>
-                                                        <td>
-                                                            <div className="d-flex gap-2 justify-content-center">
-                                                                <Button color="soft-primary" size="sm" onClick={() => handleEditAgency(agency)}>
-                                                                    <i className="ri-pencil-fill"></i>
-                                                                </Button>
-                                                                <Button color="soft-danger" size="sm" onClick={() => handleDeleteClick(agency)}>
-                                                                    <i className="ri-delete-bin-fill"></i>
-                                                                </Button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                )) : (
-                                                    <tr>
-                                                        <td colSpan="5" className="text-center py-4 text-muted small">
-                                                            Không tìm thấy đơn vị nào.
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                            </tbody>
-                                        </Table>
-                                    </div>
-                                </CardBody>
-                            </Card>
-                        </Col>
-                    </Row>
-                </Container>
+                    <ModernCard>
+                        <ModernTable>
+                            <thead>
+                                <tr>
+                                    <th style={{ width: '40px' }}>
+                                        <div className="form-check">
+                                            <input 
+                                                className="form-check-input" 
+                                                type="checkbox" 
+                                                onChange={handleSelectAll}
+                                                checked={filteredAgencies.length > 0 && selectedAgencies.length === filteredAgencies.length}
+                                            />
+                                        </div>
+                                    </th>
+                                    <th style={{ width: '60px' }}>STT</th>
+                                    <th>Tên Đơn vị / Cơ quan / Tổ chức</th>
+                                    <th>Phân loại</th>
+                                    <th style={{ width: '120px' }} className="text-center">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {loading ? (
+                                    <tr>
+                                        <td colSpan="5" className="text-center py-5">
+                                            <Spinner size="sm" color="primary" />
+                                            <span className="ms-2">Đang tải dữ liệu...</span>
+                                        </td>
+                                    </tr>
+                                ) : filteredAgencies.length > 0 ? filteredAgencies.map((agency, index) => (
+                                    <tr key={agency.id} className={selectedAgencies.includes(agency.id) ? "table-active" : ""}>
+                                        <td>
+                                            <div className="form-check">
+                                                <input 
+                                                    className="form-check-input" 
+                                                    type="checkbox" 
+                                                    checked={selectedAgencies.includes(agency.id)}
+                                                    onChange={() => handleSelectAgency(agency.id)}
+                                                />
+                                            </div>
+                                        </td>
+                                        <td className="text-center text-muted">{index + 1}</td>
+                                        <td>
+                                            <div className="fw-bold text-white">{agency.name}</div>
+                                            <div className="small text-muted">ID: #{agency.id}</div>
+                                        </td>
+                                        <td>{getCategoryBadge(agency)}</td>
+                                        <td>
+                                            <div className="d-flex gap-2 justify-content-center">
+                                                <button className="btn-link-modern" onClick={() => handleEditAgency(agency)}>
+                                                    <i className="ri-pencil-fill"></i> SỬA
+                                                </button>
+                                                <button className="btn-link-modern text-danger" onClick={() => handleDeleteClick(agency)}>
+                                                    <i className="ri-delete-bin-fill"></i> XÓA
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )) : (
+                                    <tr>
+                                        <td colSpan="5" className="text-center py-5 text-muted">
+                                            <i className="ri-file-search-line display-4 d-block mb-3 opacity-20"></i>
+                                            Không tìm thấy đơn vị nào phù hợp.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </ModernTable>
+                    </ModernCard>
+                </div>
             </div>
 
             {/* Modal Add/Edit */}
-            <Modal isOpen={modal} toggle={toggle} centered>
-                <ModalHeader toggle={toggle} className="bg-light p-3">
+            <Modal isOpen={modal} toggle={toggle} centered className="modern-modal">
+                <ModalHeader toggle={toggle} className="modern-modal-header">
+                    <i className={isEdit ? "ri-pencil-line me-2" : "ri-add-circle-line me-2"}></i>
                     {isEdit ? "Cập nhật Đơn vị" : "Thêm Đơn vị mới"}
                 </ModalHeader>
                 <Form onSubmit={handleSubmit}>
-                    <ModalBody>
-                        <FormGroup>
-                            <Label className="form-label">Tên Đơn vị / Cơ quan / Tổ chức <span className="text-danger">*</span></Label>
+                    <ModalBody className="p-4">
+                        <FormGroup className="mb-4">
+                            <Label className="text-white-60 xsmall fw-bold text-uppercase mb-2">Tên Đơn vị / Cơ quan / Tổ chức <span className="text-danger">*</span></Label>
                             <Input 
                                 type="text" 
+                                className="modern-input"
                                 placeholder="Nhập tên đầy đủ..." 
                                 value={currentAgency.name}
                                 onChange={(e) => setCurrentAgency({ ...currentAgency, name: e.target.value })}
                                 required
                             />
                         </FormGroup>
-                        <FormGroup>
-                            <Label className="form-label">Phân loại Cơ quan</Label>
+                        <FormGroup className="mb-0">
+                            <Label className="text-white-60 xsmall fw-bold text-uppercase mb-2">Phân loại Cơ quan</Label>
                             <Input 
                                 type="select" 
+                                className="modern-input"
                                 value={currentAgency.agency_category || ""}
                                 onChange={(e) => setCurrentAgency({ ...currentAgency, agency_category: e.target.value })}
                             >
@@ -478,11 +455,11 @@ const Agencies = () => {
                             </Input>
                         </FormGroup>
                     </ModalBody>
-                    <ModalFooter>
-                        <Button color="light" onClick={toggle}>Hủy bỏ</Button>
-                        <Button color="success" type="submit">
-                            {isEdit ? "Cập nhật" : "Lưu dữ liệu"}
-                        </Button>
+                    <ModalFooter className="modern-modal-footer">
+                        <ModernButton variant="ghost" onClick={toggle}>Hủy bỏ</ModernButton>
+                        <ModernButton variant="success" type="submit">
+                            <i className="ri-save-line me-1"></i> {isEdit ? "Cập nhật" : "Lưu dữ liệu"}
+                        </ModernButton>
                     </ModalFooter>
                 </Form>
             </Modal>
@@ -600,74 +577,78 @@ const Agencies = () => {
             </Modal>
 
             {/* Modal Category Management */}
-            <Modal isOpen={categoryModal} toggle={toggleCategoryModal} centered size="lg">
-                <ModalHeader toggle={toggleCategoryModal} className="bg-light p-3">
-                    Quản lý Danh mục Phân loại Cơ quan
+            <Modal isOpen={categoryModal} toggle={toggleCategoryModal} centered size="lg" className="modern-modal">
+                <ModalHeader toggle={toggleCategoryModal} className="modern-modal-header">
+                    <i className="ri-list-settings-line me-2"></i> Quản lý Danh mục Phân loại Cơ quan
                 </ModalHeader>
-                <ModalBody>
-                    <Form onSubmit={handleCategorySubmit} className="mb-4 p-3 border rounded bg-light-subtle">
-                        <Row className="g-3">
+                <ModalBody className="p-4">
+                    <Form onSubmit={handleCategorySubmit} className="mb-4 p-4 rounded-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <Row className="g-3 align-items-end">
                             <Col md={5}>
-                                <Label className="form-label">Tên phân loại</Label>
+                                <Label className="text-white-60 xsmall fw-bold text-uppercase mb-2">Tên phân loại</Label>
                                 <Input 
                                     type="text" 
+                                    className="modern-input"
                                     value={currentCategory.name} 
                                     onChange={(e) => setCurrentCategory({...currentCategory, name: e.target.value})}
                                     required 
                                     placeholder="Ví dụ: Cấp Trung ương"
                                 />
                             </Col>
-                            <Col md={6}>
-                                <Label className="form-label">Mô tả</Label>
+                            <Col md={5}>
+                                <Label className="text-white-60 xsmall fw-bold text-uppercase mb-2">Mô tả</Label>
                                 <Input 
                                     type="text" 
+                                    className="modern-input"
                                     value={currentCategory.description || ""} 
                                     onChange={(e) => setCurrentCategory({...currentCategory, description: e.target.value})}
                                     placeholder="Nhập ghi chú..."
                                 />
                             </Col>
-                            <Col md={1} className="d-flex align-items-end">
-                                <Button color={isCategoryEdit ? "primary" : "success"} type="submit">
-                                    <i className={isCategoryEdit ? "ri-save-line" : "ri-add-line"}></i>
-                                </Button>
+                            <Col md={2}>
+                                <ModernButton variant={isCategoryEdit ? "primary" : "success"} type="submit" className="w-100">
+                                    <i className={isCategoryEdit ? "ri-save-line" : "ri-add-line"}></i> {isCategoryEdit ? "Lưu" : "Thêm"}
+                                </ModernButton>
                             </Col>
                         </Row>
                     </Form>
 
-                    <Table className="align-middle">
-                        <thead className="table-light">
+                    <ModernTable>
+                        <thead>
                             <tr>
                                 <th>Tên phân loại</th>
                                 <th>Mô tả</th>
-                                <th>Đang dùng</th>
-                                <th style={{ width: '80px' }}>Thao tác</th>
+                                <th className="text-center">Số đơn vị</th>
+                                <th style={{ width: '120px' }} className="text-center">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody>
                             {agencyCategories.map(cat => (
                                 <tr key={cat.id}>
                                     <td>
-                                        <span className="fs-14">{cat.name}</span>
+                                        <div className="fw-bold text-white">{cat.name}</div>
                                     </td>
-                                    <td className="small text-muted">{cat.description}</td>
-                                    <td>{cat.agencies_count} đơn vị</td>
+                                    <td className="small text-white-40">{cat.description || "---"}</td>
+                                    <td className="text-center">
+                                        <ModernBadge color="info">{cat.agencies_count || 0}</ModernBadge>
+                                    </td>
                                     <td>
-                                        <div className="d-flex gap-1">
-                                            <Button color="soft-primary" size="sm" onClick={() => handleEditCategory(cat)}>
-                                                <i className="ri-pencil-fill"></i>
-                                            </Button>
-                                            <Button color="soft-danger" size="sm" onClick={() => handleDeleteCategory(cat.id)}>
-                                                <i className="ri-delete-bin-fill"></i>
-                                            </Button>
+                                        <div className="d-flex justify-content-center gap-3">
+                                            <button className="btn-link-modern" onClick={() => handleEditCategory(cat)}>
+                                                <i className="ri-pencil-fill"></i> SỬA
+                                            </button>
+                                            <button className="btn-link-modern text-danger" onClick={() => handleDeleteCategory(cat.id)}>
+                                                <i className="ri-delete-bin-fill"></i> XÓA
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
                             ))}
                         </tbody>
-                    </Table>
+                    </ModernTable>
                 </ModalBody>
-                <ModalFooter>
-                    <Button color="light" onClick={toggleCategoryModal}>Đóng</Button>
+                <ModalFooter className="modern-modal-footer">
+                    <ModernButton variant="ghost" onClick={toggleCategoryModal}>Đóng cửa sổ</ModernButton>
                 </ModalFooter>
             </Modal>
 

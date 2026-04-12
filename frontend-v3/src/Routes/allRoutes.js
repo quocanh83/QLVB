@@ -30,11 +30,13 @@ import CreateProject from "../pages/Projects/CreateProject";
 
 // QLVB - Documents
 import DocumentList from "../pages/Documents";
+import DocumentListModern from "../pages/Documents/DocumentListModern";
 import DocumentDetails from "../pages/Documents/DocumentDetails";
 import ConsultationResponses from "../pages/Documents/ConsultationResponses";
 import DraftClassification from "../pages/Documents/DraftClassification";
 import ClassificationList from "../pages/Documents/ClassificationList";
 import DraftConsultation from "../pages/Documents/DraftConsultation";
+import ConsultationHub from "../pages/Documents/ConsultationHub";
 
 // QLVB - Reports
 import Reports from "../pages/Reports";
@@ -43,6 +45,7 @@ import DraftExplanation from "../pages/DraftExplanation";
 import FeedbackList from "../pages/FeedbackList";
 import GSheetSync from "../pages/GSheetSync";
 import ProjectAssignment from "../pages/Documents/ProjectAssignment";
+import ProjectAssignmentModern from "../pages/Documents/ProjectAssignmentModern";
 
 import ComparisonDashboard from "../pages/Comparisons/ComparisonDashboard";
 import ComparisonProjectDetail from "../pages/Comparisons/ComparisonProjectDetail";
@@ -55,7 +58,6 @@ import ReferenceDetail from "../pages/ReferenceReview/ReferenceDetail";
 import SystemSettings from "../pages/Settings";
 import DocumentTypeManagement from "../pages/DocumentTypeManagement";
 import UserManagement from "../pages/UserManagement";
-import DepartmentManagement from "../pages/DepartmentManagement";
 import Agencies from "../pages/Agencies";
 import SidebarManager from "../pages/Settings/SidebarManager";
 
@@ -320,14 +322,17 @@ const authProtectedRoutes = [
   { path: "/apps-projects-create", component: <CreateProject /> },
 
   // QLVB - Documents
-  { path: "/documents", component: <DocumentList /> },
+  { path: "/documents", component: <DocumentListModern /> },
+  { path: "/documents-modern", component: <DocumentListModern /> },
   { path: "/documents/:id", component: <DocumentDetails /> },
   { path: "/documents/:id/responses", component: <ConsultationResponses /> },
   { path: "/documents/:id/classification", component: <DraftClassification /> },
   { path: "/draft-classification", component: <ClassificationList /> },
   { path: "/draft-consultation/:id?", component: <DraftConsultation /> },
   { path: "/consultation-responses/:id?", component: <ConsultationResponses /> },
-  { path: "/project-assignment", component: <ProjectAssignment /> },
+  { path: "/consultation-hub/:id?", component: <ConsultationHub /> },
+  { path: "/project-assignment", component: <ProjectAssignmentModern /> },
+  { path: "/project-assignment-modern", component: <ProjectAssignmentModern /> },
   
   // QLVB - Reports
   { path: "/reports", component: <Reports /> },
@@ -335,7 +340,6 @@ const authProtectedRoutes = [
   { path: "/draft-explanation", component: <DraftExplanation /> },
   { path: "/feedbacks", component: <FeedbackList /> },
   { path: "/gsheet-sync", component: <GSheetSync /> },
-  { path: "/project-assignment", component: <ProjectAssignment /> },
 
   // QLVB - Comparisons
   { path: "/comparisons", component: <ComparisonDashboard /> },
@@ -351,8 +355,7 @@ const authProtectedRoutes = [
   // QLVB - Settings
   { path: "/settings", component: <SystemSettings /> },
   { path: "/document-types", component: <DocumentTypeManagement /> },
-  { path: "/user-management", component: <UserManagement /> },
-  { path: "/departments", component: <DepartmentManagement /> },
+  { path: "/organization", component: <UserManagement /> },
   { path: "/agencies", component: <Agencies /> },
   { path: "/settings/sidebar-manager", component: <SidebarManager /> },
 

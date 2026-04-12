@@ -1,43 +1,24 @@
 const menuMaster = [
     {
-        id: "dashboard",
-        label: "Tổng quan",
-        icon: "las la-tachometer-alt",
-        link: "/dashboard-analytics",
-    },
-    {
         label: "Danh mục Công việc",
         isHeader: true,
     },
+    { id: "doc-list-modern", label: "Danh sách Dự thảo", icon: "ri-file-list-3-line", link: "/documents-modern", badgeName: "Mới", badgeColor: "success", visible: true },
     {
-        id: "documents",
-        label: "Danh sách Dự thảo",
-        icon: "ri-file-list-3-line",
-        link: "/documents",
-    },
-    {
-        id: "project-assignment",
+        id: "project-assignment-v2",
         label: "Phân công Dự thảo",
         icon: "ri-user-shared-2-line",
-        link: "/project-assignment",
+        link: "/project-assignment-modern",
+        stateVariables: 'isAssignment',
     },
+
     {
-        id: "draft-consultation",
-        label: "Lấy ý kiến dự thảo",
-        icon: "ri-send-plane-2-line",
-        link: "/draft-consultation",
-    },
-    {
-        id: "consultation-responses",
-        label: "Văn bản góp ý",
-        icon: "ri-file-copy-2-line",
-        link: "/consultation-responses",
-    },
-    {
-        id: "draft-classification",
-        label: "Tiến độ góp ý",
-        icon: "ri-folders-line",
-        link: "/draft-classification",
+        id: "consultation-hub",
+        label: "Tham vấn & Góp ý",
+        icon: "ri-chat-voice-line",
+        link: "/consultation-hub",
+        badgeName: "Tổng hợp",
+        badgeColor: "info",
     },
     {
         id: "feedbacks",
@@ -100,48 +81,34 @@ const menuMaster = [
         isHeader: true,
     },
     {
-        id: "settings",
-        label: "Cài đặt",
-        icon: "ri-settings-4-line",
-        link: "/#",
-        subItems: [
-            {
-                id: "document-types",
-                label: "Quản lý Loại dự thảo",
-                link: "/document-types",
-                parentId: "settings",
-            },
-            {
-                id: "agency-management",
-                label: "Quản lý Đơn vị",
-                link: "/agencies",
-                parentId: "settings",
-            },
-            {
-                id: "user-management",
-                label: "Quản lý Cán bộ",
-                link: "/user-management",
-                parentId: "settings",
-            },
-            {
-                id: "department-management",
-                label: "Quản lý Phòng ban",
-                link: "/departments",
-                parentId: "settings",
-            },
-            {
-                id: "sys-settings",
-                label: "Cấu hình chung",
-                link: "/settings",
-                parentId: "settings",
-            },
-            {
-                id: "sidebar-manager",
-                label: "Quản lý Sidebar",
-                link: "/settings/sidebar-manager",
-                parentId: "settings",
-            },
-        ],
+        id: "document-types",
+        label: "Quản lý Loại dự thảo",
+        icon: "ri-list-settings-line",
+        link: "/document-types",
+    },
+    {
+        id: "agency-management",
+        label: "Quản lý Đơn vị",
+        icon: "ri-building-line",
+        link: "/agencies",
+    },
+    {
+        id: "organization-management",
+        label: "Tổ chức & Cán bộ",
+        icon: "ri-team-line",
+        link: "/organization",
+    },
+    {
+        id: "sys-settings",
+        label: "Cấu hình chung",
+        icon: "ri-settings-line",
+        link: "/settings",
+    },
+    {
+        id: "sidebar-manager",
+        label: "Quản lý Sidebar",
+        icon: "ri-side-bar-line",
+        link: "/settings/sidebar-manager",
     },
 ];
 

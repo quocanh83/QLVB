@@ -1,53 +1,98 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Container, Row, Col, Card, CardBody, CardHeader, Button, Badge, Modal, ModalHeader, ModalBody, ModalFooter, Input, Label, Spinner, Table } from 'reactstrap';
-import TableContainer from "../../Components/Common/TableContainerReactTable";
-import BreadCrumb from '../../Components/Common/BreadCrumb';
+import { Container, Row, Col, Card, CardBody, CardHeader, Button, Badge, Modal, ModalHeader, ModalBody, ModalFooter, Input, Label, Spinner, Table,
+    UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem, FormGroup } from 'reactstrap';
 import axios from 'axios';
 import { getAuthHeader } from '../../helpers/api_helper';
 import Select from 'react-select';
 import CreatableSelect from 'react-select/creatable';
-import { toast } from 'react-toastify';
+import { toast, ToastContainer } from 'react-toastify';
+import classnames from 'classnames';
+import SimpleBar from 'simplebar-react';
+
+// Modern UI Components
+import { 
+    ModernCard, ModernTable, ModernBadge, ModernButton, 
+    ModernHeader, ModernStatWidget, ModernSearchBox 
+} from '../../Components/Common/ModernUI';
+import DeleteModal from "../../Components/Common/DeleteModal";
 
 const selectStyles = {
     control: (base, state) => ({
         ...base,
-        background: "var(--vz-input-bg)",
-        borderColor: state.isFocused ? "var(--vz-input-focus-border-color)" : "var(--vz-input-border-color)",
-        color: "var(--vz-body-color)",
-    }),
-    singleValue: (base) => ({
-        ...base,
-        color: "var(--vz-body-color)",
+        background: "var(--vz-input-bg, rgba(255,255,255,0.05))",
+        borderColor: state.isFocused ? "var(--vz-primary, #405189)" : "var(--vz-input-border, rgba(255,255,255,0.1))",
+        color: "var(--vz-body-color, #ffffff)",
+        borderRadius: '8px',
+        padding: '2px',
+        boxShadow: 'none',
+        '&:hover': {
+            borderColor: "var(--vz-primary, #405189)"
+        }
     }),
     menu: (base) => ({
         ...base,
-        backgroundColor: "var(--vz-choices-bg, #fff)",
-        zIndex: 1070,
-        border: "1px solid var(--vz-border-color)",
-        boxShadow: "0 5px 10px rgba(30,32,37,.12)"
+        background: "var(--vz-choices-bg, #1a1b1e)",
+        borderColor: "rgba(255,255,255,0.1)",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+        zIndex: 9999,
+        borderRadius: '8px',
+        overflow: 'hidden'
     }),
     option: (base, state) => ({
         ...base,
-        backgroundColor: state.isSelected
-            ? "var(--vz-primary)"
-            : state.isFocused
-                ? "var(--vz-light)"
-                : "var(--vz-choices-bg, #fff)",
-        color: state.isSelected
-            ? "#fff"
-            : "var(--vz-body-color)",
-        "&:hover": {
-            backgroundColor: "var(--vz-light)",
-            color: "var(--vz-body-color)"
+        background: state.isSelected 
+            ? "var(--vz-primary, #405189)" 
+            : state.isFocused 
+                ? "rgba(64, 81, 137, 0.15)" 
+                : "transparent",
+        color: state.isSelected 
+            ? "#fff" 
+            : "#ced4da",
+        padding: "10px 15px",
+        fontSize: "13px",
+        fontWeight: "500",
+        cursor: "pointer",
+        ":active": {
+            background: "var(--vz-primary, #405189)",
+            color: "#fff"
         }
     }),
-    placeholder: (base) => ({
+    singleValue: (base) => ({
         ...base,
-        color: "var(--vz-input-placeholder-color)"
+        color: "#ffffff",
+        fontSize: "14px",
     }),
     input: (base) => ({
         ...base,
-        color: "var(--vz-body-color)"
+        color: "#ffffff",
+    }),
+    placeholder: (base) => ({
+        ...base,
+        color: "rgba(255,255,255,0.5)",
+    }),
+    dropdownIndicator: (base) => ({
+        ...base,
+        color: "rgba(255,255,255,0.3)",
+    }),
+    indicatorSeparator: (base) => ({
+        ...base,
+        backgroundColor: "rgba(255,255,255,0.1)",
+    }),
+    multiValue: (base) => ({
+        ...base,
+        background: "rgba(64, 81, 137, 0.2)",
+    }),
+    multiValueLabel: (base) => ({
+        ...base,
+        color: "#fff",
+    }),
+    multiValueRemove: (base) => ({
+        ...base,
+        color: "#fff",
+        '&:hover': {
+            background: "var(--vz-primary)",
+            color: "#fff",
+        }
     })
 };
 
@@ -55,14 +100,12 @@ const FeedbackList = () => {
     const [documents, setDocuments] = useState([]);
     const [selectedDoc, setSelectedDoc] = useState(null);
     const [feedbacks, setFeedbacks] = useState([]);
-    const [filteredFeedbacks, setFilteredFeedbacks] = useState([]);
     const [loading, setLoading] = useState(false);
 
     const [docSearch, setDocSearch] = useState("");
     const [tableSearch, setTableSearch] = useState("");
 
     // Filters
-    const [agencyOptions, setAgencyOptions] = useState([]);
     const [selectedAgency, setSelectedAgency] = useState('all');
     const [selectedStatus, setSelectedStatus] = useState('all');
     const [selectedSpecialist, setSelectedSpecialist] = useState('all');
@@ -71,8 +114,8 @@ const FeedbackList = () => {
     
     // Assignment State
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-    const [assignTarget, setAssignTarget] = useState(null); // Node ID
-    const [assignUserIds, setAssignUserIds] = useState([]); // Selected User IDs
+    const [assignTarget, setAssignTarget] = useState(null); 
+    const [assignUserIds, setAssignUserIds] = useState([]); 
     const [assigningLoading, setAssigningLoading] = useState(false);
     
     // Pagination State
@@ -91,7 +134,7 @@ const FeedbackList = () => {
     const [selectedNodeData, setSelectedNodeData] = useState(null);
     const [nodeLoading, setNodeLoading] = useState(false);
 
-    // NEW: Modal state for Editing Feedback
+    // Editing Feedback
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editContent, setEditContent] = useState("");
     const [editNodeId, setEditNodeId] = useState(null);
@@ -100,29 +143,19 @@ const FeedbackList = () => {
     const [docNodes, setDocNodes] = useState([]);
     const [updating, setUpdating] = useState(false);
 
-    // Delete confirmation modal state
+    // Deletion
     const [deleteModal, setDeleteModal] = useState(false);
     const [feedbackToDelete, setFeedbackToDelete] = useState(null);
     const [deleting, setDeleting] = useState(false);
-
-    // Full Delete state
     const [fullDeleteModal, setFullDeleteModal] = useState(false);
     const [fullDeleting, setFullDeleting] = useState(false);
 
-    // Quick Agency Add state
+    // Agencies
     const [agencies, setAgencies] = useState([]);
-    const [categories, setCategories] = useState([]);
-    const [agencyModal, setAgencyModal] = useState(false);
-    const [newAgencyName, setNewAgencyName] = useState("");
-    const [newAgencyCategory, setNewAgencyCategory] = useState(null);
-    const [addingAgency, setAddingAgency] = useState(false);
-
-    const toggleAgencyModal = () => setAgencyModal(!agencyModal);
 
     useEffect(() => {
         fetchDocuments();
         fetchAgenciesOnly();
-        fetchCategories();
         fetchSpecialists();
     }, []);
 
@@ -142,16 +175,6 @@ const FeedbackList = () => {
             setAgencies(Array.isArray(data) ? data : []);
         } catch (e) {
             console.error("Lỗi khi tải danh sách đơn vị");
-        }
-    };
-
-    const fetchCategories = async () => {
-        try {
-            const res = await axios.get('/api/settings/agency-categories/', getAuthHeader());
-            const data = res.results || res || [];
-            setCategories(Array.isArray(data) ? data : []);
-        } catch (e) {
-            console.error("Lỗi khi tải danh sách phân loại đơn vị");
         }
     };
 
@@ -185,30 +208,22 @@ const FeedbackList = () => {
             const res = await axios.get(url, getAuthHeader());
             const data = res.results || [];
             setFeedbacks(data);
-            setFilteredFeedbacks(data);
             setTotalCount(res.count || 0);
             setCurrentPage(res.page || page);
-
         } catch (e) {
-            toast.error("Không thể tải danh sách góp ý.");
             setFeedbacks([]);
-            setFilteredFeedbacks([]);
         } finally {
             setLoading(false);
         }
-
-        // Also pre-fetch nodes for the dropdown filter
         fetchDocNodes(docId);
     };
 
-    // Trigger fetch when filters or page changes
     useEffect(() => {
         if (selectedDoc) {
             fetchFeedbacks(selectedDoc.id, currentPage);
         }
     }, [selectedNodeId, selectedAgency, selectedSpecialist, selectedStatus, currentPage, tableSearch]);
 
-    // Reset page when filters change
     useEffect(() => {
         setCurrentPage(1);
     }, [selectedNodeId, selectedAgency, selectedSpecialist, selectedStatus, tableSearch]);
@@ -221,13 +236,11 @@ const FeedbackList = () => {
                 setDocNodes(data.map(n => ({ value: n.value, label: n.label, type: n.type })));
             }
         } catch (e) {
-            console.error("Lỗi khi tải danh sách Điều/Khoản để gắn lại.");
+            console.error("Lỗi khi tải danh sách Điều/Khoản.");
         }
     };
 
-    // Client-side filtering removed in favor of server-side filtering
-
-    const handleAction = (fb, actionType) => {
+    const handleAction = (fb) => {
         setCurrentFeedback(fb);
         setExplanation(fb.explanation || '');
         setIsModalOpen(true);
@@ -236,11 +249,9 @@ const FeedbackList = () => {
     const handleEditFeedback = (fb) => {
         setCurrentFeedback(fb);
         setEditContent(fb.content || '');
-        
         let initialVal = null;
         if (fb.node_id) initialVal = `node-${fb.node_id}`;
         else if (fb.appendix_id) initialVal = `app-${fb.appendix_id}`;
-        
         setEditNodeId(initialVal);
         setEditAgencyId(fb.agency);
         setEditDocNumber(fb.official_doc_number || '');
@@ -256,13 +267,9 @@ const FeedbackList = () => {
         try {
             let nodeVal = null;
             let appendixVal = null;
-            
             if (editNodeId) {
-                if (editNodeId.startsWith('node-')) {
-                    nodeVal = parseInt(editNodeId.replace('node-', ''));
-                } else if (editNodeId.startsWith('app-')) {
-                    appendixVal = parseInt(editNodeId.replace('app-', ''));
-                }
+                if (editNodeId.startsWith('node-')) nodeVal = parseInt(editNodeId.replace('node-', ''));
+                else if (editNodeId.startsWith('app-')) appendixVal = parseInt(editNodeId.replace('app-', ''));
             }
 
             const payload = {
@@ -270,63 +277,18 @@ const FeedbackList = () => {
                 node: nodeVal,
                 appendix: appendixVal,
                 agency: editAgencyId || null,
-                contributing_agency: editAgencyId ? agencies.find(a => a.id === editAgencyId)?.name : (currentFeedback?.contributing_agency || "Cơ quan góp ý"),
                 official_doc_number: editDocNumber || "",
                 document: selectedDoc?.id || currentFeedback?.document_id
             };
 
             await axios.patch(`/api/feedbacks/${currentFeedback.id}/`, payload, getAuthHeader());
-
-            toast.success("Đã cập nhật góp ý thành công.");
+            toast.success("Cập nhật góp ý thành công.");
             setIsEditModalOpen(false);
             fetchFeedbacks(selectedDoc.id);
         } catch (error) {
-            console.error("Lỗi khi cập nhật góp ý:", error.response?.data);
-            if (error.response && error.response.data) {
-                const errorData = error.response.data;
-                const errorMsg = typeof errorData === 'object' 
-                    ? Object.entries(errorData).map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(", ") : JSON.stringify(value)}`).join(" | ")
-                    : String(errorData);
-                toast.error("Lỗi: " + errorMsg);
-            } else {
-                toast.error("Lỗi không xác định khi cập nhật dữ liệu.");
-            }
+            toast.error("Lỗi khi cập nhật dữ liệu.");
         } finally {
             setUpdating(false);
-        }
-    };
-
-    const handleQuickAgencySave = async () => {
-        if (!newAgencyName.trim()) {
-            toast.warning("Vui lòng nhập tên đơn vị.");
-            return;
-        }
-        setAddingAgency(true);
-        try {
-            let categoryId = newAgencyCategory?.value;
-
-            // Create category if new
-            if (newAgencyCategory && newAgencyCategory.__isNew__) {
-                const catRes = await axios.post('/api/settings/agency-categories/', { name: newAgencyCategory.label }, getAuthHeader());
-                categoryId = catRes.data.id;
-                await fetchCategories();
-            }
-
-            const res = await axios.post('/api/settings/agencies/', {
-                name: newAgencyName,
-                agency_category: categoryId
-            }, getAuthHeader());
-
-            toast.success("Thêm đơn vị mới thành công.");
-            await fetchAgenciesOnly();
-
-            setEditAgencyId(res.data.id); // Set to new agency
-            toggleAgencyModal();
-        } catch (error) {
-            console.error("Lỗi khi thêm đơn vị nhanh:", error.response?.data);
-            toast.error("Lỗi khi thêm đơn vị nhanh.");
-        } finally {
-            setAddingAgency(false);
         }
     };
 
@@ -343,10 +305,9 @@ const FeedbackList = () => {
                 object_id: currentFeedback.id,
                 content: explanation
             }, getAuthHeader());
-
-            toast.success("Đã ghi nhận nội dung giải trình.");
+            toast.success("Đã lưu giải trình.");
             setIsModalOpen(false);
-            fetchFeedbacks(selectedDoc.id); // Refresh list
+            fetchFeedbacks(selectedDoc.id);
         } catch (e) {
             toast.error("Lỗi khi lưu giải trình.");
         } finally {
@@ -356,16 +317,14 @@ const FeedbackList = () => {
 
     const handleDeleteExplanation = async (fb) => {
         if (!window.confirm("Bạn có chắc chắn muốn xóa nội dung giải trình này không?")) return;
-
         try {
             await axios.post('/api/feedbacks/delete_explanation/', {
                 document_id: selectedDoc.id,
                 target_type: 'Feedback',
                 object_id: fb.id
             }, getAuthHeader());
-
-            toast.success("Đã xóa nội dung giải trình.");
-            fetchFeedbacks(selectedDoc.id); // Refresh list
+            toast.success("Đã xóa giải trình.");
+            fetchFeedbacks(selectedDoc.id);
         } catch (e) {
             toast.error("Lỗi khi xóa giải trình.");
         }
@@ -377,35 +336,28 @@ const FeedbackList = () => {
     };
 
     const confirmDeleteFeedback = async () => {
-        if (!feedbackToDelete) return;
         setDeleting(true);
         try {
             await axios.delete(`/api/feedbacks/${feedbackToDelete.id}/`, getAuthHeader());
             toast.success("Đã xóa nội dung góp ý.");
             setDeleteModal(false);
-            setFeedbackToDelete(null);
             fetchFeedbacks(selectedDoc.id);
         } catch (e) {
-            const errMsg = e?.response?.data?.detail || e?.response?.data?.error || e?.message || "Lỗi không xác định";
-            console.error("[DeleteFeedback] Error:", e?.response?.status, errMsg);
-            toast.error(`Lỗi khi xóa góp ý: ${errMsg}`);
+            toast.error("Lỗi khi xóa góp ý.");
         } finally {
             setDeleting(false);
         }
     };
 
     const confirmDeleteAll = async () => {
-        if (!selectedDoc) return;
         setFullDeleting(true);
         try {
-            await axios.post('/api/feedbacks/delete_all/', {
-                document_id: selectedDoc.id
-            }, getAuthHeader());
-            toast.success(`Đã xóa toàn bộ nội dung góp ý của dự thảo: ${selectedDoc.project_name}`);
+            await axios.post('/api/feedbacks/delete_all/', { document_id: selectedDoc.id }, getAuthHeader());
+            toast.success("Đã xóa toàn bộ nội dung góp ý.");
             setFullDeleteModal(false);
             fetchFeedbacks(selectedDoc.id);
         } catch (e) {
-            toast.error("Lỗi khi xóa toàn bộ dữ liệu.");
+            toast.error("Lỗi khi xóa dữ liệu.");
         } finally {
             setFullDeleting(false);
         }
@@ -416,32 +368,23 @@ const FeedbackList = () => {
     };
 
     const handleOpenAssignModal = (fb) => {
-        setAssignTarget(fb.id); // SỬA: Lưu Feedback ID thay vì Node ID
+        setAssignTarget(fb.id);
         setAssignUserIds(fb.assigned_users ? fb.assigned_users.map(u => u.id) : []);
         setIsAssignModalOpen(true);
     };
 
     const handleSaveAssignment = async () => {
-        if (!selectedDoc || !assignTarget) return;
         setAssigningLoading(true);
         try {
-            // SỬA: Gọi API phân công chuyên biệt cho từng góp ý
             await axios.post(`/api/feedbacks/assign_feedbacks/`, {
                 document_id: selectedDoc.id,
-                assignments: [
-                    {
-                        feedback_id: assignTarget,
-                        user_ids: assignUserIds
-                    }
-                ]
+                assignments: [{ feedback_id: assignTarget, user_ids: assignUserIds }]
             }, getAuthHeader());
-            
-            toast.success("Cập nhật phân công thành công!");
+            toast.success("Phân công thành công!");
             setIsAssignModalOpen(false);
             fetchFeedbacks(selectedDoc.id, currentPage);
         } catch (error) {
-            console.error("Assignment error:", error);
-            toast.error("Lỗi khi phân công: " + (error.response?.data?.error || "Vui lòng thử lại sau."));
+            toast.error("Lỗi khi phân công.");
         } finally {
             setAssigningLoading(false);
         }
@@ -453,10 +396,8 @@ const FeedbackList = () => {
         setSelectedNodeData({ node_label: label, content: 'Đang tải...', node_type: '' });
         try {
             const res = await axios.get(`/api/documents/nodes/${nodeId}/full_context/`, getAuthHeader());
-            const data = res.data || res;
-            setSelectedNodeData(data);
+            setSelectedNodeData(res.data || res);
         } catch (e) {
-            toast.error("Không thể tải nội dung Điều.");
             setSelectedNodeData({ node_label: label, content: 'Lỗi khi tải nội dung.' });
         } finally {
             setNodeLoading(false);
@@ -469,665 +410,450 @@ const FeedbackList = () => {
     );
 
     return (
-        <React.Fragment>
-            <div className="page-content">
-                <Container fluid>
-                    <BreadCrumb title="Danh sách Góp ý" pageTitle="Hệ thống" />
+        <div className="designkit-wrapper designkit-layout-root">
+            <style>
+                {`
+                    @media (max-width: 768px) {
+                        .workspace-pane-layout {
+                            flex-direction: column !important;
+                            overflow-y: auto !important;
+                        }
+                        .pane-sidebar {
+                            width: 100% !important;
+                            max-height: 250px !important;
+                            border-right: none !important;
+                            border-bottom: 1px solid rgba(255,255,255,0.1) !important;
+                        }
+                        .pane-content {
+                            width: 100% !important;
+                            height: auto !important;
+                        }
+                        .modern-filter-row {
+                            flex-direction: column !important;
+                            gap: 10px !important;
+                        }
+                        .filter-item {
+                            width: 100% !important;
+                        }
+                        .modern-header {
+                            padding: 2.5rem 1rem 1rem 1rem !important; /* Increase top padding for header */
+                            margin-bottom: 1.5rem !important;
+                        }
+                        .header-actions {
+                            margin-top: 10px;
+                            width: 100%;
+                            justify-content: flex-start !important;
+                        }
 
-                    <Row>
-                        {/* LEFT: Documents List */}
-                        <Col lg={2}>
-                            <Card className="shadow-sm border-0">
-                                <CardHeader className="bg-light border-0 py-2">
-                                    <h5 className="card-title mb-0 fs-12 text-uppercase text-muted fw-bold">Dự thảo chủ trì</h5>
-                                </CardHeader>
-                                <CardBody className="p-0">
-                                    <div className="p-2 bg-light border-bottom">
-                                        <div className="search-box">
-                                            <Input
-                                                type="text"
-                                                className="form-control form-control-sm fs-11"
-                                                placeholder="Tìm..."
-                                                value={docSearch}
-                                                onChange={(e) => setDocSearch(e.target.value)}
-                                            />
-                                            <i className="ri-search-line search-icon fs-11 ms-0"></i>
-                                        </div>
-                                    </div>
-                                    <div style={{ maxHeight: '700px', overflowY: 'auto' }}>
-                                        <ul className="list-group list-group-flush border-0">
-                                            {sortedDocs.map(doc => (
-                                                <li
-                                                    key={doc.id}
-                                                    className={`list-group-item list-group-item-action cursor-pointer px-2 py-2 ${selectedDoc?.id === doc.id ? 'active' : ''}`}
-                                                    onClick={() => {
-                                                        setSelectedDoc(doc);
-                                                        fetchFeedbacks(doc.id);
-                                                    }}
-                                                >
-                                                    <div className="d-flex align-items-center">
-                                                        <div className="flex-grow-1 overflow-hidden">
-                                                            <h6 className={`mb-0 fs-13 text-truncate ${selectedDoc?.id === doc.id ? 'text-white' : 'text-body-emphasis'}`} title={doc.project_name}>
-                                                                {doc.project_name}
-                                                            </h6>
-                                                            <div className={`text-truncate fs-12 ${selectedDoc?.id === doc.id ? 'text-white-50' : 'text-muted-emphasis'}`}>
-                                                                {doc.drafting_agency || '-'}
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex-shrink-0 ms-1">
-                                                            <Badge color={selectedDoc?.id === doc.id ? "light" : "primary"} pill className={`fs-11 ${selectedDoc?.id === doc.id ? 'text-primary' : 'bg-primary-subtle text-primary'}`}>
-                                                                {doc.resolved_feedbacks || 0}/{doc.total_feedbacks || 0}
-                                                            </Badge>
-                                                        </div>
-                                                    </div>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                </CardBody>
-                            </Card>
-                        </Col>
+                        /* Fix Pagination Overlap with Bottom Nav */
+                        .modern-page-content {
+                            padding-bottom: 90px !important;
+                        }
 
-                        {/* RIGHT: Feedbacks List */}
-                        <Col lg={10}>
-                            <Card className="shadow-sm border-0">
-                                <CardHeader className="d-flex align-items-center bg-light border-0">
-                                    <div className="flex-grow-1">
-                                        <h5 className="card-title mb-0 fw-bold">
-                                            <i className="ri-discuss-line align-bottom me-1 text-primary"></i>
-                                            Ý kiến góp ý: {selectedDoc?.project_name}
-                                        </h5>
-                                    </div>
-                                    <div className="flex-shrink-0 d-flex gap-2">
-                                        <div className="search-box">
-                                            <Input
-                                                type="text"
-                                                className="form-control border-light"
-                                                placeholder="Tìm trong danh sách..."
-                                                value={tableSearch}
-                                                onChange={(e) => setTableSearch(e.target.value)}
-                                            />
-                                            <i className="ri-search-line search-icon"></i>
-                                        </div>
-                                        <Button 
-                                            color="danger" 
-                                            outline 
-                                            className="btn-icon" 
-                                            onClick={() => setFullDeleteModal(true)} 
-                                            disabled={loading || feedbacks.length === 0}
-                                            title="Xóa toàn bộ góp ý của dự thảo này"
+                        /* Shrink Widgets on Mobile */
+                        .modern-widget-item {
+                            padding: 0.75rem !important;
+                        }
+                        .modern-widget-item h3 {
+                            font-size: 1.25rem !important;
+                            margin-bottom: 0.25rem !important;
+                        }
+                        .modern-widget-item span[style*="font-size: 0.75rem"] {
+                            font-size: 0.65rem !important;
+                        }
+
+                        /* Reorganize Table Cards for Science/Organization */
+                        .modern-table tbody tr {
+                            position: relative;
+                            padding-top: 3.5rem !important; 
+                            margin-bottom: 1.25rem !important;
+                            border: 1px solid rgba(255,255,255,0.05) !important;
+                            border-radius: 12px !important;
+                            background: rgba(255,255,255,0.02) !important;
+                            display: block !important;
+                        }
+                        .modern-table tbody td[data-label="STT"] {
+                            position: absolute;
+                            top: 15px;
+                            left: 15px;
+                            display: flex !important;
+                            background: rgba(99, 102, 241, 0.15);
+                            color: var(--kit-primary) !important;
+                            width: 28px;
+                            height: 28px;
+                            align-items: center;
+                            justify-content: center;
+                            border-radius: 6px;
+                            font-size: 0.75rem !important;
+                            border: 1px solid rgba(99, 102, 241, 0.2) !important;
+                            z-index: 2;
+                        }
+                        .modern-table tbody td[data-label="Thao tác"] {
+                            position: absolute;
+                            top: 10px;
+                            right: 10px;
+                            display: block !important;
+                            z-index: 2;
+                        }
+                        .modern-table tbody td:not([data-label="STT"]):not([data-label="Thao tác"]) {
+                            display: flex !important;
+                            flex-direction: column;
+                            margin-bottom: 0.75rem;
+                            padding: 0 1rem !important;
+                            text-align: left !important;
+                        }
+                        .modern-table tbody td[data-label="Điều/Khoản"] {
+                            border-bottom: 1px solid rgba(255,255,255,0.05);
+                            padding-bottom: 0.75rem !important;
+                            margin-bottom: 1rem !important;
+                            background: rgba(255,255,255,0.03);
+                            padding-top: 0.75rem !important;
+                        }
+                        .modern-table tbody td[data-label="Điều/Khoản"] .fw-900 {
+                            margin-left: 35px; /* Space for STT */
+                        }
+                    }
+                `}
+            </style>
+            <div className="modern-page-content" style={{ padding: 0, minHeight: 'calc(100vh - 70px)', display: 'flex', flexDirection: 'column' }}>
+                <Container fluid className="h-100 d-flex flex-column px-0 pb-1">
+                    <ToastContainer closeButton={false} />
+                    
+                    <ModernHeader 
+                        title="Dashboard Quản lý Ý kiến góp ý"
+                        subtitle="Phân loại, phân công giải trình và theo dõi tiến độ tiếp thu góp ý"
+                        actions={
+                            <div className="d-flex gap-2">
+                                <ModernButton variant="ghost" size="sm" onClick={() => fetchFeedbacks(selectedDoc?.id, currentPage)}>
+                                    <i className="ri-refresh-line me-1"></i> Làm mới
+                                </ModernButton>
+                                <ModernButton variant="danger-ghost" size="sm" onClick={() => setFullDeleteModal(true)} disabled={!selectedDoc}>
+                                    <i className="ri-delete-bin-line me-1"></i> Xóa hết
+                                </ModernButton>
+                            </div>
+                        }
+                    />
+
+                    <div className="workspace-pane-layout flex-grow-1 overflow-hidden d-flex flex-column flex-md-row">
+                        
+                        {/* LEFT PANE: DOCUMENTS (25%) */}
+                        <div className="pane-sidebar h-content d-flex flex-column border-end border-white-5 bg-black-20 w-100" style={{ maxWidth: '100%', flexBasis: 'auto', minWidth: 'auto' }}>
+                            <div className="pane-header p-3 border-bottom border-white-5">
+                                <h6 className="xsmall text-uppercase fw-800 tracking-wider text-white-40 mb-3">Dự thảo đang xử lý</h6>
+                                <div className="modern-search-bar">
+                                    <i className="ri-search-line"></i>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Tìm tên dự thảo..." 
+                                        value={docSearch}
+                                        onChange={(e) => setDocSearch(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <div className="pane-body flex-grow-1 overflow-hidden">
+                                <SimpleBar style={{ height: '100%' }} className="px-2 py-3">
+                                    {sortedDocs.map(doc => (
+                                        <div 
+                                            key={doc.id}
+                                            className={classnames("modern-list-item", { "active": selectedDoc?.id === doc.id })}
+                                            onClick={() => { setSelectedDoc(doc); fetchFeedbacks(doc.id); }}
                                         >
-                                            <i className="ri-delete-bin-4-line"></i>
-                                        </Button>
-                                    </div>
-                                </CardHeader>
-                                <CardBody>
-                                    {/* Action Row - Filters */}
-                                    <Row className="g-2 mb-3">
-                                        <Col md={2}>
-                                            <div className="input-group input-group-sm">
-                                                <Label className="input-group-text bg-light border-light text-muted">Điều/Khoản</Label>
-                                                <select
-                                                    className="form-select border-light bg-light"
-                                                    value={selectedNodeId}
-                                                    onChange={(e) => setSelectedNodeId(e.target.value)}
-                                                >
-                                                    <option value="all">Tất cả Điều/Khoản</option>
-                                                    {docNodes.map(n => <option key={n.value} value={n.value}>{n.label}</option>)}
-                                                </select>
+                                            <div className="d-flex justify-content-between align-items-start">
+                                                <div className="flex-grow-1 overflow-hidden">
+                                                    <div className="item-title text-truncate">{doc.project_name}</div>
+                                                    <div className="item-subtitle text-truncate">{doc.drafting_agency}</div>
+                                                </div>
+                                                <div className="ms-2 flex-shrink-0">
+                                                    <span className={`modern-counter-badge ${doc.resolved_feedbacks === doc.total_feedbacks ? 'success' : 'info'}`}>
+                                                        {doc.resolved_feedbacks}/{doc.total_feedbacks}
+                                                    </span>
+                                                </div>
                                             </div>
-                                        </Col>
-                                        <Col md={2}>
-                                            <div className="input-group input-group-sm">
-                                                <Label className="input-group-text bg-light border-light text-muted">Cơ quan</Label>
-                                                <select
-                                                    className="form-select border-light bg-light"
-                                                    value={selectedAgency}
-                                                    onChange={(e) => setSelectedAgency(e.target.value)}
-                                                >
-                                                    <option value="all">Tất cả Cơ quan</option>
-                                                    {agencies.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                                                </select>
-                                            </div>
-                                        </Col>
-                                        <Col md={2}>
-                                            <div className="input-group input-group-sm">
-                                                <Label className="input-group-text bg-light border-light text-muted">Cán bộ</Label>
-                                                <select
-                                                    className="form-select border-light bg-light"
-                                                    value={selectedSpecialist}
-                                                    onChange={(e) => setSelectedSpecialist(e.target.value)}
-                                                >
-                                                    <option value="all">Tất cả Cán bộ</option>
-                                                    <option value="none">Chưa giao</option>
-                                                    {specialists.map(s => <option key={s.id} value={s.id}>{s.full_name || s.username}</option>)}
-                                                </select>
-                                            </div>
-                                        </Col>
-                                        <Col md={2}>
-                                            <div className="input-group input-group-sm">
-                                                <Label className="input-group-text bg-light border-light text-muted">Tình trạng</Label>
-                                                <select
-                                                    className="form-select border-light bg-light"
-                                                    value={selectedStatus}
-                                                    onChange={(e) => setSelectedStatus(e.target.value)}
-                                                >
-                                                    <option value="all">Tất cả Ý kiến</option>
-                                                    <option value="pending">Chưa giải trình</option>
-                                                    <option value="explained">Đã giải trình</option>
-                                                    <option value="accepted">Đã tiếp thu</option>
-                                                    <option value="partially_accepted">Tiếp thu một phần</option>
-                                                    <option value="agreed">Thống nhất với dự thảo</option>
-                                                </select>
-                                            </div>
-                                        </Col>
-                                        <Col className="text-end">
-                                            <Badge color="soft-info" className="fs-12 p-2">
-                                                <i className="ri-information-line align-bottom me-1"></i>
-                                                Tổng số {totalCount} ý kiến
-                                            </Badge>
-                                        </Col>
-                                    </Row>
-
-                                    {loading ? (
-                                        <div className="text-center py-5">
-                                            <Spinner color="primary" />
-                                            <p className="mt-2 text-muted small italic">Đang tải dữ liệu góp ý...</p>
                                         </div>
-                                    ) : (
-                                        <>
-                                            <div className="table-responsive">
-                                                <Table className="table-bordered table-hover align-middle mb-0">
-                                                    <thead className="bg-primary-subtle text-primary fs-13 text-uppercase">
-                                                        <tr className="text-center align-middle">
-                                                            <th style={{ width: '50px' }}>STT</th>
-                                                            <th>Vị trí / Điều</th>
-                                                            <th style={{ width: '150px' }}>Cán bộ thụ lý</th>
-                                                            <th style={{ minWidth: '250px' }}>Nội dung góp ý</th>
-                                                            <th>Cơ quan</th>
-                                                            <th style={{ minWidth: '250px' }}>Ý KIẾN GIẢI TRÌNH, TIẾP THU</th>
-                                                            <th style={{ width: '120px' }}>Hành động</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {filteredFeedbacks.map((fb, idx) => (
-                                                            <tr key={fb.id}>
-                                                                <td className="text-center text-muted fw-medium">{(currentPage - 1) * pageSize + idx + 1}</td>
-                                                                <td>
-                                                                    <Button
-                                                                        color="link"
-                                                                        className="p-0 text-info fw-semibold text-decoration-none text-start"
-                                                                        onClick={() => handleViewNode(fb.node_id, fb.node_label)}
-                                                                    >
-                                                                        {fb.node_label}
-                                                                    </Button>
-                                                                    <div className="text-body-secondary fs-12 mt-1 opacity-75 italic">
-                                                                        {fb.node_path}
-                                                                    </div>
-                                                                </td>
-                                                                <td>
-                                                                    <div className="d-flex flex-wrap gap-1">
-                                                                        {fb.assigned_users && fb.assigned_users.length > 0 ? (
-                                                                            fb.assigned_users.map(u => (
-                                                                                <Badge key={u.id} color="info" className="badge-soft-info border border-info-subtle">
-                                                                                    {u.full_name}
-                                                                                </Badge>
-                                                                            ))
-                                                                        ) : (
-                                                                            <span className="text-muted fs-11 italic">Chưa phân công</span>
-                                                                        )}
-                                                                    </div>
-                                                                </td>
-                                                                <td>
-                                                                    <div style={{ whiteSpace: 'normal', fontSize: '14px' }}>
-                                                                        {fb.content}
-                                                                    </div>
-                                                                </td>
-                                                                <td>
-                                                                    <Badge color="soft-info" className="text-info fs-13 mt-1 fw-bold">{fb.contributing_agency}</Badge>
-                                                                </td>
-                                                                <td>
-                                                                    {fb.explanation ? (
-                                                                        <div style={{ whiteSpace: 'normal', fontSize: '15px', borderLeft: '4px solid #0ab39c', backgroundColor: 'rgba(10, 179, 156, 0.15)' }} className="p-2 rounded shadow-sm">
-                                                                            <span style={{ color: '#ffffff', fontWeight: '600', display: 'block' }}>{fb.explanation}</span>
-                                                                        </div>
-                                                                    ) : (
-                                                                        <span className="text-white-50 italic opacity-50 px-2 font-italic border-start">Chưa giải trình</span>
-                                                                    )}
-                                                                </td>
-                                                                <td>
-                                                                    <div className="d-flex gap-1 justify-content-center">
-                                                                        <Button
-                                                                            color="primary"
-                                                                            size="sm"
-                                                                            className="btn-soft-primary btn-icon"
-                                                                            onClick={() => handleOpenAssignModal(fb)}
-                                                                            title="Phân công cán bộ"
-                                                                        >
-                                                                            <i className="ri-user-add-line"></i>
-                                                                        </Button>
-                                                                        <Button
-                                                                            color="warning"
-                                                                            size="sm"
-                                                                            className="btn-soft-warning btn-icon"
-                                                                            onClick={() => handleEditFeedback(fb)}
-                                                                            title="Sửa nội dung & Gán lại"
-                                                                        >
-                                                                            <i className="ri-edit-line"></i>
-                                                                        </Button>
-                                                                        <Button
-                                                                            color="danger"
-                                                                            size="sm"
-                                                                            className="btn-soft-danger btn-icon"
-                                                                            onClick={() => handleDeleteFeedback(fb)}
-                                                                            title="Xóa góp ý"
-                                                                        >
-                                                                            <i className="ri-delete-bin-line"></i>
-                                                                        </Button>
-                                                                        {!fb.explanation ? (
-                                                                            <Button
-                                                                                color="success"
-                                                                                size="sm"
-                                                                                className="btn-soft-success btn-icon"
-                                                                                onClick={() => handleAction(fb, 'explain')}
-                                                                                title="Giải trình"
-                                                                            >
-                                                                                <i className="ri-chat-1-line"></i>
-                                                                            </Button>
-                                                                        ) : (
-                                                                            <>
-                                                                                <Button
-                                                                                    color="info"
-                                                                                    size="sm"
-                                                                                    className="btn-soft-info btn-icon"
-                                                                                    onClick={() => handleAction(fb, 'edit')}
-                                                                                    title="Sửa giải trình"
-                                                                                >
-                                                                                    <i className="ri-edit-2-line"></i>
-                                                                                </Button>
-                                                                                <Button
-                                                                                    color="danger"
-                                                                                    size="sm"
-                                                                                    className="btn-soft-danger btn-icon"
-                                                                                    onClick={() => handleDeleteExplanation(fb)}
-                                                                                    title="Xóa giải trình"
-                                                                                >
-                                                                                    <i className="ri-close-line"></i>
-                                                                                </Button>
-                                                                            </>
-                                                                        )}
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                        ))}
+                                    ))}
+                                </SimpleBar>
+                            </div>
+                        </div>
 
-                                                        {filteredFeedbacks.length === 0 && (
-                                                            <tr>
-                                                                <td colSpan="7" className="text-center py-5 text-muted small italic">
-                                                                    (Không có dữ liệu góp ý phù hợp với bộ lọc)
-                                                                </td>
-                                                            </tr>
-                                                        )}
-                                                    </tbody>
-                                                </Table>
+                        {/* RIGHT PANE: FEEDBACK CONTENT (75%) */}
+                        <div className="pane-content flex-grow-1 h-100 d-flex flex-column bg-black-10 overflow-hidden">
+                            <SimpleBar style={{ height: '100%' }} className="p-4">
+                                {selectedDoc ? (
+                                    <>
+                                        {/* Statistics Row */}
+                                        <Row className="mb-4 g-3">
+                                            <Col xs={6} md={4}>
+                                                <ModernStatWidget title="Tổng góp ý" value={totalCount} label="Ý kiến" icon="ri-discuss-line" color="info" />
+                                            </Col>
+                                            <Col xs={6} md={4}>
+                                                <ModernStatWidget title="Đã giải trình" value={selectedDoc.resolved_feedbacks || 0} label="Hoàn thành" icon="ri-checkbox-circle-line" color="success" />
+                                            </Col>
+                                            <Col xs={6} md={4}>
+                                                <ModernStatWidget title="Cán bộ thụ lý" value={new Set(feedbacks.flatMap(f => f.assigned_users?.map(u => u.id) || [])).size} label="Đang làm việc" icon="ri-user-star-line" color="primary" />
+                                            </Col>
+                                        </Row>
+
+                                        {/* Main Table Container */}
+                                        <div className="modern-card p-4 bg-white-5 backdrop-blur">
+                                            <div className="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-4">
+                                                <div className="d-flex align-items-center gap-3">
+                                                    <h5 className="text-white mb-0 fw-bold tracking-tight">Vấn đề Góp ý</h5>
+                                                    <ModernBadge color="primary" variant="soft" className="px-3">
+                                                        {totalCount} ý kiến
+                                                    </ModernBadge>
+                                                </div>
+                                                <ModernSearchBox 
+                                                    placeholder="Tìm kiếm nội dung, cơ quan..." 
+                                                    value={tableSearch} 
+                                                    onChange={(e) => setTableSearch(e.target.value)} 
+                                                    style={{ width: '350px' }}
+                                                />
                                             </div>
 
-                                            {/* Pagination Controls */}
-                                            {totalCount > pageSize && (
-                                                <div className="d-flex justify-content-between align-items-center mt-3">
-                                                    <div className="text-muted fs-13">
-                                                        Hiển thị <b>{(currentPage - 1) * pageSize + 1}</b> - <b>{Math.min(currentPage * pageSize, totalCount)}</b> trong tổng số <b>{totalCount}</b> ý kiến
-                                                    </div>
-                                                    <div className="d-flex gap-2">
-                                                        <Button
-                                                            color="light"
-                                                            size="sm"
-                                                            disabled={currentPage === 1}
-                                                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                                                        >
-                                                            <i className="ri-arrow-left-s-line align-middle me-1"></i> Trước
-                                                        </Button>
-                                                        {(() => {
-                                                            const totalPages = Math.ceil(totalCount / pageSize);
-                                                            const pages = [];
-                                                            for (let i = 1; i <= totalPages; i++) {
-                                                                if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
-                                                                    pages.push(i);
-                                                                } else if (i === currentPage - 2 || i === currentPage + 2) {
-                                                                    pages.push('...');
-                                                                }
-                                                            }
-                                                            return [...new Set(pages)].map((p, idx) => (
-                                                                p === '...' ? (
-                                                                    <span key={`dots-${idx}`} className="px-2">...</span>
+                                            {/* Unified Filter Bar */}
+                                            <div className="modern-filter-row mb-4 p-3 rounded-3 bg-white-5 border border-white-5 gap-3 d-flex flex-wrap">
+                                                <div className="filter-item flex-grow-1">
+                                                    <label className="xsmall text-uppercase fw-800 text-white-40 mb-2 ms-1">Mục nội dung</label>
+                                                    <Select styles={selectStyles} placeholder="Tất cả vị trí" options={[{ value: 'all', label: 'Tất cả vị trí' }, ...docNodes]} value={docNodes.find(n => n.value == selectedNodeId) || { value: 'all', label: 'Tất cả vị trí' }} onChange={(opt) => setSelectedNodeId(opt.value)} />
+                                                </div>
+                                                <div className="filter-item flex-grow-1">
+                                                    <label className="xsmall text-uppercase fw-800 text-white-40 mb-2 ms-1">Cơ quan</label>
+                                                    <Select styles={selectStyles} placeholder="Tất cả Cơ quan" options={[{ value: 'all', label: 'Tất cả Cơ quan' }, ...agencies.map(a => ({ value: a.id, label: a.name }))]} value={agencies.find(a => a.id == selectedAgency) ? { value: selectedAgency, label: agencies.find(a => a.id == selectedAgency).name } : { value: 'all', label: 'Tất cả Cơ quan' }} onChange={(opt) => setSelectedAgency(opt.value)} />
+                                                </div>
+                                                <div className="filter-item flex-grow-1">
+                                                    <label className="xsmall text-uppercase fw-800 text-white-40 mb-2 ms-1">Thụ lý</label>
+                                                    <Select styles={selectStyles} placeholder="Tất cả cán bộ" options={[{ value: 'all', label: 'Tất cả cán bộ' }, { value: 'none', label: 'Chưa giao' }, ...specialists.map(s => ({ value: s.id, label: s.full_name || s.username }))]} value={specialists.find(s => s.id == selectedSpecialist) ? { value: selectedSpecialist, label: specialists.find(s => s.id == selectedSpecialist).full_name } : { value: 'all', label: 'Tất cả cán bộ' }} onChange={(opt) => setSelectedSpecialist(opt.value)} />
+                                                </div>
+                                                <div className="filter-item flex-grow-1">
+                                                    <label className="xsmall text-uppercase fw-800 text-white-40 mb-2 ms-1">Trạng thái</label>
+                                                    <Select styles={selectStyles} placeholder="Trạng thái" options={[{ value: 'all', label: 'Tất cả ý kiến' }, { value: 'pending', label: 'Chưa giải trình' }, { value: 'explained', label: 'Đã giải trình' }]} value={{ value: selectedStatus, label: selectedStatus === 'all' ? 'Tất cả ý kiến' : selectedStatus === 'pending' ? 'Chưa giải trình' : 'Đã giải trình' }} onChange={(opt) => setSelectedStatus(opt.value)} />
+                                                </div>
+                                            </div>
+
+                                            <ModernTable>
+                                                <thead>
+                                                    <tr>
+                                                        <th style={{ width: '50px' }} className="text-center">STT</th>
+                                                        <th style={{ width: '150px' }}>Điều/Khoản</th>
+                                                        <th style={{ width: '180px' }}>Cơ quan</th>
+                                                        <th>Nội dung góp ý</th>
+                                                        <th>Giải trình/Tiếp thu</th>
+                                                        <th style={{ width: '150px' }}>Thụ lý</th>
+                                                        <th style={{ width: '80px' }} className="text-center">Thao tác</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {loading ? (
+                                                        <tr><td colSpan="7" className="text-center py-5"><Spinner color="primary" size="sm" /></td></tr>
+                                                    ) : feedbacks.length > 0 ? feedbacks.map((fb, idx) => (
+                                                        <tr key={fb.id}>
+                                                            <td className="text-center text-white-20 fw-bold xsmall" data-label="STT">{(currentPage - 1) * pageSize + idx + 1}</td>
+                                                            <td data-label="Điều/Khoản">
+                                                                <div className="fw-900 text-primary cursor-pointer hover-underline fs-15" onClick={() => handleViewNode(fb.node_id, fb.node_label)}>
+                                                                    {fb.node_label}
+                                                                </div>
+                                                                {fb.node_path && fb.node_path !== fb.node_label && (
+                                                                    <div className="xsmall text-white-40 mt-1 italic text-truncate" style={{ maxWidth: '200px' }}>{fb.node_path}</div>
+                                                                )}
+                                                            </td>
+                                                            <td data-label="Cơ quan">
+                                                                <div className="fw-semibold text-white-85 fs-13 d-flex align-items-center gap-2">
+                                                                    <i className="ri-community-line text-white-30"></i> {fb.contributing_agency}
+                                                                </div>
+                                                                {fb.official_doc_number && <div className="mt-1 xsmall text-info opacity-70">Số: {fb.official_doc_number}</div>}
+                                                            </td>
+                                                            <td data-label="Nội dung góp ý">
+                                                                <div className="text-white-70 lh-base fs-13" style={{ maxWidth: '400px' }}>{fb.content}</div>
+                                                            </td>
+                                                            <td data-label="Giải trình/Tiếp thu">
+                                                                {fb.explanation ? (
+                                                                    <div className="p-2 rounded bg-success-opacity border-start border-success border-2">
+                                                                        <div className="text-white-90 lh-base fs-13 italic">"{fb.explanation}"</div>
+                                                                    </div>
                                                                 ) : (
-                                                                    <Button
-                                                                        key={p}
-                                                                        color={currentPage === p ? "primary" : "light"}
-                                                                        size="sm"
-                                                                        onClick={() => setCurrentPage(p)}
-                                                                    >
-                                                                        {p}
-                                                                    </Button>
-                                                                )
-                                                            ));
-                                                        })()}
-                                                        <Button
-                                                            color="light"
-                                                            size="sm"
-                                                            disabled={currentPage === Math.ceil(totalCount / pageSize)}
-                                                            onClick={() => setCurrentPage(prev => prev + 1)}
-                                                        >
-                                                            Sau <i className="ri-arrow-right-s-line align-middle ms-1"></i>
-                                                        </Button>
+                                                                    <span className="text-white-20 xsmall italic">Chưa giải trình</span>
+                                                                )}
+                                                            </td>
+                                                            <td data-label="Thụ lý">
+                                                                <div className="d-flex flex-wrap gap-1">
+                                                                    {fb.assigned_users?.length > 0 ? fb.assigned_users.map(u => (
+                                                                        <span key={u.id} className="modern-badge soft-primary px-2 py-0 fs-10" style={{ height: 'min-content' }}>{u.full_name}</span>
+                                                                    )) : <span className="text-white-20 xsmall">Chưa giao</span>}
+                                                                </div>
+                                                            </td>
+                                                            <td className="text-center" data-label="Thao tác">
+                                                                <UncontrolledDropdown>
+                                                                    <DropdownToggle tag="button" className="modern-btn-minimal">
+                                                                        <i className="ri-more-2-fill"></i>
+                                                                    </DropdownToggle>
+                                                                    <DropdownMenu container="body" className="dropdown-menu-dark p-2" end style={{ background: '#1e2027', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}>
+                                                                        <DropdownItem className="rounded-2" onClick={() => handleAction(fb)}>
+                                                                            <i className={classnames("ri-chat-1-line me-2", { "text-success": fb.explanation })} ></i> 
+                                                                            {fb.explanation ? "Sửa giải trình" : "Giải trình"}
+                                                                        </DropdownItem>
+                                                                        <DropdownItem className="rounded-2" onClick={() => handleOpenAssignModal(fb)}>
+                                                                            <i className="ri-user-follow-line me-2 text-primary"></i> Phân công
+                                                                        </DropdownItem>
+                                                                        <DropdownItem divider className="border-white-5" />
+                                                                        <DropdownItem className="rounded-2" onClick={() => handleEditFeedback(fb)}>
+                                                                            <i className="ri-edit-line me-2 text-warning"></i> Sửa dữ liệu
+                                                                        </DropdownItem>
+                                                                        {fb.explanation && (
+                                                                            <DropdownItem className="rounded-2 text-danger" onClick={() => handleDeleteExplanation(fb)}>
+                                                                                <i className="ri-close-circle-line me-2"></i> Xóa giải trình
+                                                                            </DropdownItem>
+                                                                        )}
+                                                                        <DropdownItem className="rounded-2 text-danger" onClick={() => handleDeleteFeedback(fb)}>
+                                                                            <i className="ri-delete-bin-line me-2"></i> Xóa góp ý
+                                                                        </DropdownItem>
+                                                                    </DropdownMenu>
+                                                                </UncontrolledDropdown>
+                                                            </td>
+                                                        </tr>
+                                                    )) : (
+                                                        <tr><td colSpan="7" className="text-center py-5 text-white-40 italic">Không tìm thấy ý kiến góp ý phù hợp.</td></tr>
+                                                    )}
+                                                </tbody>
+                                            </ModernTable>
+
+                                            {/* Pagination Bar */}
+                                            {totalCount > pageSize && !loading && (
+                                                <div className="d-flex justify-content-between align-items-center mt-4 pt-4 border-top border-white-5">
+                                                    <div className="text-white-40 xsmall fw-bold">Trình bày {Math.min(currentPage * pageSize - pageSize + 1, totalCount)} - {Math.min(currentPage * pageSize, totalCount)} trên {totalCount} kết quả</div>
+                                                    <div className="d-flex gap-2">
+                                                        <ModernButton variant="ghost" size="sm" className="px-3" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
+                                                            <i className="ri-arrow-left-s-line me-1"></i> Trước
+                                                        </ModernButton>
+                                                        <ModernButton variant="ghost" size="sm" className="px-3" disabled={currentPage * pageSize >= totalCount} onClick={() => setCurrentPage(p => p + 1)}>
+                                                            Sau <i className="ri-arrow-right-s-line ms-1"></i>
+                                                        </ModernButton>
                                                     </div>
                                                 </div>
                                             )}
-                                        </>
-                                    )}
-                                </CardBody>
-                            </Card>
-                        </Col>
-                    </Row>
-                    {/* Assignment Modal */}
-            <Modal isOpen={isAssignModalOpen} toggle={() => setIsAssignModalOpen(false)} centered>
-                <ModalHeader toggle={() => setIsAssignModalOpen(false)} className="bg-light p-3">
-                    <i className="ri-user-add-line align-middle me-2 text-primary"></i>
-                    Phân công Cán bộ Giải trình
-                </ModalHeader>
-                <ModalBody>
-                    <div className="mb-3">
-                        <Label className="form-label">Chọn cán bộ (Chuyên viên) thụ lý cho nội dung này:</Label>
-                        <Select
-                            isMulti
-                            options={specialists.map(s => ({ value: s.id, label: s.full_name || s.username }))}
-                            value={specialists
-                                .filter(s => assignUserIds.includes(s.id))
-                                .map(s => ({ value: s.id, label: s.full_name || s.username }))
-                            }
-                            onChange={(selected) => setAssignUserIds(selected ? selected.map(opt => opt.value) : [])}
-                            placeholder="Tìm kiếm và chọn cán bộ..."
-                            classNamePrefix="react-select"
-                            styles={selectStyles}
-                        />
-                        <div className="form-text mt-2 text-muted small">
-                            <i className="ri-information-line me-1"></i>
-                            Phân công này sẽ chỉ áp dụng cho <b>duy nhất</b> nội dung góp ý đang chọn.
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="h-100 d-flex flex-column align-items-center justify-content-center text-center py-5">
+                                        <div className="avatar-xl mb-4 p-4 rounded-circle bg-white-5 border border-white-5">
+                                            <i className="ri-file-search-line display-3 text-white-10"></i>
+                                        </div>
+                                        <h4 className="fw-900 text-white">Chưa chọn Dự thảo</h4>
+                                        <p className="text-white-40 max-w-400 mx-auto">Vui lòng chọn một dự thảo văn bản từ danh sách bên trái để xem tổng hợp các ý kiến góp ý.</p>
+                                    </div>
+                                )}
+                            </SimpleBar>
                         </div>
                     </div>
-                </ModalBody>
-                <ModalFooter>
-                    <Button color="light" onClick={() => setIsAssignModalOpen(false)} disabled={assigningLoading}>Đóng</Button>
-                    <Button color="primary" onClick={handleSaveAssignment} disabled={assigningLoading}>
-                        {assigningLoading ? <Spinner size="sm" /> : "Lưu phân công"}
-                    </Button>
-                </ModalFooter>
-            </Modal>
-        </Container>
+                </Container>
+            </div>
 
-                {/* Explanation Modal */}
-                <Modal isOpen={isModalOpen} toggle={() => setIsModalOpen(!isModalOpen)} centered size="lg" contentClassName="border-0 shadow-lg">
-                    <ModalHeader toggle={() => setIsModalOpen(!isModalOpen)} className="bg-primary-subtle text-primary">
-                        <i className="ri-chat-history-line align-bottom me-1"></i> Hành động Giải trình
-                    </ModalHeader>
-                    <ModalBody>
+            {/* Modal: Explanation */}
+            <Modal isOpen={isModalOpen} toggle={() => setIsModalOpen(false)} centered size="lg" contentClassName="designkit-wrapper border-0">
+                <div className="modern-modal-content">
+                    <div className="modal-header-success p-3 d-flex justify-content-between align-items-center">
+                        <h5 className="modal-title xsmall text-uppercase fw-800 tracking-widest text-white">
+                            <i className="ri-discuss-line me-2"></i>Giải trình & Tiếp thu ý kiến
+                        </h5>
+                        <button type="button" className="btn-close btn-close-white" onClick={() => setIsModalOpen(false)}></button>
+                    </div>
+                    <div className="modal-body p-4 bg-black-20">
                         {currentFeedback && (
-                            <div className="mb-4 p-3 bg-light rounded border-start border-primary border-4">
-                                <Row className="mb-2">
-                                    <Col lg={6}><small className="text-muted d-block font-weight-bold">Điều góp ý:</small> <strong>{currentFeedback.node_label}</strong></Col>
-                                    <Col lg={6}><small className="text-muted d-block font-weight-bold">Cơ quan:</small> <strong>{currentFeedback.contributing_agency}</strong></Col>
-                                </Row>
-                                <div className="mt-2 pt-2 border-top">
-                                    <small className="text-muted d-block font-weight-bold mb-1">Nội dung góp ý:</small>
-                                    <p className="mb-0 fs-14 italic" style={{ lineHeight: '1.5' }}>"{currentFeedback.content}"</p>
-                                </div>
+                            <div className="mb-4 bg-white-5 p-3 rounded-3 border border-white-10">
+                                <label className="xsmall text-uppercase fw-800 text-white-40 d-block mb-1">Nội dung góp ý gốc:</label>
+                                <div className="text-white-90 italic">"{currentFeedback.content}"</div>
                             </div>
                         )}
-                        <div className="form-group">
-                            <Label className="form-label fw-bold"><i className="ri-edit-line me-1"></i> Nội dung giải trình (Tiếp thu/Giải trình bảo vệ):</Label>
-                            <Input
-                                type="textarea"
-                                rows="8"
-                                className="form-control border-dark-subtle"
-                                style={{ backgroundColor: '#fff', color: '#000', fontSize: '14px', minHeight: '150px' }}
-                                value={explanation}
-                                onChange={(e) => setExplanation(e.target.value)}
-                                placeholder="Nhập nội dung giải trình tại đây..."
-                            />
-                        </div>
-                    </ModalBody>
-                    <ModalFooter className="bg-light">
-                        <Button color="link" className="text-muted text-decoration-none shadow-none" onClick={() => setIsModalOpen(false)}>Hủy bỏ</Button>
-                        <Button color="primary" className="btn-load shadow-md px-4" onClick={saveExplanation} disabled={saving}>
-                            {saving ? <><Spinner size="sm" className="me-2" /> Đang lưu...</> : <><i className="ri-save-3-line align-bottom me-1"></i> Lưu Giải trình</>}
-                        </Button>
-                    </ModalFooter>
-                </Modal>
+                        <FormGroup className="mb-0">
+                            <label className="xsmall text-uppercase fw-800 text-white-40 d-block mb-2">Nội dung giải trình / Ý kiến tiếp thu <span className="text-danger">*</span></label>
+                            <Input type="textarea" rows="8" className="modern-input" placeholder="Nhập chi tiết nội dung giải trình hoặc lý do tiếp thu/không tiếp thu..." value={explanation} onChange={(e) => setExplanation(e.target.value)} />
+                        </FormGroup>
+                    </div>
+                    <div className="modal-footer bg-black-40 p-3 border-top border-white-10">
+                        <ModernButton variant="ghost" onClick={() => setIsModalOpen(false)}>Đóng</ModernButton>
+                        <ModernButton variant="success" onClick={saveExplanation} loading={saving}>Lưu giải trình</ModernButton>
+                    </div>
+                </div>
+            </Modal>
 
-                {/* View Node Content Modal */}
-                <Modal isOpen={isNodeModalOpen} toggle={() => setIsNodeModalOpen(!isNodeModalOpen)} centered size="lg" contentClassName="border-0 shadow-lg">
-                    <ModalHeader toggle={() => setIsNodeModalOpen(!isNodeModalOpen)} className="bg-info-subtle text-info p-3">
-                        <div className="d-flex align-items-center">
-                            <div className="flex-shrink-0">
-                                <i className="ri-article-line fs-22 align-middle me-2"></i>
-                            </div>
-                            <div className="flex-grow-1">
-                                <h5 className="modal-title fs-16 mb-0">Nội dung chi tiết: {selectedNodeData?.node_label}</h5>
-                            </div>
-                        </div>
-                    </ModalHeader>
-                    <ModalBody className="p-4">
-                        {nodeLoading ? (
-                            <div className="text-center py-5">
-                                <Spinner color="info" />
-                                <p className="mt-2 text-muted fw-medium">Đang truy xuất dữ liệu từ hệ thống...</p>
-                            </div>
-                        ) : (
-                            <div className="node-content-viewer" style={{ maxHeight: '700px', overflowY: 'auto' }}>
-                                <div className="p-3 bg-light-subtle rounded border">
-                                    {/* Article Label and Title (Line 1) */}
-                                    <h5 className="fw-bold mb-3 text-primary border-bottom pb-2">
-                                        {selectedNodeData?.node_label}
-                                        {selectedNodeData?.node_type === 'Điều' && selectedNodeData?.content && (
-                                            <span className="ms-1">. {selectedNodeData.content.split('\n')[0]}</span>
-                                        )}
-                                    </h5>
+            {/* Modal: Assign */}
+            <Modal isOpen={isAssignModalOpen} toggle={() => setIsAssignModalOpen(false)} centered contentClassName="designkit-wrapper border-0">
+                <div className="modern-modal-content">
+                    <div className="modal-header-primary p-3 d-flex justify-content-between align-items-center">
+                        <h5 className="modal-title xsmall text-uppercase fw-800 tracking-widest text-white">
+                            <i className="ri-user-follow-line me-2"></i>Phân công cán bộ thụ lý
+                        </h5>
+                        <button type="button" className="btn-close btn-close-white" onClick={() => setIsAssignModalOpen(false)}></button>
+                    </div>
+                    <div className="modal-body p-4 bg-black-20">
+                        <FormGroup className="mb-0">
+                            <label className="xsmall text-uppercase fw-800 text-white-40 d-block mb-2">Chọn cán bộ (có thể nhiều người)</label>
+                            <Select isMulti styles={selectStyles} options={specialists.map(s => ({ value: s.id, label: s.full_name || s.username }))} value={specialists.filter(s => assignUserIds.includes(s.id)).map(s => ({ value: s.id, label: s.full_name }))} onChange={(opts) => setAssignUserIds(opts ? opts.map(o => o.value) : [])} placeholder="Tìm kiếm cán bộ..." />
+                        </FormGroup>
+                    </div>
+                    <div className="modal-footer bg-black-40 p-3 border-top border-white-10">
+                        <ModernButton variant="ghost" onClick={() => setIsAssignModalOpen(false)}>Hủy</ModernButton>
+                        <ModernButton variant="primary" onClick={handleSaveAssignment} loading={assigningLoading}>Xác nhận phân công</ModernButton>
+                    </div>
+                </div>
+            </Modal>
 
-                                    {/* Article Content (Khoản rơi / Line 2+) */}
-                                    {selectedNodeData?.content ? (
-                                        <div className="text-body fs-15 mb-3" style={{ lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
-                                            {selectedNodeData?.node_type === 'Điều' ? (
-                                                selectedNodeData.content.split('\n').slice(1).join('\n')
-                                            ) : (
-                                                selectedNodeData.content
-                                            )}
-                                        </div>
-                                    ) : null}
-
-                                    {/* Children Hierarchy Section - Integrated */}
-                                    {selectedNodeData?.children && selectedNodeData.children.length > 0 && (
-                                        <div className="ps-0">
-                                            {selectedNodeData.children.map(child => (
-                                                <div key={child.id} className="mb-2">
-                                                    <div className="d-flex align-items-baseline">
-                                                        <span className="me-2 text-dark fs-14 fw-medium" style={{ minWidth: '70px' }}>{child.node_label}.</span>
-                                                        <div className="fs-14 text-body" style={{ whiteSpace: 'pre-wrap' }}>{child.content}</div>
-                                                    </div>
-
-                                                    {/* Grandchildren */}
-                                                    {child.children && child.children.length > 0 && (
-                                                        <div className="ms-5 mt-1 border-start ps-3">
-                                                            {child.children.map(grand => (
-                                                                <div key={grand.id} className="mb-1 d-flex align-items-baseline">
-                                                                    <span className="me-2 text-muted fs-13" style={{ minWidth: '60px' }}>{grand.node_label}.</span>
-                                                                    <span className="text-body fs-13">{grand.content}</span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-                    </ModalBody>
-                    <ModalFooter className="bg-light p-3">
-                        <Button color="secondary" onClick={() => setIsNodeModalOpen(false)} className="px-4 btn-soft-secondary">
-                            Đóng cửa sổ
-                        </Button>
-                    </ModalFooter>
-                </Modal>
-
-                {/* FULL DELETE MODAL */}
-                <Modal isOpen={fullDeleteModal} toggle={() => setFullDeleteModal(!fullDeleteModal)} centered size="sm">
-                    <ModalHeader className="bg-danger-subtle text-danger py-2">
-                        <i className="ri-error-warning-line align-bottom me-1"></i> Xác nhận xóa sạch
-                    </ModalHeader>
-                    <ModalBody className="text-center p-4">
-                        <div className="text-danger mb-3">
-                            <i className="ri-delete-bin-fill display-5"></i>
-                        </div>
-                        <h5 className="fw-bold">Xóa TOÀN BỘ góp ý?</h5>
-                        <p className="text-muted">Bạn có chắc chắn muốn xóa sạch toàn bộ <b>{feedbacks.length}</b> nội dung góp ý của dự thảo này không? Hành động này không thể hoàn tác.</p>
-                        <div className="d-flex gap-2 justify-content-center mt-4">
-                            <Button color="light" onClick={() => setFullDeleteModal(false)} disabled={fullDeleting}>Hủy</Button>
-                            <Button color="danger" onClick={confirmDeleteAll} disabled={fullDeleting}>
-                                {fullDeleting ? <Spinner size="sm" /> : "Đúng, xóa tất cả"}
-                            </Button>
-                        </div>
-                    </ModalBody>
-                </Modal>
-
-                {/* EDIT FEEDBACK MODAL */}
-                <Modal isOpen={isEditModalOpen} toggle={() => setIsEditModalOpen(!isEditModalOpen)} centered size="lg" contentClassName="border-0 shadow-lg">
-                    <ModalHeader toggle={() => setIsEditModalOpen(!isEditModalOpen)} className="bg-warning-subtle text-warning">
-                        <i className="ri-edit-box-line align-bottom me-1"></i> Chỉnh sửa & Gắn lại Góp ý
-                    </ModalHeader>
-                    <ModalBody>
+            {/* Modal: Edit Feedback */}
+            <Modal isOpen={isEditModalOpen} toggle={() => setIsEditModalOpen(false)} centered size="lg" contentClassName="designkit-wrapper border-0">
+                <div className="modern-modal-content">
+                    <div className="modal-header-warning p-3 d-flex justify-content-between align-items-center">
+                        <h5 className="modal-title xsmall text-uppercase fw-800 tracking-widest text-white">
+                            <i className="ri-edit-box-line me-2"></i>Hiệu chỉnh bản ghi Góp ý
+                        </h5>
+                        <button type="button" className="btn-close btn-close-white" onClick={() => setIsEditModalOpen(false)}></button>
+                    </div>
+                    <div className="modal-body p-4 bg-black-20">
                         <Row className="g-3">
                             <Col lg={12}>
-                                <Label className="form-label fw-bold small text-muted text-uppercase">Gán lại vào Điều/Khoản:</Label>
-                                <Select
-                                    value={docNodes.find(n => n.value === editNodeId)}
-                                    onChange={(opt) => setEditNodeId(opt ? opt.value : null)}
-                                    options={docNodes}
-                                    placeholder="Chọn vị trí Điều/Khoản mới..."
-                                    isClearable
-                                    styles={selectStyles}
-                                />
+                                <label className="xsmall text-uppercase fw-800 text-white-40 mb-2">Nội dung góp ý</label>
+                                <Input type="textarea" rows="5" className="modern-input" value={editContent} onChange={(e) => setEditContent(e.target.value)} />
                             </Col>
-                            <Col lg={8}>
-                                <Label className="form-label fw-bold small text-muted text-uppercase">Cơ quan góp ý:</Label>
-                                <div className="d-flex gap-2">
-                                    <div className="flex-grow-1">
-                                        <CreatableSelect
-                                            value={agencies.find(a => a.id === editAgencyId) ? { value: editAgencyId, label: agencies.find(a => a.id === editAgencyId).name } : null}
-                                            onChange={(opt) => setEditAgencyId(opt ? opt.value : null)}
-                                            options={agencies.map(a => ({ value: a.id, label: a.name }))}
-                                            placeholder="Chọn hoặc gõ tên đơn vị mới..."
-                                            isClearable
-                                            styles={selectStyles}
-                                            onCreateOption={(name) => {
-                                                setNewAgencyName(name);
-                                                setAgencyModal(true);
-                                            }}
-                                        />
-                                    </div>
-                                    <Button color="success" outline onClick={() => { setNewAgencyName(""); setAgencyModal(true); }} title="Thêm đơn vị mới">
-                                        <i className="ri-add-line"></i>
-                                    </Button>
-                                </div>
+                            <Col lg={6}>
+                                <label className="xsmall text-uppercase fw-800 text-white-40 mb-2">Ví trí/Điều gán lại</label>
+                                <Select styles={selectStyles} options={docNodes} value={docNodes.find(n => n.value === editNodeId)} onChange={(opt) => setEditNodeId(opt.value)} placeholder="Chọn vị trí mới..." />
                             </Col>
-                            <Col lg={4}>
-                                <Label className="form-label fw-bold small text-muted text-uppercase">Số hiệu công văn:</Label>
-                                <Input
-                                    type="text"
-                                    className="form-control"
-                                    value={editDocNumber}
-                                    onChange={(e) => setEditDocNumber(e.target.value)}
-                                    placeholder="Số hiệu CV..."
-                                />
-                            </Col>
-                            <Col lg={12}>
-                                <Label className="form-label fw-bold small text-muted text-uppercase">Nội dung góp ý gốc:</Label>
-                                <Input
-                                    type="textarea"
-                                    rows="10"
-                                    className="form-control border-dark-subtle"
-                                    style={{ backgroundColor: '#fff', color: '#000', fontSize: '14px' }}
-                                    value={editContent}
-                                    onChange={(e) => setEditContent(e.target.value)}
-                                    placeholder="Chỉnh sửa nội dung góp ý tại đây..."
-                                />
+                            <Col lg={6}>
+                                <label className="xsmall text-uppercase fw-800 text-white-40 mb-2">Số hiệu công văn</label>
+                                <Input type="text" className="modern-input" value={editDocNumber} onChange={(e) => setEditDocNumber(e.target.value)} placeholder="VD: 123/BC-STC..." />
                             </Col>
                         </Row>
-                    </ModalBody>
-                    <ModalFooter className="bg-light">
-                        <Button color="link" className="text-muted text-decoration-none shadow-none" onClick={() => setIsEditModalOpen(false)}>Hủy bỏ</Button>
-                        <Button color="warning" className="btn-load shadow-md px-4" onClick={saveFeedbackEdit} disabled={updating}>
-                            {updating ? <><Spinner size="sm" className="me-2" /> Đang lưu...</> : <><i className="ri-save-3-line align-bottom me-1"></i> Lưu thay đổi</>}
-                        </Button>
-                    </ModalFooter>
-                </Modal>
-                {/* QUICK ADD AGENCY MODAL (Nested) */}
-                <Modal isOpen={agencyModal} toggle={toggleAgencyModal} centered size="md" style={{ zIndex: 1060 }}>
-                    <ModalHeader toggle={toggleAgencyModal} className="bg-success-subtle text-success">
-                        <i className="ri-building-line align-bottom me-1"></i> Thêm nhanh đơn vị mới
-                    </ModalHeader>
-                    <ModalBody>
-                        <div className="mb-3">
-                            <Label className="form-label">Tên đơn vị:</Label>
-                            <Input
-                                type="text"
-                                value={newAgencyName}
-                                onChange={(e) => setNewAgencyName(e.target.value)}
-                                placeholder="Nhập tên đơn vị đầy đủ..."
-                            />
-                        </div>
-                        <div className="mb-3">
-                            <Label className="form-label">Phân loại đơn vị:</Label>
-                            <CreatableSelect
-                                isClearable
-                                options={categories.map(c => ({ value: c.id, label: c.name }))}
-                                value={newAgencyCategory}
-                                onChange={(opt) => setNewAgencyCategory(opt)}
-                                placeholder="Chọn hoặc gõ phân loại mới..."
-                                styles={selectStyles}
-                            />
-                        </div>
-                    </ModalBody>
-                    <ModalFooter>
-                        <Button color="light" onClick={toggleAgencyModal}>Bỏ qua</Button>
-                        <Button color="success" onClick={handleQuickAgencySave} disabled={addingAgency}>
-                            {addingAgency ? <Spinner size="sm" /> : "Lưu đơn vị"}
-                        </Button>
-                    </ModalFooter>
-                </Modal>
-                {/* DELETE CONFIRMATION MODAL */}
-                <Modal isOpen={deleteModal} toggle={() => setDeleteModal(!deleteModal)} centered size="sm">
-                    <ModalHeader toggle={() => setDeleteModal(!deleteModal)} className="bg-danger-subtle text-danger">
-                        <i className="ri-delete-bin-line align-bottom me-1"></i> Xác nhận xóa
-                    </ModalHeader>
-                    <ModalBody className="text-center p-4">
-                        <div className="text-danger mb-4">
-                            <i className="ri-error-warning-line display-4"></i>
-                        </div>
-                        <h4 className="mb-2">Bạn có chắc chắn?</h4>
-                        <p className="text-muted fs-14 mb-0">
-                            Bạn đang chuẩn bị xóa nội dung góp ý này. Hành động này không thể hoàn tác.
-                        </p>
-                    </ModalBody>
-                    <ModalFooter className="bg-light p-3">
-                        <Button color="link" className="text-muted text-decoration-none shadow-none" onClick={() => setDeleteModal(false)} disabled={deleting}>Hủy bỏ</Button>
-                        <Button color="danger" className="px-4" onClick={confirmDeleteFeedback} disabled={deleting}>
-                            {deleting ? <><Spinner size="sm" className="me-2" /> Đang xóa...</> : "Xác nhận xóa"}
-                        </Button>
-                    </ModalFooter>
-                </Modal>
-            </div>
-        </React.Fragment>
+                    </div>
+                    <div className="modal-footer bg-black-40 p-3 border-top border-white-10">
+                        <ModernButton variant="ghost" onClick={() => setIsEditModalOpen(false)}>Hủy</ModernButton>
+                        <ModernButton variant="warning" onClick={saveFeedbackEdit} loading={updating}>Cập nhật dữ liệu</ModernButton>
+                    </div>
+                </div>
+            </Modal>
+
+            <DeleteModal show={deleteModal} onDeleteClick={confirmDeleteFeedback} onCloseClick={() => setDeleteModal(false)} />
+            <DeleteModal show={fullDeleteModal} onDeleteClick={confirmDeleteAll} onCloseClick={() => setFullDeleteModal(false)} />
+            
+            {/* Modal Quick Node Details */}
+            <Modal isOpen={isNodeModalOpen} toggle={() => setIsNodeModalOpen(false)} centered size="xl" contentClassName="designkit-wrapper border-0">
+                <div className="modern-modal-content">
+                    <div className="modal-header-info p-3 d-flex justify-content-between align-items-center">
+                        <h5 className="modal-title xsmall text-uppercase fw-800 tracking-widest text-white">
+                            <i className="ri-file-list-3-line me-2"></i>Nội dung dự thảo: {selectedNodeData?.node_label}
+                        </h5>
+                        <button type="button" className="btn-close btn-close-white" onClick={() => setIsNodeModalOpen(false)}></button>
+                    </div>
+                    <div className="modal-body p-4 bg-black-20" style={{ minHeight: '400px' }}>
+                        {nodeLoading ? (
+                            <div className="text-center py-5"><Spinner color="primary" /></div>
+                        ) : (
+                            <div className="document-text-render p-4 rounded-3 bg-white-5 border border-white-10 text-white-90 fs-16 lh-lg" style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: selectedNodeData?.content }} />
+                        )}
+                    </div>
+                    <div className="modal-footer bg-black-40 p-3 border-top border-white-10">
+                        <ModernButton variant="ghost" onClick={() => setIsNodeModalOpen(false)}>Đóng</ModernButton>
+                    </div>
+                </div>
+            </Modal>
+        </div>
     );
 };
 

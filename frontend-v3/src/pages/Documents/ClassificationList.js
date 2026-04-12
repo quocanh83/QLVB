@@ -6,6 +6,11 @@ import { getAuthHeader } from '../../helpers/api_helper';
 import { ToastContainer, toast } from 'react-toastify';
 import BreadCrumb from '../../Components/Common/BreadCrumb';
 
+// Modern UI Components
+import { 
+    ModernHeader, ModernCard, ModernTable, ModernBadge 
+} from '../../Components/Common/ModernUI';
+
 const ClassificationList = () => {
     document.title = "Tiến độ góp ý | QLVB V3.0";
 
@@ -234,103 +239,93 @@ const ClassificationList = () => {
 
     return (
         <React.Fragment>
-            <div className="page-content">
-                <Container fluid>
-                    <BreadCrumb title={selectedDoc ? "Chi tiết tiến độ" : "Tiến độ góp ý"} pageTitle="QLVB" />
-                    <ToastContainer closeButton={false} />
+            <div className="designkit-wrapper designkit-layout-root">
+                <div className="modern-page-content">
+                    <Container fluid>
+                        <ModernHeader 
+                            title="Quản lý Tham vấn Dự thảo" 
+                            subtitle="Theo dõi tiến độ lấy ý kiến và phản hồi từ các cơ quan cho từng dự thảo"
+                        />
+                        <ToastContainer closeButton={false} />
 
-                    <Row>
-                        <Col lg={12}>
-                            {selectedDoc ? renderDetailView() : (
-                                <Card className="border-0 shadow-sm">
-                                    <CardHeader className="border-0 bg-light-subtle">
-                                        <div className="d-flex align-items-center">
-                                            <h5 className="card-title mb-0 flex-grow-1 fw-bold">Theo dõi tiến độ góp ý theo từng dự thảo</h5>
-                                        </div>
-                                    </CardHeader>
-                                    <CardBody className="p-0">
-                                        <div className="table-responsive">
-                                            <Table className="table-centered table-nowrap mb-0 table-hover">
-                                                <thead className="table-light text-muted uppercase fs-11">
-                                                    <tr>
-                                                        <th className="text-center" style={{ width: '50px' }}>STT</th>
-                                                        <th>Tên Dự thảo</th>
-                                                        <th>Đơn vị chủ trì</th>
-                                                        <th className="text-center">Số đơn vị mời</th>
-                                                        <th className="text-center">Tiến độ phản hồi</th>
-                                                        <th className="text-center">Thao tác</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {loading ? (
-                                                        <tr>
-                                                            <td colSpan="6" className="text-center py-5">
-                                                                <Spinner color="primary" />
+                        <Row className="mt-4">
+                            <Col lg={12}>
+                                <ModernCard>
+                                    <ModernTable>
+                                        <thead>
+                                            <tr>
+                                                <th className="text-center" style={{ width: '60px' }}>STT</th>
+                                                <th>Tên Dự thảo</th>
+                                                <th>Đơn vị chủ trì</th>
+                                                <th className="text-center">Đơn vị tham vấn</th>
+                                                <th className="text-center">Trạng thái phản hồi</th>
+                                                <th className="text-center" style={{ width: '120px' }}>Thao tác</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {loading ? (
+                                                <tr><td colSpan="6" className="text-center py-5"><Spinner color="primary" /></td></tr>
+                                            ) : documents.length > 0 ? (
+                                                documents.map((doc, index) => {
+                                                    const badge = getProgressBadge(doc.consultation_summary);
+                                                    return (
+                                                        <tr key={doc.id}>
+                                                            <td className="text-center text-muted">{(page - 1) * 10 + index + 1}</td>
+                                                            <td>
+                                                                <Link to={`/documents/${doc.id}/consultation`} className="fw-bold text-white d-block">
+                                                                    {doc.project_name}
+                                                                </Link>
+                                                                <small className="opacity-50 italic">Cập nhật: {new Date(doc.updated_at || doc.created_at).toLocaleDateString()}</small>
+                                                            </td>
+                                                            <td>{doc.drafting_agency || "Đang cập nhật"}</td>
+                                                            <td className="text-center">
+                                                                <ModernBadge color="secondary">
+                                                                    {doc.consultation_summary?.length || 0}
+                                                                </ModernBadge>
+                                                            </td>
+                                                            <td className="text-center">
+                                                                <ModernBadge color={badge.color}>
+                                                                    {badge.text}
+                                                                </ModernBadge>
+                                                            </td>
+                                                            <td className="text-center">
+                                                                <Link to={`/documents/${doc.id}/consultation`} className="modern-btn primary btn-sm">
+                                                                    <i className="ri-arrow-right-up-line me-1"></i> Tham vấn
+                                                                </Link>
                                                             </td>
                                                         </tr>
-                                                    ) : documents.length > 0 ? (
-                                                        documents.map((doc, index) => {
-                                                            const badge = getProgressBadge(doc.consultation_summary);
-                                                            return (
-                                                                <tr key={doc.id}>
-                                                                    <td className="text-center text-muted">{(page - 1) * 10 + index + 1}</td>
-                                                                    <td className="fw-medium">
-                                                                        <Link to="#" onClick={(e) => { e.preventDefault(); setSelectedDoc(doc); }} className="text-white d-block text-truncate fw-bold" style={{maxWidth: '450px'}}>
-                                                                            {doc.project_name}
-                                                                        </Link>
-                                                                        <small className="text-muted-emphasis">{new Date(doc.created_at).toLocaleDateString()}</small>
-                                                                    </td>
-                                                                    <td className="text-body-emphasis">{doc.drafting_agency}</td>
-                                                                    <td className="text-center">
-                                                                        <Badge color="light" className="text-body border">{doc.consultation_summary?.length || 0}</Badge>
-                                                                    </td>
-                                                                    <td className="text-center">
-                                                                        <Badge color={badge.color} className="badge-soft-lg fs-11" style={{ minWidth: '100px' }}>
-                                                                            {badge.text}
-                                                                        </Badge>
-                                                                    </td>
-                                                                    <td className="text-center">
-                                                                        <Button color="info" outline size="sm" className="btn-icon" onClick={() => setSelectedDoc(doc)}>
-                                                                            <i className="ri-search-eye-line fs-15"></i>
-                                                                        </Button>
-                                                                    </td>
-                                                                </tr>
-                                                            );
-                                                        })
-                                                    ) : (
-                                                        <tr>
-                                                            <td colSpan="6" className="text-center py-4 text-muted">Không tìm thấy dự thảo nào.</td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                            </Table>
-                                        </div>
+                                                    );
+                                                })
+                                            ) : (
+                                                <tr><td colSpan="6" className="text-center py-5 text-muted">Không tìm thấy dự thảo nào.</td></tr>
+                                            )}
+                                        </tbody>
+                                    </ModernTable>
 
-                                        {totalPages > 1 && (
-                                            <div className="d-flex justify-content-end p-3 border-top">
-                                                <Pagination size="sm" className="pagination-separated mb-0">
-                                                    <PaginationItem disabled={page === 1}>
-                                                        <PaginationLink previous onClick={() => setPage(page - 1)} />
+                                    {totalPages > 1 && (
+                                        <div className="d-flex justify-content-end p-3 border-top" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+                                            <Pagination size="sm" className="pagination-separated mb-0">
+                                                <PaginationItem disabled={page === 1}>
+                                                    <PaginationLink previous onClick={() => setPage(page - 1)} />
+                                                </PaginationItem>
+                                                {[...Array(totalPages)].map((_, i) => (
+                                                    <PaginationItem active={i + 1 === page} key={i}>
+                                                        <PaginationLink onClick={() => setPage(i + 1)}>
+                                                            {i + 1}
+                                                        </PaginationLink>
                                                     </PaginationItem>
-                                                    {[...Array(totalPages)].map((_, i) => (
-                                                        <PaginationItem active={i + 1 === page} key={i}>
-                                                            <PaginationLink onClick={() => setPage(i + 1)}>
-                                                                {i + 1}
-                                                            </PaginationLink>
-                                                        </PaginationItem>
-                                                    ))}
-                                                    <PaginationItem disabled={page === totalPages}>
-                                                        <PaginationLink next onClick={() => setPage(page + 1)} />
-                                                    </PaginationItem>
-                                                </Pagination>
-                                            </div>
-                                        )}
-                                    </CardBody>
-                                </Card>
-                            )}
-                        </Col>
-                    </Row>
-                </Container>
+                                                ))}
+                                                <PaginationItem disabled={page === totalPages}>
+                                                    <PaginationLink next onClick={() => setPage(page + 1)} />
+                                                </PaginationItem>
+                                            </Pagination>
+                                        </div>
+                                    )}
+                                </ModernCard>
+                            </Col>
+                        </Row>
+                    </Container>
+                </div>
             </div>
         </React.Fragment>
     );

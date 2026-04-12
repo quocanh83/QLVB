@@ -14,6 +14,7 @@ import classnames from 'classnames';
 import { useProfile } from "../../Components/Hooks/UserHooks";
 import FeatherIcon from "feather-icons-react";
 
+
 import './GSheetSync.css';
 
 const GSheetSync = () => {
@@ -411,244 +412,208 @@ const GSheetSync = () => {
     };
 
     return (
-        <div className="page-content">
-            <Container fluid>
-                <BreadCrumb title="Đồng bộ Google Sheet" pageTitle="Góp ý" />
+        <React.Fragment>
+            <div className="designkit-wrapper designkit-layout-root">
+                <div className="modern-page-content">
+                    {/* Modern Header Section */}
+                    <div className="modern-header mb-5">
+                        <div className="header-info">
+                            <h4 className="mb-2">Đồng bộ Google Sheets</h4>
+                            <p className="text-white-60">Đối chiếu và đồng bộ dữ liệu góp ý giữa Hệ thống và Bảng tính Google.</p>
+                        </div>
+                        <div className="header-actions">
+                            <Nav pills className="modern-tabs-pill">
+                                <NavItem>
+                                    <NavLink
+                                        className={classnames({ active: activeTab === '1' })}
+                                        onClick={() => toggleTab('1')}
+                                    >
+                                        <i className="ri-database-2-line me-1"></i> Dữ liệu
+                                    </NavLink>
+                                </NavItem>
+                                <NavItem>
+                                    <NavLink
+                                        className={classnames({ active: activeTab === '2' })}
+                                        onClick={() => toggleTab('2')}
+                                    >
+                                        <i className="ri-user-settings-line me-1"></i> Phân công
+                                        {results && results.filter(r => r.is_specialist_diff).length > 0 && (
+                                            <span className="modern-badge-xs bg-danger ms-2">{results.filter(r => r.is_specialist_diff).length}</span>
+                                        )}
+                                    </NavLink>
+                                </NavItem>
+                                <NavItem>
+                                    <NavLink
+                                        className={classnames({ active: activeTab === '3' })}
+                                        onClick={() => toggleTab('3')}
+                                    >
+                                        <i className="ri-map-pin-line me-1"></i> Vị trí
+                                        {results && results.filter(r => r.is_node_diff).length > 0 && (
+                                            <span className="modern-badge-xs bg-warning ms-2 text-dark">{results.filter(r => r.is_node_diff).length}</span>
+                                        )}
+                                    </NavLink>
+                                </NavItem>
+                            </Nav>
+                        </div>
+                    </div>
 
                 <Row>
                     <Col lg={12}>
-                        <Card className="border-0 shadow-sm modern-hover overflow-hidden">
-                            <CardHeader className="bg-modern-gradient py-3">
-                                <h6 className="card-title mb-0 fw-bold text-white d-flex align-items-center">
-                                    <FeatherIcon icon="file-text" className="icon-dual-light me-2" size="20" />
-                                    Cấu hình đồng bộ
-                                </h6>
-                            </CardHeader>
-                            <CardBody className="p-4">
-                                <Row className="gy-3 align-items-start">
-                                    <Col md={4}>
-                                        <FormGroup className="mb-0">
-                                            <Label className="form-label text-uppercase fw-bold fs-11 text-muted mb-2">Dự thảo văn bản</Label>
-                                            <Select
-                                                value={documents.find(d => d.value === selectedDocId)}
-                                                onChange={(opt) => setSelectedDocId(opt ? opt.value : null)}
-                                                options={documents}
-                                                placeholder="Chọn dự thảo..."
-                                                isLoading={loading}
-                                                styles={selectStyles}
-                                                isClearable
-                                                classNamePrefix="react-select"
-                                            />
-                                        </FormGroup>
-                                    </Col>
-                                    <Col md={6}>
-                                        <FormGroup className="mb-0">
-                                            <Label className="form-label text-uppercase fw-bold fs-11 text-muted mb-2">Link Google Sheet (Edit mode)</Label>
-                                            <Input 
-                                                type="text" 
-                                                className="form-control shadow-none"
-                                                placeholder="https://docs.google.com/spreadsheets/d/..." 
-                                                value={gsUrl} 
-                                                onChange={(e) => setGsUrl(e.target.value)}
-                                                style={{ height: '38px' }}
-                                            />
-                                        </FormGroup>
-                                    </Col>
-                                    <Col md={2}>
-                                        <Label className="form-label d-block mb-2">&nbsp;</Label>
-                                        <Button 
-                                            color="primary" 
-                                            className="w-100 fw-bold shadow-sm d-flex align-items-center justify-content-center" 
-                                            onClick={handleCompare} 
-                                            disabled={comparing || !selectedDocId}
-                                            style={{ height: '38px' }}
-                                        >
-                                            {comparing ? <Spinner size="sm" /> : (
-                                                <>
-                                                    <FeatherIcon icon="search" size="16" className="me-2" />
-                                                    So sánh ngay
-                                                </>
-                                            )}
-                                        </Button>
-                                    </Col>
-                                </Row>
-                                <div className="mt-2 text-muted fs-11 italic">
-                                    Lưu ý: Sheet phải được chia sẻ quyền chỉnh sửa cho email service account của hệ thống.
+                        <div className="modern-card p-4 border border-white-5">
+                            <div className="d-flex align-items-center mb-4">
+                                <div className="avatar-title-modern-xs bg-primary-opacity text-primary me-2">
+                                    <i className="ri-settings-4-line"></i>
                                 </div>
-                            </CardBody>
-                        </Card>
+                                <h6 className="text-white-60 text-uppercase fw-bold fs-10 tracking-widest mb-0">Cấu hình đồng bộ</h6>
+                            </div>
+                            
+                            <Row className="gy-3 align-items-end">
+                                <Col md={4}>
+                                    <label className="form-label xsmall text-uppercase text-white-40 fw-bold">Dự thảo văn bản</label>
+                                    <Select
+                                        value={documents.find(d => d.value === selectedDocId)}
+                                        onChange={(opt) => setSelectedDocId(opt ? opt.value : null)}
+                                        options={documents}
+                                        placeholder="Chọn dự thảo..."
+                                        isLoading={loading}
+                                        styles={selectStyles}
+                                        isClearable
+                                        classNamePrefix="react-select"
+                                    />
+                                </Col>
+                                <Col md={6}>
+                                    <label className="form-label xsmall text-uppercase text-white-40 fw-bold">Link Google Sheet (Edit mode)</label>
+                                    <Input 
+                                        type="text" 
+                                        className="modern-input"
+                                        placeholder="https://docs.google.com/spreadsheets/d/..." 
+                                        value={gsUrl} 
+                                        onChange={(e) => setGsUrl(e.target.value)}
+                                    />
+                                </Col>
+                                <Col md={2}>
+                                    <button 
+                                        className="modern-btn primary w-100" 
+                                        onClick={handleCompare} 
+                                        disabled={comparing || !selectedDocId}
+                                    >
+                                        {comparing ? <Spinner size="sm" /> : (
+                                            <>
+                                                <i className="ri-search-line me-1"></i> So sánh
+                                            </>
+                                        )}
+                                    </button>
+                                </Col>
+                            </Row>
+                            <div className="mt-3 text-white-25 fs-11 italic">
+                                <i className="ri-information-line me-1"></i>
+                                Lưu ý: Sheet phải được chia sẻ quyền chỉnh sửa cho email service account của hệ thống.
+                            </div>
+                        </div>
                     </Col>
                 </Row>
 
                 {results && (
-                    <Row className="mt-3">
-                        <Col lg={12}>
-                            <Card className="border-0 shadow-sm">
-                                <CardHeader className="bg-white py-3 d-flex align-items-center justify-content-between border-bottom border-light">
-                                    <div>
-                                        <h6 className="card-title mb-0 fw-bold text-premium">Kết quả đối chiếu</h6>
-                                        <p className="text-muted mb-0 fs-12">Tìm thấy {results.length} góp ý trong hệ thống.</p>
+                    <div className="modern-card p-4 mt-4 border border-white-5">
+                        <div className="d-flex align-items-center justify-content-between mb-4 pb-4 border-bottom border-white-5">
+                            <div>
+                                <h6 className="text-white-60 text-uppercase fw-bold fs-10 tracking-widest mb-1">Kết quả đối chiếu</h6>
+                                <div className="text-white fs-13 fw-medium">Tìm thấy <span className="text-primary fw-bold">{results.length}</span> góp ý trong hệ thống.</div>
+                            </div>
+                            <div className="d-flex gap-3">
+                                <div className="d-flex align-items-center gap-3 bg-white-5 p-2 px-3 rounded-pill border border-white-5">
+                                    <span className="text-white-40 fw-bold fs-10 text-uppercase">Chế độ đồng bộ:</span>
+                                    <div className="form-check modern-checkbox mb-0">
+                                        <Input 
+                                            className="form-check-input" 
+                                            type="radio" 
+                                            id="modeDataSheet" 
+                                            checked={dataSyncMode === 'sheet'} 
+                                            onChange={() => setDataSyncMode('sheet')}
+                                        />
+                                        <label className="form-check-label text-white-80 fs-11 fw-bold mb-0" htmlFor="modeDataSheet">GSHEET</label>
+                                    </div>
+                                    <div className="form-check modern-checkbox mb-0">
+                                        <Input 
+                                            className="form-check-input" 
+                                            type="radio" 
+                                            id="modeDataDb" 
+                                            checked={dataSyncMode === 'db'} 
+                                            onChange={() => setDataSyncMode('db')}
+                                        />
+                                        <label className="form-check-label text-white-80 fs-11 fw-bold mb-0" htmlFor="modeDataDb">DB</label>
+                                    </div>
+                                </div>
+                                <div className="form-check form-switch modern-switch d-flex align-items-center mt-0">
+                                    <Input 
+                                        type="checkbox" 
+                                        id="show-synced-switch" 
+                                        checked={showSynced} 
+                                        onChange={(e) => setShowSynced(e.target.checked)} 
+                                    />
+                                    <label className="form-check-label text-white-40 fs-11 fw-bold mb-0" htmlFor="show-synced-switch">HIỆN ĐÃ KHỚP</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <TabContent activeTab={activeTab}>
+                            <TabPane tabId="1">
+                                <div className="d-flex align-items-center justify-content-between mb-4">
+                                    <div className="d-flex align-items-center gap-2">
+                                        <div className="avatar-title-modern-xs bg-info-opacity text-info rounded-circle">
+                                            <i className="ri-information-line"></i>
+                                        </div>
+                                        <div className="text-white-60 fs-12 italic">Tìm kiếm khớp theo <b>Nội dung</b> và <b>Đơn vị</b>.</div>
                                     </div>
                                     <div className="d-flex gap-2">
-                                        <Button color="success" size="sm" outline className="fw-bold px-3" onClick={() => handlePush('all')} disabled={pushing || selectedIds.length === 0}>
-                                            {pushing ? <Spinner size="sm" /> : <><FeatherIcon icon="upload-cloud" size="14" className="me-1" /> Đẩy {selectedIds.length} dòng lên GG Sheet</>}
-                                        </Button>
-                                    </div>
-                                </CardHeader>
-                                <CardBody className="p-0">
-                                    <div className="bg-light-subtle px-3 pt-3 border-bottom">
-                                        <Nav tabs className="nav-tabs-custom nav-success border-bottom-0">
-                                            <NavItem>
-                                                <NavLink
-                                                    className={classnames({ active: activeTab === '1' })}
-                                                    onClick={() => toggleTab('1')}
-                                                    style={{ cursor: 'pointer' }}
-                                                >
-                                                    <i className="ri-file-text-line me-1 align-middle"></i> 1. Nội dung & Giải trình
-                                                </NavLink>
-                                            </NavItem>
-                                            <NavItem>
-                                                <NavLink
-                                                    className={classnames({ active: activeTab === '2' })}
-                                                    onClick={() => toggleTab('2')}
-                                                    style={{ cursor: 'pointer' }}
-                                                >
-                                                    <i className="ri-user-settings-line me-1 align-middle"></i> 2. Đối soát Phân công
-                                                    {results.filter(r => r.is_specialist_diff).length > 0 && (
-                                                        <Badge color="danger" pill className="ms-2">{results.filter(r => r.is_specialist_diff).length}</Badge>
-                                                    )}
-                                                </NavLink>
-                                            </NavItem>
-                                            <NavItem>
-                                                <NavLink
-                                                    className={classnames({ active: activeTab === '3' })}
-                                                    onClick={() => toggleTab('3')}
-                                                    style={{ cursor: 'pointer' }}
-                                                >
-                                                    <i className="ri-map-pin-line me-1 align-middle"></i> 3. Đối soát Vị trí
-                                                    {results.filter(r => r.is_node_diff).length > 0 && (
-                                                        <Badge color="warning" pill className="ms-2 text-dark">{results.filter(r => r.is_node_diff).length}</Badge>
-                                                    )}
-                                                </NavLink>
-                                            </NavItem>
-                                        </Nav>
-                                    </div>
-
-                                    <TabContent activeTab={activeTab} className="p-3">
-                                        <TabPane tabId="1">
-                                    <Alert color="info" className="fs-12 border-0 shadow-none border-start border-3 border-info mb-4">
-                                        <i className="ri-information-line me-2 fs-14 align-middle"></i>
-                                        <strong>Nguyên tắc:</strong> Hệ thống tìm kiếm các dòng trong Google Sheet khớp về <b>Nội dung góp ý</b> và <b>Đơn vị góp ý</b>. 
-                                        Những dòng màu xanh là đã tồn tại trên Sheet, dòng màu trắng (chưa đồng bộ) sẽ được chọn mặc định để đẩy lên.
-                                    </Alert>
-
-                                    <div className="d-flex justify-content-between align-items-center mb-3">
-                                        <div className="text-muted fs-13">
-                                            Tìm thấy <b>{results.length}</b> góp ý.
-                                        </div>
-                                        <div className="d-flex gap-4 align-items-center flex-wrap">
-                                            {/* Chế độ đối soát dữ liệu */}
-                                            <div className="d-flex align-items-center gap-3 bg-light p-1 px-2 rounded-2 border border-dashed">
-                                                <Label className="mb-0 fs-12 fw-bold text-muted text-uppercase me-1">Chế độ:</Label>
-                                                <div className="form-check form-check-inline mb-0">
-                                                    <Input 
-                                                        className="form-check-input" 
-                                                        type="radio" 
-                                                        name="dataSyncMode" 
-                                                        id="modeDataSheet" 
-                                                        value="sheet"
-                                                        checked={dataSyncMode === 'sheet'} 
-                                                        onChange={() => setDataSyncMode('sheet')}
-                                                    />
-                                                    <Label className="form-check-label fs-12 mb-0" htmlFor="modeDataSheet">Điều chỉnh Sheet</Label>
-                                                </div>
-                                                <div className="form-check form-check-inline mb-0">
-                                                    <Input 
-                                                        className="form-check-input" 
-                                                        type="radio" 
-                                                        name="dataSyncMode" 
-                                                        id="modeDataDb" 
-                                                        value="db"
-                                                        checked={dataSyncMode === 'db'} 
-                                                        onChange={() => setDataSyncMode('db')}
-                                                    />
-                                                    <Label className="form-check-label fs-12 mb-0 fw-medium text-info" htmlFor="modeDataDb">Điều chỉnh DB</Label>
-                                                </div>
-                                            </div>
-
-                                            <div className="form-check form-switch form-switch-right form-switch-md">
-                                                <Input 
-                                                    className="form-check-input code-switcher" 
-                                                    type="checkbox" 
-                                                    id="show-synced-switch" 
-                                                    checked={showSynced} 
-                                                    onChange={(e) => setShowSynced(e.target.checked)} 
-                                                />
-                                                <Label className="form-check-label text-muted fs-12 mb-0" htmlFor="show-synced-switch">Hiện các dòng đã khớp</Label>
-                                            </div>
-
-                                            {dataSyncMode === 'sheet' ? (
-                                                <Button 
-                                                    color="danger" 
-                                                    size="sm" 
-                                                    className="fw-bold px-3 shadow-none"
-                                                    onClick={() => handlePush('all')} 
-                                                    disabled={pushing || selectedIds.length === 0}
-                                                >
-                                                    {pushing ? <Spinner size="sm" /> : <><i className="ri-share-forward-2-line me-1"></i> Cập nhật GSheet ({selectedIds.length})</>}
-                                                </Button>
-                                            ) : (
-                                                <Button 
-                                                    color="success" 
-                                                    size="sm" 
-                                                    className="fw-bold px-3 shadow-none"
-                                                    onClick={handlePullData} 
-                                                    disabled={pushing || selectedIds.length === 0}
-                                                >
-                                                    {pushing ? <Spinner size="sm" /> : <><i className="ri-download-cloud-2-line me-1"></i> Cập nhật vào DB ({selectedIds.length})</>}
-                                                </Button>
+                                        <button 
+                                            className={`modern-btn ${dataSyncMode === 'sheet' ? 'danger' : 'success'} btn-sm px-4`}
+                                            onClick={dataSyncMode === 'sheet' ? () => handlePush('all') : handlePullData} 
+                                            disabled={pushing || selectedIds.length === 0}
+                                        >
+                                            {pushing ? <Spinner size="sm" /> : (
+                                                <>
+                                                    <i className={`${dataSyncMode === 'sheet' ? 'ri-share-forward-2-line' : 'ri-download-cloud-2-line'} me-1`}></i> 
+                                                    {dataSyncMode === 'sheet' ? 'Cập nhật GSheet' : 'Cập nhật DB'} ({selectedIds.length} dòng)
+                                                </>
                                             )}
-                                        </div>
+                                        </button>
                                     </div>
+                                </div>
 
-                                    <div className="table-responsive table-card">
-                                        <Table className="align-middle table-hover table-sticky-header mb-0" style={{ tableLayout: 'fixed', minWidth: '1000px' }}>
-                                            <thead className="table-light text-muted text-center align-middle">
-                                            <tr>
-                                                <th scope="col" style={{ width: "3%", minWidth: "40px" }}>
-                                                    <div className="form-check d-flex justify-content-center">
-                                                        <Input 
-                                                            type="checkbox" 
-                                                            className="form-check-input"
-                                                            checked={results.filter(r => showSynced || r.status !== 'synced').filter(r => r.status !== 'synced').length > 0 && selectedIds.length === results.filter(r => showSynced || r.status !== 'synced').filter(r => r.status !== 'synced').length}
-                                                            onChange={toggleSelectAll}
-                                                        />
-                                                    </div>
-                                                </th>
-                                                <th style={{ width: "10%", minWidth: "80px" }}>Vị trí</th>
-                                                <th style={{ width: "12%", minWidth: "100px" }}>Đơn vị</th>
-                                                <th style={{ width: "25%", minWidth: "200px" }}>Nội dung góp ý</th>
-                                                <th style={{ width: "20%", minWidth: "180px" }}>Ý KIẾN GIẢI TRÌNH, TIẾP THU</th>
-                                                <th style={{ width: "15%", minWidth: "140px" }}>Phân công</th>
-                                                <th style={{ width: "6%", minWidth: "60px" }}>Xin ý kiến</th>
-                                                <th style={{ width: "12%", minWidth: "100px" }}>Trạng thái</th>
-                                            </tr>
+                                    <div className="table-responsive">
+                                        <table className="modern-table w-100 align-middle">
+                                            <thead>
+                                                <tr>
+                                                    <th className="text-center" style={{ width: "40px" }}>
+                                                        <div className="form-check modern-checkbox d-flex justify-content-center">
+                                                            <Input 
+                                                                type="checkbox" 
+                                                                checked={results.filter(r => showSynced || r.status !== 'synced').filter(r => r.status !== 'synced').length > 0 && selectedIds.length === results.filter(r => showSynced || r.status !== 'synced').filter(r => r.status !== 'synced').length}
+                                                                onChange={toggleSelectAll}
+                                                            />
+                                                        </div>
+                                                    </th>
+                                                    <th style={{ width: "90px" }}>Vị trí</th>
+                                                    <th style={{ width: "120px" }}>Đơn vị</th>
+                                                    <th>Nội dung & Giải trình (So sánh DB vs GSheet)</th>
+                                                    <th style={{ width: "180px" }}>Phân công</th>
+                                                    <th className="text-center" style={{ width: "110px" }}>Trạng thái</th>
+                                                </tr>
                                             </thead>
                                             <tbody>
                                             {results.filter(item => showSynced || item.status !== 'synced').map((item) => {
                                                 const isMissingExpOnGs = item.is_in_gs && !item.gs_explanation && item.explanation;
                                                 const hasExpDiff = item.is_exp_diff;
-
                                                 const hasOpinionDiff = item.is_opinion_diff;
                                                 const hasAnyDiff = item.is_content_diff || hasExpDiff || hasOpinionDiff || item.is_node_diff || item.is_specialist_diff;
 
                                                 return (
-                                                    <tr key={item.id} className={classnames(item.is_in_gs ? (hasAnyDiff ? "bg-danger-subtle-dark" : "bg-success-subtle-dark") : "")}>
-                                                        <td className="text-center align-middle">
-                                                            <div className="form-check d-flex justify-content-center">
+                                                    <tr key={item.id} className={classnames(item.is_in_gs ? (hasAnyDiff ? "bg-danger-opacity-light" : "bg-success-opacity-light") : "")}>
+                                                        <td className="text-center">
+                                                            <div className="form-check modern-checkbox d-flex justify-content-center">
                                                                 <Input 
                                                                     type="checkbox" 
-                                                                    className="form-check-input"
                                                                     disabled={item.is_in_gs && !hasAnyDiff && !isMissingExpOnGs}
                                                                     checked={selectedIds.includes(item.id)}
                                                                     onChange={() => toggleSelectRow(item.id)}
@@ -656,434 +621,342 @@ const GSheetSync = () => {
                                                             </div>
                                                         </td>
                                                         <td className="white-space-normal">
-                                                            <span className="fs-14 fw-bold text-vibrant-warning">{item.node_label}</span>
+                                                            <span className="text-warning fw-bold fs-11 tracking-wider">{item.node_label}</span>
                                                         </td>
                                                         <td className="white-space-normal">
-                                                            <span className="fs-14 fw-semibold text-vibrant-success label-modern">{item.agency}</span>
+                                                            <div className="text-white-80 fw-bold fs-12 label-modern border-white-10">{item.agency}</div>
                                                         </td>
                                                         <td>
-                                                            <div className={classnames("p-3 border rounded fs-14 mb-1", item.is_content_diff ? "bg-soft-danger-dark border-danger shadow-sm" : "bg-soft-light-dark border-light-subtle")}>
-                                                                <div className="agency-label text-info opacity-75">Hệ thống (DB):</div>
-                                                                <div className="fw-medium text-white">{item.content}</div>
-                                                                {item.is_content_diff && (
-                                                                    <div className="mt-2 pt-2 border-top border-danger-subtle text-vibrant-danger">
-                                                                        <i className="ri-error-warning-fill me-1"></i>
-                                                                        <strong>GSheet:</strong> {item.gs_content}
+                                                            <div className="d-flex flex-column gap-2">
+                                                                {/* Content Section */}
+                                                                <div className={`p-2 rounded border border-dashed ${item.is_content_diff ? 'bg-danger-opacity border-danger' : 'bg-white-5 border-white-10'}`}>
+                                                                    <div className="d-flex align-items-center gap-2 mb-1">
+                                                                        <span className="text-white-25 xsmall text-uppercase fw-800">Góp ý (DB):</span>
+                                                                        {item.is_content_diff && <span className="modern-badge-xs bg-danger">LỆCH</span>}
                                                                     </div>
-                                                                )}
-                                                            </div>
-                                                        </td>
-                                                        <td>
-                                                            <div className={classnames("p-3 border rounded fs-14", hasExpDiff ? "bg-soft-danger-dark border-danger shadow-sm" : isMissingExpOnGs ? "bg-soft-warning-dark border-warning shadow-sm" : "bg-soft-light-dark border-light-subtle")}>
-                                                                <div className="agency-label text-info opacity-75 fs-11 text-uppercase fw-bold mb-1">Hệ thống (DB):</div>
-                                                                <div className="italic" style={{ lineHeight: '1.5', color: '#ffffff', fontWeight: '600' }}>{item.explanation || <em className="text-white-25">Trống</em>}</div>
-                                                                {hasExpDiff && (
-                                                                    <div className="mt-2 pt-2 border-top border-danger-subtle text-vibrant-danger">
-                                                                        <i className="ri-error-warning-fill me-1"></i>
-                                                                        <strong>Sheet:</strong> <span style={{ color: '#ffffff', fontWeight: '600' }}>{item.gs_explanation || <em className="text-muted">Trống</em>}</span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </td>
-                                                        <td style={{ minWidth: "180px" }}>
-                                                            {savingIds[item.id] ? (
-                                                                <div className="text-center py-1">
-                                                                    <Spinner size="sm" color="primary" />
+                                                                    <div className="text-white-80 fs-13 line-height-base">{item.content}</div>
+                                                                    {item.is_content_diff && (
+                                                                        <div className="mt-2 pt-2 border-top border-white-10">
+                                                                            <span className="text-danger xsmall text-uppercase fw-800 d-block mb-1">Trên GSheet:</span>
+                                                                            <div className="text-white-40 fs-12 italic">{item.gs_content}</div>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
+                                                                
+                                                                {/* Explanation Section */}
+                                                                <div className={`p-2 rounded border border-dashed ${hasExpDiff ? 'bg-danger-opacity border-danger' : isMissingExpOnGs ? 'bg-warning-opacity border-warning' : 'bg-white-5 border-white-10'}`}>
+                                                                    <div className="d-flex align-items-center gap-2 mb-1">
+                                                                        <span className="text-white-25 xsmall text-uppercase fw-800">Giải trình (DB):</span>
+                                                                        {hasExpDiff && <span className="modern-badge-xs bg-danger">LỆCH</span>}
+                                                                        {isMissingExpOnGs && <span className="modern-badge-xs bg-warning text-dark">THIẾU TRÊN GS</span>}
+                                                                    </div>
+                                                                    <div className="text-white fs-13 fw-medium italic line-height-base">{item.explanation || <em className="text-white-25 xsmall">Chưa có giải trình</em>}</div>
+                                                                    {hasExpDiff && (
+                                                                        <div className="mt-2 pt-2 border-top border-white-10">
+                                                                            <span className="text-danger xsmall text-uppercase fw-800 d-block mb-1">Trên GSheet:</span>
+                                                                            <div className="text-white-40 fs-12 italic">{item.gs_explanation || <em className="text-white-25">Trống</em>}</div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            {savingIds[item.id] ? (
+                                                                <div className="text-center py-2"><Spinner size="sm" color="primary" /></div>
                                                             ) : (
-                                                                <Select
-                                                                    isMulti
-                                                                    options={specialistOptions}
-                                                                    value={(item.individual_assignments || []).map(u => ({
-                                                                        value: u.id,
-                                                                        label: u.full_name
-                                                                    }))}
-                                                                    placeholder={item.node_assignments?.length > 0 ? "Kế thừa từ Điều..." : "Phân công..."}
-                                                                    onChange={(val) => handleAssignmentChange(item.id, val)}
-                                                                    classNamePrefix="react-select"
-                                                                    menuPortalTarget={document.body}
-                                                                    styles={{ 
-                                                                        menuPortal: base => ({ ...base, zIndex: 9999 }),
-                                                                        control: (base) => ({
-                                                                            ...base,
-                                                                            background: "rgba(255, 255, 255, 0.05)",
-                                                                            borderColor: "rgba(255, 255, 255, 0.1)",
-                                                                            color: "#fff",
-                                                                            fontSize: "12px",
-                                                                            minHeight: "30px",
-                                                                            borderRadius: "0.4rem"
-                                                                        }),
-                                                                        multiValue: (base) => ({
-                                                                            ...base,
-                                                                            backgroundColor: item.individual_assignments?.length > 0 ? "rgba(10, 179, 156, 0.2)" : "rgba(41, 156, 219, 0.2)",
-                                                                            borderRadius: "4px"
-                                                                        }),
-                                                                        multiValueLabel: (base) => ({
-                                                                            ...base,
-                                                                            color: "#fff",
-                                                                        }),
-                                                                        multiValueRemove: (base) => ({
-                                                                            ...base,
-                                                                            color: "#fff",
-                                                                            "&:hover": {
-                                                                                backgroundColor: "rgba(255, 255, 255, 0.1)",
-                                                                                color: "#fff"
-                                                                            }
-                                                                        }),
-                                                                        menu: (base) => ({
-                                                                            ...base,
-                                                                            background: "#1e293b",
-                                                                            border: "1px solid rgba(255, 255, 255, 0.1)",
-                                                                            boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
-                                                                        }),
-                                                                        option: (base, state) => ({
-                                                                            ...base,
-                                                                            background: state.isFocused ? "rgba(255, 255, 255, 0.05)" : "transparent",
-                                                                            color: "#fff",
-                                                                            cursor: "pointer",
-                                                                            fontSize: "12px"
-                                                                        })
-                                                                    }}
-                                                                />
+                                                                <div className="modern-select-compact">
+                                                                    <Select
+                                                                        isMulti
+                                                                        options={specialistOptions}
+                                                                        value={(item.individual_assignments || []).map(u => ({
+                                                                            value: u.id,
+                                                                            label: u.full_name
+                                                                        }))}
+                                                                        placeholder="Phân công..."
+                                                                        onChange={(val) => handleAssignmentChange(item.id, val)}
+                                                                        styles={selectStyles}
+                                                                        classNamePrefix="react-select"
+                                                                        menuPortalTarget={document.body}
+                                                                    />
+                                                                </div>
                                                             )}
                                                             {(!item.individual_assignments || item.individual_assignments.length === 0) && item.node_assignments?.length > 0 && (
-                                                                <div className="mt-1">
-                                                                    <small className="text-muted italic fs-11">
-                                                                        Kế thừa: {item.node_assignments.map(u => u.full_name).join(", ")}
-                                                                    </small>
+                                                                <div className="mt-2 px-1">
+                                                                    <div className="text-white-25 xsmall text-uppercase fw-800 mb-1">Kế thừa:</div>
+                                                                    <div className="text-white-40 fs-11 italic">{item.node_assignments.map(u => u.full_name).join(", ")}</div>
                                                                 </div>
                                                             )}
-                                                        </td>
-                                                        <td className="text-start">
-                                                            <div className={classnames("p-2 border rounded fs-11 d-flex flex-column gap-1", hasOpinionDiff ? "bg-white border-danger shadow-sm" : "bg-light-subtle")}>
-                                                                <div className={classnames(item.need_opinion ? "text-danger fw-medium" : "text-muted italic")}>
-                                                                    DB: {item.need_opinion || "---"}
-                                                                </div>
-                                                                {hasOpinionDiff && (
-                                                                    <div className="mt-2 pt-2 border-top border-warning-subtle text-vibrant-warning">
-                                                                        <i className="ri-error-warning-fill me-1"></i>
-                                                                        <strong>Sheet:</strong> {item.gs_need_opinion || "---"}
-                                                                    </div>
-                                                                )}
-                                                            </div>
                                                         </td>
                                                         <td className="text-center">
                                                             {item.is_in_gs ? (
-                                                                <div className="d-flex flex-column align-items-center gap-1">
-                                                                    <Badge color={hasExpDiff ? "danger" : "success"} className={hasExpDiff ? "" : "badge-outline-success"}>
-                                                                        <i className={hasExpDiff ? "ri-error-warning-line me-1" : "ri-check-line me-1"}></i> 
-                                                                        {hasExpDiff ? "Lệch dữ liệu" : `Khớp (Dòng ${item.gs_row})`}
-                                                                    </Badge>
-                                                                    {hasExpDiff && <span className="fs-10 text-danger fw-bold animate-pulse text-uppercase">Cần cập nhật</span>}
+                                                                <div className="d-flex flex-column align-items-center gap-2">
+                                                                    <span className={`modern-badge ${hasExpDiff || item.is_content_diff ? 'danger' : 'success'} w-100`}>
+                                                                        <i className={hasExpDiff || item.is_content_diff ? "ri-error-warning-line me-1" : "ri-check-line me-1"}></i> 
+                                                                        {hasExpDiff || item.is_content_diff ? "Lệch" : "Khớp"}
+                                                                    </span>
+                                                                    <div className="text-white-40 xsmall fw-bold">Dòng {item.gs_row}</div>
+                                                                    {(hasExpDiff || item.is_content_diff) && (
+                                                                        <span className="text-danger xsmall fw-900 animate-pulse mt-1">CẦN CẬP NHẬT</span>
+                                                                    )}
                                                                 </div>
                                                             ) : (
-                                                                <Badge color="warning" className="badge-outline-warning">
-                                                                    Mới hoàn toàn
-                                                                </Badge>
+                                                                <span className="modern-badge warning w-100">MỚI</span>
                                                             )}
                                                         </td>
                                                     </tr>
                                                 );
                                             })}
-                                            {results.filter(item => showSynced || item.status !== 'synced').length === 0 && (
-                                                <tr>
-                                                    <td colSpan="7" className="text-center py-5 text-muted italic">
-                                                        Không có dòng nào phù hợp với bộ lọc.
-                                                    </td>
-                                                </tr>
-                                            )}
                                             </tbody>
-                                        </Table>
+                                        </table>
                                     </div>
                                 </TabPane>
 
                                 <TabPane tabId="2">
-                                    <Alert color="warning" className="fs-12 border-0 shadow-none border-start border-3 border-warning mb-4">
-                                        <i className="ri-user-search-line me-2 fs-14 align-middle"></i>
-                                        <strong>Đối soát Phân công:</strong> Hệ thống so khớp tên chuyên viên trên DB với văn bản tại cột "Cán bộ/Chuyên viên" trên Google Sheet.
-                                        Các dòng màu đỏ là các dòng có sự sai lệch personnel giữa hai bên.
-                                    </Alert>
-
-                                    <div className="d-flex justify-content-between align-items-center mb-3">
-                                        <div className="text-muted fs-13">
-                                            Hiển thị <b>{results.filter(r => showSpecialistMatches || r.is_specialist_diff).length}</b> / {results.length} dòng.
+                                    <div className="d-flex align-items-center justify-content-between mb-4">
+                                        <div className="d-flex align-items-center gap-2">
+                                            <div className="avatar-title-modern-xs bg-primary-opacity text-primary rounded-circle">
+                                                <i className="ri-user-settings-line"></i>
+                                            </div>
+                                            <div className="text-white-60 fs-12 italic">So sánh danh sách chuyên viên được phân công.</div>
                                         </div>
-                                        <div className="d-flex gap-4 align-items-center flex-wrap">
-                                            {/* Chế độ đối soát */}
-                                            <div className="d-flex align-items-center gap-3 bg-light p-1 px-2 rounded-2 border border-dashed">
-                                                <Label className="mb-0 fs-12 fw-bold text-muted text-uppercase me-1">Chế độ:</Label>
-                                                <div className="form-check form-check-inline mb-0">
+                                        <div className="d-flex gap-3 align-items-center">
+                                            <div className="d-flex align-items-center gap-3 bg-white-5 p-2 px-3 rounded-pill border border-white-5">
+                                                <span className="text-white-40 fw-bold fs-10 text-uppercase">Chế độ:</span>
+                                                <div className="form-check modern-checkbox mb-0">
                                                     <Input 
                                                         className="form-check-input" 
                                                         type="radio" 
-                                                        name="syncMode" 
-                                                        id="modeSheet" 
-                                                        value="sheet"
+                                                        id="modeAssignSheet" 
                                                         checked={assignmentSyncMode === 'sheet'} 
                                                         onChange={() => setAssignmentSyncMode('sheet')}
                                                     />
-                                                    <Label className="form-check-label fs-12 mb-0" htmlFor="modeSheet">Điều chỉnh Sheet</Label>
+                                                    <label className="form-check-label text-white-80 fs-11 fw-bold mb-0" htmlFor="modeAssignSheet">GSHEET</label>
                                                 </div>
-                                                <div className="form-check form-check-inline mb-0">
+                                                <div className="form-check modern-checkbox mb-0">
                                                     <Input 
                                                         className="form-check-input" 
                                                         type="radio" 
-                                                        name="syncMode" 
-                                                        id="modeDb" 
-                                                        value="db"
+                                                        id="modeAssignDb" 
                                                         checked={assignmentSyncMode === 'db'} 
                                                         onChange={() => setAssignmentSyncMode('db')}
                                                     />
-                                                    <Label className="form-check-label fs-12 mb-0 fw-medium text-primary" htmlFor="modeDb">Điều chỉnh DB</Label>
+                                                    <label className="form-check-label text-white-80 fs-11 fw-bold mb-0" htmlFor="modeAssignDb">DB</label>
                                                 </div>
                                             </div>
-
-                                            <div className="form-check form-switch form-switch-right form-switch-md">
+                                            <div className="form-check form-switch modern-switch d-flex align-items-center mt-0">
                                                 <Input 
-                                                    className="form-check-input code-switcher" 
                                                     type="checkbox" 
                                                     id="show-specialist-matches-switch" 
                                                     checked={showSpecialistMatches} 
                                                     onChange={(e) => setShowSpecialistMatches(e.target.checked)} 
                                                 />
-                                                <Label className="form-check-label text-muted fs-12 mb-0" htmlFor="show-specialist-matches-switch">Hiện các dòng đã khớp phân công</Label>
+                                                <label className="form-check-label text-white-40 fs-11 fw-bold mb-0" htmlFor="show-specialist-matches-switch">HIỆN ĐÃ KHỚP</label>
                                             </div>
-
-                                            {assignmentSyncMode === 'sheet' ? (
-                                                <Button 
-                                                    color="danger" 
-                                                    size="sm" 
-                                                    className="fw-bold px-3 shadow-none"
-                                                    onClick={() => handlePush('specialist_only')} 
-                                                    disabled={pushing || selectedIds.length === 0}
-                                                >
-                                                    {pushing ? <Spinner size="sm" /> : <><i className="ri-user-follow-line me-1"></i> Cập nhật Phân công lên GSheet ({selectedIds.length})</>}
-                                                </Button>
-                                            ) : (
-                                                <Button 
-                                                    color="success" 
-                                                    size="sm" 
-                                                    className="fw-bold px-3 shadow-none"
-                                                    onClick={handlePullAssignments} 
-                                                    disabled={pushing || selectedIds.length === 0}
-                                                >
-                                                    {pushing ? <Spinner size="sm" /> : <><i className="ri-download-cloud-2-line me-1"></i> Cập nhật Phân công vào DB ({selectedIds.length})</>}
-                                                </Button>
-                                            )}
+                                            <button 
+                                                className={`modern-btn ${assignmentSyncMode === 'sheet' ? 'danger' : 'success'} btn-sm px-4`}
+                                                onClick={assignmentSyncMode === 'sheet' ? () => handlePush('specialist_only') : handlePullAssignments} 
+                                                disabled={pushing || selectedIds.length === 0}
+                                            >
+                                                {pushing ? <Spinner size="sm" /> : (
+                                                    <>
+                                                        <i className={`${assignmentSyncMode === 'sheet' ? 'ri-save-line' : 'ri-download-cloud-2-line'} me-1`}></i> 
+                                                        {assignmentSyncMode === 'sheet' ? 'Cập nhật GSheet' : 'Cập nhật DB'} ({selectedIds.length})
+                                                    </>
+                                                )}
+                                            </button>
                                         </div>
                                     </div>
 
-                                    <div className="table-responsive table-card">
-                                        <Table className="align-middle table-hover table-bordered mb-0" style={{ tableLayout: 'fixed', minWidth: '1000px' }}>
-                                            <thead className="table-light text-muted text-center align-middle">
-                                            <tr>
-                                                <th style={{ width: "40px" }}>
-                                                    <div className="form-check d-flex justify-content-center">
-                                                        <Input 
-                                                            type="checkbox" 
-                                                            className="form-check-input"
-                                                            checked={results.filter(r => r.is_specialist_diff).length > 0 && selectedIds.length === results.filter(r => r.is_specialist_diff).length}
-                                                            onChange={toggleSelectAll}
-                                                        />
-                                                    </div>
-                                                </th>
-                                                <th style={{ width: "10%" }}>Vị trí</th>
-                                                <th style={{ width: "25%" }}>Nội dung góp ý</th>
-                                                <th style={{ width: "25%" }}>Phân công (Hệ thống)</th>
-                                                <th style={{ width: "25%" }}>Cán bộ (GSheet)</th>
-                                                <th style={{ width: "12%" }}>Trạng thái</th>
-                                            </tr>
+                                    <div className="table-responsive">
+                                        <table className="modern-table w-100 align-middle">
+                                            <thead>
+                                                <tr>
+                                                    <th className="text-center" style={{ width: "40px" }}>
+                                                        <div className="form-check modern-checkbox d-flex justify-content-center">
+                                                            <Input 
+                                                                type="checkbox" 
+                                                                checked={results.filter(r => showSpecialistMatches || r.is_specialist_diff).length > 0 && selectedIds.length === results.filter(r => showSpecialistMatches || r.is_specialist_diff).length}
+                                                                onChange={toggleSelectAll}
+                                                            />
+                                                        </div>
+                                                    </th>
+                                                    <th style={{ width: "100px" }}>Vị trí</th>
+                                                    <th>Nội dung góp ý</th>
+                                                    <th style={{ width: "220px" }}>Phân công (DB)</th>
+                                                    <th style={{ width: "220px" }}>Cán bộ (GSheet)</th>
+                                                    <th className="text-center" style={{ width: "110px" }}>Trạng thái</th>
+                                                </tr>
                                             </thead>
                                             <tbody>
                                             {results.filter(r => showSpecialistMatches || r.is_specialist_diff).map((item) => {
                                                 const isDiff = item.is_specialist_diff;
                                                 return (
-                                                    <tr key={`assign-${item.id}`} className={classnames(isDiff ? "bg-danger-subtle" : "")}>
-                                                        <td className="text-center align-middle">
-                                                            <div className="form-check d-flex justify-content-center">
+                                                    <tr key={`assign-${item.id}`} className={classnames(isDiff ? "bg-danger-opacity-light" : "")}>
+                                                        <td className="text-center">
+                                                            <div className="form-check modern-checkbox d-flex justify-content-center">
                                                                 <Input 
                                                                     type="checkbox" 
-                                                                    className="form-check-input"
                                                                     checked={selectedIds.includes(item.id)}
                                                                     onChange={() => toggleSelectRow(item.id)}
                                                                 />
                                                             </div>
                                                         </td>
-                                                        <td className="white-space-normal fw-medium fs-12 text-primary">{item.node_label}</td>
-                                                        <td className="white-space-normal fs-12 text-muted">{item.content}</td>
+                                                        <td className="white-space-normal">
+                                                            <span className="text-warning fw-bold fs-11 tracking-wider">{item.node_label}</span>
+                                                        </td>
+                                                        <td className="white-space-normal fs-12 text-white-60 line-height-base">{item.content}</td>
                                                         <td>
                                                             <div className="d-flex flex-wrap gap-1">
                                                                 {item.assigned_users?.map((u, i) => (
-                                                                    <Badge key={i} color="info" outline className="border-info">{u.full_name}</Badge>
-                                                                )) || <span className="text-muted fs-11 italic">Chưa giao</span>}
+                                                                    <span key={i} className="modern-badge secondary fs-10">{u.full_name}</span>
+                                                                )) || <span className="text-white-25 xsmall italic">Chưa giao</span>}
                                                             </div>
                                                         </td>
                                                         <td>
-                                                            <div className={classnames("p-1 rounded fs-12", isDiff ? "text-danger fw-bold" : "text-success")}>
-                                                                {item.gs_specialist || <em className="text-muted">Trống</em>}
+                                                            <div className={classnames("p-1 px-2 rounded fs-12 fw-bold", isDiff ? "bg-danger-opacity text-danger border border-danger-subtle" : "text-success bg-success-opacity border border-success-subtle")}>
+                                                                {item.gs_specialist || <em className="text-white-25 fw-normal italic">Trống</em>}
                                                             </div>
                                                         </td>
                                                         <td className="text-center">
                                                             {isDiff ? (
-                                                                <Badge color="danger"><i className="ri-error-warning-line me-1"></i> Sai lệch</Badge>
+                                                                <div className="d-flex flex-column align-items-center gap-1">
+                                                                    <span className="modern-badge danger w-100"><i className="ri-error-warning-line me-1"></i> Lệch</span>
+                                                                    <span className="text-danger xsmall fw-900 animate-pulse mt-1">CẬP NHẬT</span>
+                                                                </div>
                                                             ) : (
-                                                                <Badge color="success"><i className="ri-checkbox-circle-line me-1"></i> Khớp</Badge>
+                                                                <span className="modern-badge success w-100"><i className="ri-checkbox-circle-line me-1"></i> Khớp</span>
                                                             )}
                                                         </td>
                                                     </tr>
                                                 );
                                             })}
                                             </tbody>
-                                        </Table>
+                                        </table>
                                     </div>
-                                        </TabPane>
+                                </TabPane>
 
-                                        <TabPane tabId="3">
-                                            <Alert color="primary" className="fs-12 border-0 shadow-none border-start border-3 border-primary mb-4">
-                                                <i className="ri-map-pin-range-line me-2 fs-14 align-middle"></i>
-                                                <strong>Đối soát Vị trí (Điều/Khoản):</strong> Hệ thống so khớp vị trí (liên kết Điều/Khoản) trong DB với dữ liệu tại cột "Vị trí/Điều/Khoản" trên Google Sheet.
-                                                Các dòng màu vàng là các dòng có sự khác biệt về danh mục Điều/Khoản giữa hai bên.
-                                            </Alert>
-
-                                            <div className="d-flex justify-content-between align-items-center mb-3">
-                                                <div className="text-muted fs-13">
-                                                    Hiển thị <b>{results.filter(r => showPositionMatches || r.is_node_diff).length}</b> / {results.length} dòng.
+                                <TabPane tabId="3">
+                                    <div className="d-flex align-items-center justify-content-between mb-4">
+                                        <div className="d-flex align-items-center gap-2">
+                                            <div className="avatar-title-modern-xs bg-warning-opacity text-warning rounded-circle">
+                                                <i className="ri-map-pin-line"></i>
+                                            </div>
+                                            <div className="text-white-60 fs-12 italic">So khớp vị trí Điều/Khoản giữa DB và GSheet.</div>
+                                        </div>
+                                        <div className="d-flex gap-3 align-items-center">
+                                            <div className="d-flex align-items-center gap-3 bg-white-5 p-2 px-3 rounded-pill border border-white-5">
+                                                <span className="text-white-40 fw-bold fs-10 text-uppercase">Chế độ:</span>
+                                                <div className="form-check modern-checkbox mb-0">
+                                                    <Input 
+                                                        className="form-check-input" 
+                                                        type="radio" 
+                                                        id="modePosSheet" 
+                                                        checked={positionSyncMode === 'sheet'} 
+                                                        onChange={() => setPositionSyncMode('sheet')}
+                                                    />
+                                                    <label className="form-check-label text-white-80 fs-11 fw-bold mb-0" htmlFor="modePosSheet">GSHEET</label>
                                                 </div>
-                                                <div className="d-flex gap-4 align-items-center flex-wrap">
-                                                    {/* Chế độ đối soát vị trí */}
-                                                    <div className="d-flex align-items-center gap-3 bg-light p-1 px-2 rounded-2 border border-dashed">
-                                                        <Label className="mb-0 fs-12 fw-bold text-muted text-uppercase me-1">Chế độ:</Label>
-                                                        <div className="form-check form-check-inline mb-0">
-                                                            <Input 
-                                                                className="form-check-input" 
-                                                                type="radio" 
-                                                                name="positionSyncMode" 
-                                                                id="modePositionSheet" 
-                                                                value="sheet"
-                                                                checked={positionSyncMode === 'sheet'} 
-                                                                onChange={() => setPositionSyncMode('sheet')}
-                                                            />
-                                                            <Label className="form-check-label fs-12 mb-0" htmlFor="modePositionSheet">Điều chỉnh Sheet</Label>
-                                                        </div>
-                                                        <div className="form-check form-check-inline mb-0">
-                                                            <Input 
-                                                                className="form-check-input" 
-                                                                type="radio" 
-                                                                name="positionSyncMode" 
-                                                                id="modePositionDb" 
-                                                                value="db"
-                                                                checked={positionSyncMode === 'db'} 
-                                                                onChange={() => setPositionSyncMode('db')}
-                                                            />
-                                                            <Label className="form-check-label fs-12 mb-0 fw-medium text-primary" htmlFor="modePositionDb">Điều chỉnh DB</Label>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="form-check form-switch form-switch-right form-switch-md">
-                                                        <Input 
-                                                            className="form-check-input code-switcher" 
-                                                            type="checkbox" 
-                                                            id="show-position-matches-switch" 
-                                                            checked={showPositionMatches} 
-                                                            onChange={(e) => setShowPositionMatches(e.target.checked)} 
-                                                        />
-                                                        <Label className="form-check-label text-muted fs-12 mb-0" htmlFor="show-position-matches-switch">Hiện các dòng đã khớp</Label>
-                                                    </div>
-
-                                                    {positionSyncMode === 'sheet' ? (
-                                                        <Button 
-                                                            color="danger" 
-                                                            size="sm" 
-                                                            className="fw-bold px-3 shadow-none"
-                                                            onClick={() => handlePush('node_only')} 
-                                                            disabled={pushing || selectedIds.length === 0}
-                                                        >
-                                                            {pushing ? <Spinner size="sm" /> : <><i className="ri-save-line me-1"></i> Cập nhật Vị trí lên GSheet ({selectedIds.length})</>}
-                                                        </Button>
-                                                    ) : (
-                                                        <Button 
-                                                            color="success" 
-                                                            size="sm" 
-                                                            className="fw-bold px-3 shadow-none"
-                                                            onClick={handlePullPositions} 
-                                                            disabled={pushing || selectedIds.length === 0}
-                                                        >
-                                                            {pushing ? <Spinner size="sm" /> : <><i className="ri-download-cloud-2-line me-1"></i> Cập nhật Vị trí vào DB ({selectedIds.length})</>}
-                                                        </Button>
-                                                    )}
+                                                <div className="form-check modern-checkbox mb-0">
+                                                    <Input 
+                                                        className="form-check-input" 
+                                                        type="radio" 
+                                                        id="modePosDb" 
+                                                        checked={positionSyncMode === 'db'} 
+                                                        onChange={() => setPositionSyncMode('db')}
+                                                    />
+                                                    <label className="form-check-label text-white-80 fs-11 fw-bold mb-0" htmlFor="modePosDb">DB</label>
                                                 </div>
                                             </div>
+                                            <div className="form-check form-switch modern-switch d-flex align-items-center mt-0">
+                                                <Input 
+                                                    type="checkbox" 
+                                                    id="show-position-matches-switch" 
+                                                    checked={showPositionMatches} 
+                                                    onChange={(e) => setShowPositionMatches(e.target.checked)} 
+                                                />
+                                                <label className="form-check-label text-white-40 fs-11 fw-bold mb-0" htmlFor="show-position-matches-switch">HIỆN ĐÃ KHỚP</label>
+                                            </div>
+                                            <button 
+                                                className={`modern-btn ${positionSyncMode === 'sheet' ? 'danger' : 'success'} btn-sm px-4`}
+                                                onClick={positionSyncMode === 'sheet' ? () => handlePush('node_only') : handlePullPositions} 
+                                                disabled={pushing || selectedIds.length === 0}
+                                            >
+                                                {pushing ? <Spinner size="sm" /> : (
+                                                    <>
+                                                        <i className={`${positionSyncMode === 'sheet' ? 'ri-save-line' : 'ri-download-cloud-2-line'} me-1`}></i> 
+                                                        {positionSyncMode === 'sheet' ? 'Cập nhật GSheet' : 'Cập nhật DB'} ({selectedIds.length})
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
 
-                                            <div className="table-responsive table-card">
-                                                <Table className="align-middle table-hover table-bordered mb-0" style={{ tableLayout: 'fixed', minWidth: '1000px' }}>
-                                                    <thead className="table-light text-muted text-center align-middle">
-                                                    <tr>
-                                                        <th style={{ width: "40px" }}>
-                                                            <div className="form-check d-flex justify-content-center">
+                                    <div className="table-responsive">
+                                        <table className="modern-table w-100 align-middle">
+                                            <thead>
+                                                <tr>
+                                                    <th className="text-center" style={{ width: "40px" }}>
+                                                        <div className="form-check modern-checkbox d-flex justify-content-center">
+                                                            <Input 
+                                                                type="checkbox" 
+                                                                checked={results.filter(r => showPositionMatches || r.is_node_diff).length > 0 && selectedIds.length === results.filter(r => showPositionMatches || r.is_node_diff).length}
+                                                                onChange={toggleSelectAll}
+                                                            />
+                                                        </div>
+                                                    </th>
+                                                    <th>Nội dung góp ý</th>
+                                                    <th style={{ width: "220px" }}>Vị trí (DB)</th>
+                                                    <th style={{ width: "220px" }}>Vị trí (GSheet)</th>
+                                                    <th className="text-center" style={{ width: "110px" }}>Trạng thái</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                            {results.filter(r => showPositionMatches || r.is_node_diff).map((item) => {
+                                                const isNodeDiff = item.is_node_diff;
+                                                return (
+                                                    <tr key={`node-${item.id}`} className={classnames(isNodeDiff ? "bg-warning-opacity-light" : "")}>
+                                                        <td className="text-center">
+                                                            <div className="form-check modern-checkbox d-flex justify-content-center">
                                                                 <Input 
                                                                     type="checkbox" 
-                                                                    className="form-check-input"
-                                                                    checked={results.filter(r => showPositionMatches || r.is_node_diff).length > 0 && selectedIds.length === results.filter(r => showPositionMatches || r.is_node_diff).length}
-                                                                    onChange={toggleSelectAll}
+                                                                    checked={selectedIds.includes(item.id)}
+                                                                    onChange={() => toggleSelectRow(item.id)}
                                                                 />
                                                             </div>
-                                                        </th>
-                                                        <th style={{ width: "40%" }}>Nội dung góp ý</th>
-                                                        <th style={{ width: "25%" }}>Vị trí (Hệ thống)</th>
-                                                        <th style={{ width: "25%" }}>Vị trí (GSheet)</th>
-                                                        <th style={{ width: "10%" }}>Trạng thái</th>
+                                                        </td>
+                                                        <td className="white-space-normal fs-12 text-white-60 line-height-base">{item.content}</td>
+                                                        <td className="white-space-normal">
+                                                            <span className="text-primary fw-bold fs-11 tracking-wider">{item.node_label}</span>
+                                                        </td>
+                                                        <td className="white-space-normal">
+                                                            <div className={classnames("p-1 px-2 rounded fs-12 fw-bold", isNodeDiff ? "bg-danger-opacity text-danger border border-danger-subtle" : "text-success bg-success-opacity border border-success-subtle")}>
+                                                                {item.gs_node || <em className="text-white-25 fw-normal italic">Trống</em>}
+                                                            </div>
+                                                        </td>
+                                                        <td className="text-center">
+                                                            {isNodeDiff ? (
+                                                                <div className="d-flex flex-column align-items-center gap-1">
+                                                                    <span className="modern-badge warning w-100"><i className="ri-error-warning-line me-1"></i> Lệch</span>
+                                                                    <span className="text-warning xsmall fw-900 animate-pulse mt-1">CẦN CẬP NHẬT</span>
+                                                                </div>
+                                                            ) : (
+                                                                <span className="modern-badge success w-100"><i className="ri-checkbox-circle-line me-1"></i> Khớp</span>
+                                                            )}
+                                                        </td>
                                                     </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                    {results.filter(r => showPositionMatches || r.is_node_diff).map((item) => {
-                                                        const isNodeDiff = item.is_node_diff;
-                                                        return (
-                                                            <tr key={`node-${item.id}`} className={classnames(isNodeDiff ? "bg-info-subtle" : "")}>
-                                                                <td className="text-center align-middle">
-                                                                    <div className="form-check d-flex justify-content-center">
-                                                                        <Input 
-                                                                            type="checkbox" 
-                                                                            className="form-check-input"
-                                                                            checked={selectedIds.includes(item.id)}
-                                                                            onChange={() => toggleSelectRow(item.id)}
-                                                                        />
-                                                                    </div>
-                                                                </td>
-                                                                <td className="white-space-normal fs-12 text-muted">{item.content}</td>
-                                                                <td className="white-space-normal fw-bold fs-12 text-primary">{item.node_label}</td>
-                                                                <td className="white-space-normal fs-12">
-                                                                    <div className={classnames("p-1 rounded", isNodeDiff ? "text-danger fw-bold" : "text-success")}>
-                                                                        {item.gs_node || <em className="text-muted">Trống</em>}
-                                                                    </div>
-                                                                </td>
-                                                                <td className="text-center">
-                                                                    {isNodeDiff ? (
-                                                                        <Badge color="warning"><i className="ri-error-warning-line me-1"></i> Khác biệt</Badge>
-                                                                    ) : (
-                                                                        <Badge color="success"><i className="ri-checkbox-circle-line me-1"></i> Khớp</Badge>
-                                                                    )}
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                    {results.filter(r => r.is_node_diff).length === 0 && (
-                                                        <tr>
-                                                            <td colSpan="5" className="text-center py-4 text-muted small">(Không có dữ liệu lệch vị trí)</td>
-                                                        </tr>
-                                                    )}
-                                                    </tbody>
-                                                </Table>
-                                            </div>
-                                        </TabPane>
-                                    </TabContent>
-                                </CardBody>
-                            </Card>
-                        </Col>
-                    </Row>
+                                                );
+                                            })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </TabPane>
+                        </TabContent>
+                    </div>
                 )}
-            </Container>
+            </div>
         </div>
-    );
+    </React.Fragment>
+);
 };
 
 export default GSheetSync;

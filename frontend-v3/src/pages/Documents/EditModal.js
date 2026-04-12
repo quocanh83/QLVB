@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, ModalHeader, ModalBody, ModalFooter, Form, FormGroup, Label, Input, Button, Spinner, Row, Col } from 'reactstrap';
+import { Modal, ModalHeader, ModalBody, ModalFooter, Form, FormGroup, Label, Input, Row, Col } from 'reactstrap';
 import axios from 'axios';
 import { getAuthHeader } from '../../helpers/api_helper';
 import { toast } from 'react-toastify';
+import { ModernButton } from '../../Components/Common/ModernUI';
 
-const EditModal = ({ isOpen, toggle, doc, onSuccess, types }) => {
+const EditModal = ({ isOpen, toggle, document: doc, onSuccess, types }) => {
     const [formData, setFormData] = useState({ 
         project_name: '', 
         drafting_agency: '', 
@@ -47,33 +48,36 @@ const EditModal = ({ isOpen, toggle, doc, onSuccess, types }) => {
     };
 
     return (
-        <Modal isOpen={isOpen} toggle={toggle} centered size="lg">
-            <ModalHeader toggle={toggle} className="bg-dark text-white">
-                Hiệu chỉnh Dự thảo
+        <Modal isOpen={isOpen} toggle={toggle} centered size="lg" contentClassName="designkit-wrapper">
+            <ModalHeader toggle={toggle} className="modal-header-warning">
+                <i className="ri-pencil-line me-2 text-warning"></i>
+                Chỉnh sửa thông tin Dự thảo
             </ModalHeader>
             <Form onSubmit={handleSubmit}>
                 <ModalBody className="p-4">
                     <Row className="gy-3">
                         <Col lg={12}>
-                            <FormGroup>
-                                <Label for="project_name" className="form-label fw-bold">Tên Dự thảo</Label>
+                            <FormGroup className="mb-3">
+                                <Label className="fw-bold mb-2">Tên Dự thảo</Label>
                                 <Input
+                                    className="bg-dark-light border-dark text-white"
                                     type="text"
-                                    id="project_name"
                                     value={formData.project_name}
                                     onChange={(e) => setFormData({ ...formData, project_name: e.target.value })}
                                     required
+                                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--kit-border)', color: 'white' }}
                                 />
                             </FormGroup>
                         </Col>
                         <Col lg={12}>
-                            <FormGroup>
-                                <Label for="document_type" className="form-label fw-bold">Loại dự thảo</Label>
+                            <FormGroup className="mb-3">
+                                <Label className="fw-bold mb-2">Loại dự thảo</Label>
                                 <Input
+                                    className="bg-dark-light border-dark text-white form-select"
                                     type="select"
-                                    id="document_type"
                                     value={formData.document_type_id}
                                     onChange={(e) => setFormData({ ...formData, document_type_id: e.target.value })}
+                                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--kit-border)', color: 'white' }}
                                 >
                                     <option value="">-- Chọn loại dự thảo (không bắt buộc) --</option>
                                     {(types || []).map(t => (
@@ -83,24 +87,26 @@ const EditModal = ({ isOpen, toggle, doc, onSuccess, types }) => {
                             </FormGroup>
                         </Col>
                         <Col lg={6}>
-                            <FormGroup>
-                                <Label for="drafting_agency" className="form-label fw-bold">Cơ quan chủ trì</Label>
+                            <FormGroup className="mb-3">
+                                <Label className="fw-bold mb-2">Cơ quan chủ trì</Label>
                                 <Input
+                                    className="bg-dark-light border-dark text-white"
                                     type="text"
-                                    id="drafting_agency"
                                     value={formData.drafting_agency}
                                     onChange={(e) => setFormData({ ...formData, drafting_agency: e.target.value })}
+                                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--kit-border)', color: 'white' }}
                                 />
                             </FormGroup>
                         </Col>
                         <Col lg={6}>
-                            <FormGroup>
-                                <Label for="status" className="form-label fw-bold">Trạng thái</Label>
+                            <FormGroup className="mb-3">
+                                <Label className="fw-bold mb-2">Trạng thái</Label>
                                 <Input
+                                    className="bg-dark-light border-dark text-white form-select"
                                     type="select"
-                                    id="status"
                                     value={formData.status}
                                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--kit-border)', color: 'white' }}
                                 >
                                     <option value="Draft">Draft (Nháp)</option>
                                     <option value="Reviewing">Reviewing (Đang duyệt)</option>
@@ -111,10 +117,10 @@ const EditModal = ({ isOpen, toggle, doc, onSuccess, types }) => {
                     </Row>
                 </ModalBody>
                 <ModalFooter>
-                    <Button color="light" onClick={toggle} disabled={loading}>Hủy</Button>
-                    <Button color="dark" type="submit" disabled={loading}>
-                        {loading ? <Spinner size="sm" /> : "Cập nhật thay đổi"}
-                    </Button>
+                    <ModernButton variant="ghost" onClick={toggle} disabled={loading}>Hủy</ModernButton>
+                    <ModernButton variant="primary" type="submit" loading={loading}>
+                        Lưu thay đổi
+                    </ModernButton>
                 </ModalFooter>
             </Form>
         </Modal>

@@ -3,8 +3,11 @@ import {
     Container, Row, Col, Card, CardBody, CardHeader,
     Button, Table, Modal, ModalHeader, ModalBody, ModalFooter,
     Form, FormGroup, Label, Input, Badge, UncontrolledDropdown,
-    DropdownToggle, DropdownMenu, DropdownItem, FormFeedback
+    DropdownToggle, DropdownMenu, DropdownItem, FormFeedback,
+    Nav, NavItem, NavLink, TabContent, TabPane, Spinner
 } from 'reactstrap';
+import { ModernCard, ModernBadge, ModernButton, ModernHeader } from '../../Components/Common/ModernUI';
+import classnames from 'classnames';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import BreadCrumb from '../../Components/Common/BreadCrumb';
@@ -20,6 +23,7 @@ const UserManagement = () => {
     const [roles, setRoles] = useState([]);
     const [departments, setDepartments] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [activeTab, setActiveTab] = useState('1'); // 1: Cán bộ, 2: Phòng ban
     
     // Import Modal state
     const [importModal, setImportModal] = useState(false);
@@ -41,6 +45,27 @@ const UserManagement = () => {
         department_id: ""
     });
     const [errors, setErrors] = useState({});
+
+    // Department Management states
+    const [deptModal, setDeptModal] = useState(false);
+    const [editingDept, setEditingDept] = useState(null);
+    const [deptFormData, setDeptFormData] = useState({ name: "", description: "" });
+    const [deptErrors, setDeptErrors] = useState({});
+
+    const toggleTab = (tab) => {
+        if (activeTab !== tab) setActiveTab(tab);
+    };
+
+    const toggleDeptModal = useCallback(() => {
+        if (deptModal) {
+            setDeptModal(false);
+            setEditingDept(null);
+            setDeptFormData({ name: "", description: "" });
+            setDeptErrors({});
+        } else {
+            setDeptModal(true);
+        }
+    }, [deptModal]);
 
     const toggle = useCallback(() => {
         if (modal) {
@@ -202,123 +227,224 @@ const UserManagement = () => {
         label: d.name
     }));
 
+    const handleDeptSubmit = async (e) => {
+        e.preventDefault();
+        if (!deptFormData.name) {
+            setDeptErrors({ name: "Vui lòng nhập tên phòng ban" });
+            return;
+        }
+
+        try {
+            const authHeader = getAuthHeader();
+            if (editingDept) {
+                await axios.patch(`/api/accounts/departments/${editingDept.id}/`, deptFormData, authHeader);
+                toast.success("Cập nhật phòng ban thành công");
+            } else {
+                await axios.post('/api/accounts/departments/', deptFormData, authHeader);
+                toast.success("Thêm phòng ban mới thành công");
+            }
+            toggleDeptModal();
+            fetchData();
+        } catch (error) {
+            toast.error("Lỗi lưu thông tin phòng ban");
+        }
+    };
+
+    const handleDeptEdit = (dept) => {
+        setEditingDept(dept);
+        setDeptFormData({ name: dept.name, description: dept.description || "" });
+        setDeptModal(true);
+    };
+
+    const handleDeptDelete = async (id) => {
+        if (window.confirm("Bạn có chắc chắn muốn xóa phòng ban này?")) {
+            try {
+                await axios.delete(`/api/accounts/departments/${id}/`, getAuthHeader());
+                toast.success("Đã xóa phòng ban");
+                fetchData();
+            } catch (error) {
+                toast.error("Lỗi khi xóa phòng ban");
+            }
+        }
+    };
+
     return (
         <React.Fragment>
-            <div className="page-content">
-                <Container fluid>
-                    <BreadCrumb title="Quản lý Cán bộ" pageTitle="Cấu hình" />
-                    <Row>
-                        <Col lg={12}>
-                            <Card>
-                                <CardHeader className="d-flex align-items-center justify-content-between">
-                                    <h4 className="card-title mb-0 flex-grow-1">Danh sách Tài khoản Cán bộ</h4>
+            <div className="designkit-wrapper designkit-layout-root">
+                <div className="modern-page-content" style={{ minHeight: '100vh' }}>
+                    <Container fluid>
+                        <ModernHeader 
+                            title="Tổ chức & Cán bộ" 
+                            subtitle="Quản lý cấu trúc phòng ban và tài khoản cán bộ hệ thống"
+                        />
+
+                        <Nav pills className="nav-pills-custom mb-4 gap-2">
+                            <NavItem>
+                                <NavLink
+                                    className={classnames({ active: activeTab === '1' }, "rounded-pill py-2 px-4 fw-bold fs-13")}
+                                    onClick={() => { toggleTab('1'); }}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    <i className="ri-user-star-line me-1"></i> Quản lý Cán bộ
+                                </NavLink>
+                            </NavItem>
+                            <NavItem>
+                                <NavLink
+                                    className={classnames({ active: activeTab === '2' }, "rounded-pill py-2 px-4 fw-bold fs-13")}
+                                    onClick={() => { toggleTab('2'); }}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    <i className="ri-building-line me-1"></i> Quản lý Phòng ban
+                                </NavLink>
+                            </NavItem>
+                        </Nav>
+
+                        <TabContent activeTab={activeTab}>
+                        <TabPane tabId="1">
+                            <ModernCard className="border-0 shadow-sm">
+                                <CardHeader className="bg-transparent border-bottom border-white-5 d-flex align-items-center justify-content-between p-3">
+                                    <h6 className="card-title mb-0 flex-grow-1 text-white opacity-75 text-uppercase fs-12 fw-bold">Danh sách Tài khoản Cán bộ</h6>
                                     <div className="flex-shrink-0 d-flex gap-2">
-                                        <div className="search-box">
+                                        <div className="position-relative">
                                             <Input 
                                                 type="text" 
-                                                className="form-control px-5" 
-                                                placeholder="Tìm kiếm..." 
+                                                className="form-control bg-white-5 border-white-10 text-white ps-5" 
+                                                placeholder="Tìm tên, user..." 
                                                 value={searchTerm}
                                                 onChange={(e) => setSearchTerm(e.target.value)}
+                                                style={{ borderRadius: '10px' }}
                                             />
-                                            <i className="ri-search-line search-icon"></i>
+                                            <i className="ri-search-line position-absolute top-50 start-0 translate-middle-y ms-3 text-white-40"></i>
                                         </div>
-                                        <Button color="info" outline onClick={handleDownloadTemplate}>
-                                            <i className="ri-download-2-line align-bottom me-1"></i> Tải mẫu
-                                        </Button>
-                                        <Button color="info" onClick={() => setImportModal(true)}>
-                                            <i className="ri-file-excel-2-line align-bottom me-1"></i> Nhập Excel
-                                        </Button>
-                                        <Button color="success" onClick={toggle}>
-                                            <i className="ri-add-line align-bottom me-1"></i> Cấp tài khoản mới
-                                        </Button>
+                                        <ModernButton variant="ghost" className="btn-sm" onClick={handleDownloadTemplate}>
+                                            <i className="ri-download-2-line"></i> Mẫu
+                                        </ModernButton>
+                                        <ModernButton variant="info" className="btn-sm" onClick={() => setImportModal(true)}>
+                                            <i className="ri-file-excel-2-line"></i> Nhập Excel
+                                        </ModernButton>
+                                        <ModernButton variant="primary" className="btn-sm" onClick={toggle}>
+                                            <i className="ri-add-line"></i> Cấp tài khoản
+                                        </ModernButton>
                                     </div>
                                 </CardHeader>
-                                <CardBody>
-                                    <div className="table-responsive table-card mt-3 mb-1">
-                                        <Table className="align-middle table-nowrap" id="userTable">
-                                            <thead className="table-light">
-                                                <tr>
-                                                    <th className="sort" data-sort="username">Tên đăng nhập</th>
-                                                    <th className="sort" data-sort="fullname">Họ và tên</th>
-                                                    <th className="sort" data-sort="email">Email</th>
-                                                    <th className="sort" data-sort="dept">Phòng ban</th>
-                                                    <th className="sort" data-sort="roles">Nhóm quyền</th>
-                                                    <th className="sort" data-sort="action">Thao tác</th>
+                                <CardBody className="p-0">
+                                    <div className="table-responsive">
+                                        <Table className="align-middle table-nowrap mb-0 modern-table">
+                                            <thead className="bg-white-3">
+                                                <tr className="text-white-60">
+                                                    <th className="ps-4">Tên đăng nhập</th>
+                                                    <th>Họ và tên</th>
+                                                    <th>Phòng ban</th>
+                                                    <th>Nhóm quyền</th>
+                                                    <th className="text-end pe-4">Thao tác</th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="list form-check-all">
+                                            <tbody>
                                                 {loading ? (
                                                     <tr>
                                                         <td colSpan="5" className="text-center py-5">
-                                                            <div className="spinner-border text-primary" role="status">
-                                                                <span className="visually-hidden">Loading...</span>
-                                                            </div>
+                                                            <Spinner size="sm" color="primary" />
                                                         </td>
                                                     </tr>
                                                 ) : filteredUsers.length > 0 ? (
                                                     filteredUsers.map((user, key) => (
-                                                        <tr key={key}>
-                                                            <td className="username">
-                                                                <div className="d-flex align-items-center">
-                                                                    <div className="flex-shrink-0 me-2">
-                                                                        <div className="avatar-xs">
-                                                                            <div className="avatar-title rounded-circle bg-soft-info text-info">
-                                                                                {user.username.charAt(0).toUpperCase()}
-                                                                            </div>
+                                                        <tr key={key} className="border-bottom border-white-5">
+                                                            <td className="ps-4">
+                                                                <div className="d-flex align-items-center gap-2">
+                                                                    <div className="avatar-xs flex-shrink-0">
+                                                                        <div className="avatar-title rounded-circle bg-primary-subtle text-primary">
+                                                                            {user.username.charAt(0).toUpperCase()}
                                                                         </div>
                                                                     </div>
-                                                                    <div className="flex-grow-1">
-                                                                        <span className="fw-medium">{user.username}</span>
-                                                                    </div>
+                                                                    <span className="fw-bold text-white-80">{user.username}</span>
                                                                 </div>
                                                             </td>
-                                                            <td className="fullname">{user.full_name}</td>
-                                                            <td className="email">{user.email || "---"}</td>
-                                                            <td className="dept">
-                                                                <Badge color="light" className="text-body border fw-normal">
+                                                            <td className="text-white-70">{user.full_name}</td>
+                                                            <td>
+                                                                <ModernBadge color="secondary">
                                                                     {user.department?.name || "Chưa phân phòng"}
-                                                                </Badge>
-                                                            </td>
-                                                            <td className="roles">
-                                                                {(user.roles || []).map((r, i) => (
-                                                                    <Badge key={i} color="info" className="badge-soft-info me-1">
-                                                                        {typeof r === 'object' ? r.role_name : r}
-                                                                    </Badge>
-                                                                ))}
+                                                                </ModernBadge>
                                                             </td>
                                                             <td>
-                                                                <div className="d-flex gap-2">
-                                                                    <div className="edit">
-                                                                        <button className="btn btn-sm btn-soft-primary edit-item-btn" onClick={() => handleEdit(user)}>
-                                                                            <i className="ri-pencil-fill align-bottom"></i>
-                                                                        </button>
-                                                                    </div>
-                                                                    <div className="remove">
-                                                                        <button className="btn btn-sm btn-soft-danger remove-item-btn" onClick={() => handleDelete(user.id)}>
-                                                                            <i className="ri-delete-bin-fill align-bottom"></i>
-                                                                        </button>
-                                                                    </div>
+                                                                {(user.roles || []).map((r, i) => (
+                                                                    <ModernBadge key={i} color="info" className="me-1">
+                                                                        {typeof r === 'object' ? r.role_name : r}
+                                                                    </ModernBadge>
+                                                                ))}
+                                                            </td>
+                                                            <td className="text-end pe-4">
+                                                                <div className="d-flex gap-1 justify-content-end">
+                                                                    <ModernButton variant="ghost" className="btn-icon btn-sm" onClick={() => handleEdit(user)}>
+                                                                        <i className="ri-pencil-fill"></i>
+                                                                    </ModernButton>
+                                                                    <ModernButton variant="ghost" className="btn-icon btn-sm text-danger" onClick={() => handleDelete(user.id)}>
+                                                                        <i className="ri-delete-bin-fill"></i>
+                                                                    </ModernButton>
                                                                 </div>
                                                             </td>
                                                         </tr>
                                                     ))
                                                 ) : (
                                                     <tr>
-                                                        <td colSpan="5" className="text-center py-5">
-                                                            <lord-icon src="https://cdn.lordicon.com/msoeawqm.json" trigger="loop" colors="primary:#121331,secondary:#08a88a" style={{ width: "75px", height: "75px" }}></lord-icon>
-                                                            <h5 className="mt-2">Không tìm thấy dữ liệu</h5>
-                                                        </td>
+                                                        <td colSpan="5" className="text-center py-5 opacity-50">Không tìm thấy dữ liệu</td>
                                                     </tr>
                                                 )}
                                             </tbody>
                                         </Table>
                                     </div>
                                 </CardBody>
-                            </Card>
-                        </Col>
-                    </Row>
-                </Container>
+                            </ModernCard>
+                        </TabPane>
+
+                        <TabPane tabId="2">
+                            <ModernCard className="border-0 shadow-sm">
+                                <CardHeader className="bg-transparent border-bottom border-white-5 d-flex align-items-center justify-content-between p-3">
+                                    <h6 className="card-title mb-0 flex-grow-1 text-white opacity-75 text-uppercase fs-12 fw-bold">Cơ cấu Phòng ban / Đơn vị</h6>
+                                    <ModernButton variant="success" className="btn-sm" onClick={toggleDeptModal}>
+                                        <i className="ri-add-line"></i> Thêm phòng ban
+                                    </ModernButton>
+                                </CardHeader>
+                                <CardBody className="p-0">
+                                    <div className="table-responsive">
+                                        <Table className="align-middle table-nowrap mb-0 modern-table">
+                                            <thead className="bg-white-3">
+                                                <tr className="text-white-60">
+                                                    <th className="ps-4">Tên phòng ban</th>
+                                                    <th>Mô tả</th>
+                                                    <th className="text-end pe-4">Thao tác</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {departments.map((dept, key) => (
+                                                    <tr key={key} className="border-bottom border-white-5">
+                                                        <td className="ps-4 fw-bold text-white-80">{dept.name}</td>
+                                                        <td className="text-white-60">{dept.description || "---"}</td>
+                                                        <td className="text-end pe-4">
+                                                            <div className="d-flex gap-1 justify-content-end">
+                                                                <ModernButton variant="ghost" className="btn-icon btn-sm" onClick={() => handleDeptEdit(dept)}>
+                                                                    <i className="ri-pencil-fill"></i>
+                                                                </ModernButton>
+                                                                <ModernButton variant="ghost" className="btn-icon btn-sm text-danger" onClick={() => handleDeptDelete(dept.id)}>
+                                                                    <i className="ri-delete-bin-fill"></i>
+                                                                </ModernButton>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                                {departments.length === 0 && (
+                                                    <tr>
+                                                        <td colSpan="3" className="text-center py-5 opacity-50">Chưa có dữ liệu phòng ban</td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </Table>
+                                    </div>
+                                </CardBody>
+                            </ModernCard>
+                        </TabPane>
+                    </TabContent>
+                    </Container>
+                </div>
             </div>
 
             {/* User Modal */}
@@ -426,6 +552,7 @@ const UserManagement = () => {
                     </ModalFooter>
                 </Form>
             </Modal>
+            
             {/* Import Modal */}
             <Modal isOpen={importModal} toggle={() => setImportModal(false)} centered>
                 <ModalHeader toggle={() => setImportModal(false)}>Nhập cán bộ từ Excel</ModalHeader>
@@ -450,7 +577,48 @@ const UserManagement = () => {
                     </Button>
                 </ModalFooter>
             </Modal>
+            
             <ToastContainer autoClose={2000} limit={1} />
+
+            {/* Department Modal */}
+            <Modal isOpen={deptModal} toggle={toggleDeptModal} centered>
+                <ModalHeader toggle={toggleDeptModal} className="bg-white-3 border-bottom border-white-5 p-3">
+                    {editingDept ? "Chỉnh sửa Phòng ban" : "Thêm phòng ban mới"}
+                </ModalHeader>
+                <Form onSubmit={handleDeptSubmit}>
+                    <ModalBody className="p-4">
+                        <FormGroup className="mb-3">
+                            <Label className="text-white-50 small fw-bold">Tên phòng ban <span className="text-danger">*</span></Label>
+                            <Input
+                                type="text"
+                                placeholder="Nhập tên phòng ban"
+                                value={deptFormData.name}
+                                onChange={(e) => setDeptFormData({...deptFormData, name: e.target.value})}
+                                className="bg-white-5 border-white-10 text-white"
+                                invalid={!!deptErrors.name}
+                            />
+                            <FormFeedback>{deptErrors.name}</FormFeedback>
+                        </FormGroup>
+                        <FormGroup className="mb-0">
+                            <Label className="text-white-50 small fw-bold">Mô tả</Label>
+                            <Input
+                                type="textarea"
+                                placeholder="Nhập mô tả..."
+                                value={deptFormData.description}
+                                onChange={(e) => setDeptFormData({...deptFormData, description: e.target.value})}
+                                className="bg-white-5 border-white-10 text-white"
+                                rows="3"
+                            />
+                        </FormGroup>
+                    </ModalBody>
+                    <ModalFooter className="bg-white-3 border-top border-white-5 p-2">
+                        <Button color="link" className="text-white-50" onClick={toggleDeptModal}>Hủy</Button>
+                        <Button color="success" type="submit">
+                            {editingDept ? "Lưu thay đổi" : "Thêm mới"}
+                        </Button>
+                    </ModalFooter>
+                </Form>
+            </Modal>
         </React.Fragment>
     );
 };

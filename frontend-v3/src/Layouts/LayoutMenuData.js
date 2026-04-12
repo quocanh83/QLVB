@@ -62,6 +62,7 @@ const useNavData = () => {
   const [isLevel2, setIsLevel2] = useState(false);
 
   const [isDocs, setIsDocs] = useState(false); // Thêm state cho QLVB menu
+  const [isAssignment, setIsAssignment] = useState(false);
 
   const [iscurrentState, setIscurrentState] = useState("Dashboard");
 
@@ -83,12 +84,28 @@ const useNavData = () => {
   const [sidebarJSONConfig, setSidebarJSONConfig] = useState(JSON.parse(localStorage.getItem('sidebarJSONConfig') || '[]'));
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const CURRENT_SIDEBAR_VERSION = "4.3.87";
+  const CURRENT_SIDEBAR_VERSION = "5.0.0";
 
-  useEffect(() => {
-    const fetchSidebarConfig = async () => {
-      try {
-        const response = await axios.get("/api/accounts/profile/", getAuthHeader());
+    useEffect(() => {
+      const fetchSidebarConfig = async () => {
+        try {
+          // Kiểm tra phiên bản Sidebar để ép buộc làm mới
+          const savedVersion = localStorage.getItem('sidebarVersion');
+          if (savedVersion !== CURRENT_SIDEBAR_VERSION) {
+              console.log("Phiên bản Sidebar mới, đang làm mới lại cấu hình...");
+              localStorage.removeItem('sidebarJSONConfig');
+              localStorage.setItem('sidebarVersion', CURRENT_SIDEBAR_VERSION);
+              setSidebarJSONConfig([]);
+          }
+
+          // Tự động dọn dẹp cấu hình cũ nếu phát hiện ID lỗi thời (Fallback thêm)
+          const oldConfig = localStorage.getItem('sidebarJSONConfig');
+          if (oldConfig && (oldConfig.includes('dashboard') || oldConfig.includes('documents_group') || oldConfig.includes('departments'))) {
+              localStorage.removeItem('sidebarJSONConfig');
+              setSidebarJSONConfig([]);
+          }
+
+          const response = await axios.get("/api/accounts/profile/", getAuthHeader());
         const remoteData = response.data || response;
         const remoteConfig = remoteData.sidebar_config;
         const remoteVersion = remoteData.sidebar_version;
@@ -180,6 +197,9 @@ const useNavData = () => {
     if (iscurrentState !== "Landing") {
       setIsLanding(false);
     }
+    if (iscurrentState !== "Assignment") {
+      setIsAssignment(false);
+    }
   }, [
     history,
     iscurrentState,
@@ -195,6 +215,7 @@ const useNavData = () => {
     isIcons,
     isMaps,
     isMultiLevel,
+    isAssignment,
   ]);
   const menuItems = menuMaster.map(item => {
     // Add specific click handlers
@@ -211,13 +232,40 @@ const useNavData = () => {
         }
       };
     }
-    if (item.id === 'settings') {
+    if (item.id === 'documents_group') {
       return {
         ...item,
-        stateVariables: iscurrentState === "Settings",
+        stateVariables: isDocs,
         click: function (e) {
           e.preventDefault();
-          setIscurrentState("Settings");
+          setIsDocs(!isDocs);
+          setIscurrentState("Documents");
+          updateIconSidebar(e);
+        }
+      };
+    }
+    if (item.id === 'project-assignment-v2') {
+      return {
+        ...item,
+        stateVariables: isAssignment,
+        click: function (e) {
+          e.preventDefault();
+          setIsAssignment(!isAssignment);
+          setIscurrentState("Assignment");
+          history("/project-assignment-modern");
+        }
+      };
+    }
+    if (item.id === 'settings' || item.id === 'organization-management') {
+      return {
+        ...item,
+        stateVariables: iscurrentState === "Settings" || iscurrentState === "Organization",
+        click: function (e) {
+          e.preventDefault();
+          setIscurrentState(item.id === 'settings' ? "Settings" : "Organization");
+          if (item.link && item.link !== "/#") {
+              history(item.link);
+          }
         }
       };
     }
@@ -252,11 +300,15 @@ const useNavData = () => {
   const mergeConfigWithMaster = (config, master) => {
     if (!config || config.length === 0) return master;
     
-    const configIds = new Set(config.map(it => it.id));
+    // 1. Chỉ giữ lại những mục TRONG LOCALSTORAGE mà VẪN CÒN TỒN TẠI trong MASTER (Bản vẽ thiết kế trong code)
+    const masterIds = new Set(master.filter(m => m.id).map(m => m.id));
+    let filteredConfig = config.filter(c => c.id && masterIds.has(c.id));
+
+    // 2. Thêm các mục TRONG MASTER mà CHƯA CÓ trong LOCALSTORAGE
+    const configIds = new Set(filteredConfig.map(it => it.id));
     const missingInConfig = master.filter(m => m.id && !configIds.has(m.id));
     
-    // Thêm các mục thiếu vào cuối danh sách phẳng
-    let mergedFlat = [...config];
+    let mergedFlat = [...filteredConfig];
     missingInConfig.forEach(m => {
         mergedFlat.push({ ...m, visible: true, depth: 0, parentId: null });
     });

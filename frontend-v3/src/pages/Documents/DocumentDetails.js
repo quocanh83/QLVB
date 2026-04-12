@@ -8,7 +8,13 @@ import SimpleBar from 'simplebar-react';
 import FeatherIcon from 'feather-icons-react';
 import CreatableSelect from 'react-select/creatable';
 import { Label, FormFeedback } from 'reactstrap';
-import ImportFeedbackModal from './ImportFeedbackModal';
+// Modern UI Components
+import { 
+    ModernCard, ModernTable, ModernBadge, ModernButton, 
+    ModernHeader, ModernStatWidget, ModernSearchBox 
+} from '../../Components/Common/ModernUI';
+import DeleteModal from "../../Components/Common/DeleteModal";
+import ImportFeedbackModal from "./ImportFeedbackModal";
 
 const selectStyles = {
     control: (base, state) => ({
@@ -512,16 +518,16 @@ const DocumentDetails = () => {
 
             const blob = await fetchResponse.blob();
             const blobUrl = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
+            const link = window.document.createElement('a');
             link.href = blobUrl;
             
             const filename = `Bao_cao_Mau_10_${document.id}.docx`;
             link.setAttribute('download', filename);
-            document.body.appendChild(link);
+            window.document.body.appendChild(link);
             link.click();
             
             setTimeout(() => {
-                if (document.body.contains(link)) document.body.removeChild(link);
+                if (window.document.body.contains(link)) window.document.body.removeChild(link);
                 window.URL.revokeObjectURL(blobUrl);
             }, 10000);
 
@@ -720,36 +726,41 @@ const DocumentDetails = () => {
         return nodes.map(node => {
             const hasChildren = node.children && node.children.length > 0;
             const isExpanded = expandedNodeId === node.id;
-            
+            const isActive = selectedNode?.id === node.id;
+
             return (
-                <div key={node.id} className="mb-1">
+                <div key={node.id} style={{ marginLeft: depth > 0 ? '12px' : '0' }}>
                     <div 
-                        className={`p-2 rounded cursor-pointer transition-colors fs-13 ${selectedNode?.id === node.id ? 'bg-primary text-white shadow-sm' : 'hover:bg-light text-body'}`}
-                        style={{ marginLeft: `${depth * 15}px` }}
+                        className={`modern-list-item ${isActive ? 'active' : ''} ${hasChildren ? 'has-children' : ''}`}
                         onClick={() => {
                             setSelectedNode(node);
+                            setSelectedAppendix(null);
                             if (node.node_type === 'Điều') {
                                 setExpandedNodeId(isExpanded ? null : node.id);
                             }
                         }}
                     >
-                        <div className="d-flex align-items-center">
-                            <FeatherIcon 
-                                icon={node.node_type === 'Khoản' ? 'file-text' : (isExpanded ? 'chevron-down' : 'chevron-right')} 
-                                className="icon-xs me-2 opacity-75" 
-                            />
-                            <span className="fw-medium text-truncate flex-grow-1">
-                                {node.node_label}: {(node.content || "").substring(0, 30)}...
-                            </span>
-                            {node.total_feedbacks > 0 && (
-                                <span className={`badge ${node.resolved_feedbacks === node.total_feedbacks ? 'bg-success' : 'bg-warning'} ms-2`}>
-                                    {node.resolved_feedbacks}/{node.total_feedbacks}
-                                </span>
+                        <div className="d-flex align-items-center overflow-hidden flex-grow-1">
+                            {hasChildren && (
+                                <i 
+                                    className={`ri-arrow-${isExpanded ? 'down' : 'right'}-s-line me-1 cursor-pointer toggle-icon`}
+                                ></i>
                             )}
+                            {!hasChildren && <div style={{ width: '1.2rem' }}></div>}
+                            <div className="node-content-wrapper text-truncate">
+                                <span className="node-type-label text-uppercase">{node.node_type} {node.node_label.replace(node.node_type, '').trim()}</span>
+                                <span className="node-preview ms-1 opacity-50 text-truncate">{(node.content || "").substring(0, 40)}</span>
+                            </div>
                         </div>
+                        
+                        {(node.total_feedbacks > 0) && (
+                            <span className={`modern-counter-badge ${node.resolved_feedbacks === node.total_feedbacks ? 'success' : 'warning shadow-neon'}`}>
+                                {node.resolved_feedbacks}/{node.total_feedbacks}
+                            </span>
+                        )}
                     </div>
                     {hasChildren && isExpanded && (
-                        <div className="mt-1">
+                        <div className="tree-branch-container">
                             {renderNodeTree(node.children, depth + 1)}
                         </div>
                     )}
@@ -770,263 +781,266 @@ const DocumentDetails = () => {
 
     return (
         <React.Fragment>
-            <div className="page-content" style={{ padding: 0, height: 'calc(100vh - 70px)', display: 'flex', flexDirection: 'column' }}>
-                <Container fluid className="h-100 d-flex flex-column px-0 pb-1">
+            <div className="designkit-wrapper designkit-layout-root">
+                <div className="modern-page-content" style={{ padding: 0, height: 'calc(100vh - 70px)', display: 'flex', flexDirection: 'column' }}>
+                    <Container fluid className="h-100 d-flex flex-column px-0 pb-1">
                     
-                    {/* Header Bar */}
-                    <div className="bg-card border-bottom p-2 mb-1 shrink-0 rounded shadow-sm">
-                        <div className="d-flex align-items-center justify-content-between">
-                            <div className="d-flex align-items-center gap-3">
-                                <Link to="/documents" className="btn btn-sm btn-soft-secondary">
-                                    <i className="ri-arrow-left-line align-bottom"></i> Quay lại
-                                </Link>
-                                <h4 className="mb-0 fw-bold header-title text-truncate" style={{ maxWidth: '600px' }}>
-                                    {document?.project_name}
-                                </h4>
-                                <span className="badge bg-primary-subtle text-primary">{document?.status}</span>
-                            </div>
-                            <div className="d-flex gap-2">
-                                <Link to={`/documents/${id}/classification`} className="btn btn-sm btn-info d-flex align-items-center">
-                                    <i className="ri-table-line align-bottom me-1"></i> Bảng theo dõi góp ý
-                                </Link>
-                                <Button color="success" className="btn-sm" onClick={handleExportMau10}>
-                                    <i className="ri-file-word-2-line align-bottom me-1"></i> Xuất Mẫu 10
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
+                        <ModernHeader 
+                            title={document?.project_name || "Chi tiết Văn bản"} 
+                            subtitle={document?.drafting_agency}
+                            showBack={true}
+                            onBack={() => window.history.back()}
+                            actions={
+                                <div className="d-flex gap-2">
+                                    <Link to={`/documents/${id}/classification`} className="decoration-none">
+                                        <ModernButton variant="info-ghost" size="sm">
+                                            <i className="ri-table-line align-bottom me-1"></i> Bảng theo dõi
+                                        </ModernButton>
+                                    </Link>
+                                    <ModernButton variant="primary" size="sm" onClick={handleExportMau10}>
+                                        <i className="ri-file-word-2-line align-bottom me-1"></i> Xuất Mẫu 10
+                                    </ModernButton>
+                                    <ModernButton variant="ghost" size="sm" onClick={() => fetchStructure()}>
+                                        <i className="ri-refresh-line"></i>
+                                    </ModernButton>
+                                </div>
+                            }
+                        />
 
-                    {/* 3 Columns Workspace */}
-                    <Row className="flex-grow-1 g-3 overflow-hidden m-0" style={{ minHeight: 0 }}>
-                        
-                        {/* LEFT COLUMN: STRUCTURE (3/12) */}
-                        <Col lg={3} className="h-100 d-flex flex-column">
-                            <Card className="h-100 border-0 shadow-sm mb-0">
-                                <CardHeader className="border-bottom p-3 bg-light-subtle">
-                                    <h6 className="card-title mb-3 fw-bold"><i className="ri-node-tree align-bottom me-1 text-primary"></i> Cấu trúc Dự thảo</h6>
-                                    <div className="search-box mb-2">
-                                        <Input 
-                                            type="text" 
-                                            className="form-control form-control-sm" 
-                                            placeholder="Tìm kiếm Điều/Khoản..." 
+                        <Row className="workspace-pane-layout flex-grow-1 overflow-hidden gx-0">
+                            
+                            {/* LEFT PANE: NAVIGATION (25%) */}
+                            <Col lg={3} xl={2} className="pane-sidebar h-100 d-flex flex-column border-end border-white-5 bg-black-20">
+                                <div className="pane-header p-3 border-bottom border-white-5">
+                                    <div className="d-flex align-items-center justify-content-between mb-3">
+                                        <h6 className="pane-title mb-0">
+                                            <i className="ri-node-tree text-primary me-2"></i>Cấu trúc Dự thảo
+                                        </h6>
+                                        <ModernButton variant="ghost" size="sm" className="btn-icon p-0" onClick={() => setShowAddNodeModal(true)}>
+                                            <i className="ri-add-line fs-18"></i>
+                                        </ModernButton>
+                                    </div>
+                                    <div className="modern-filter-stack gap-2">
+                                        <ModernSearchBox 
+                                            placeholder="Tìm kiếm..." 
                                             value={searchTerm}
                                             onChange={(e) => setSearchTerm(e.target.value)}
+                                            size="sm"
                                         />
-                                        <i className="ri-search-line search-icon"></i>
+                                        <div className="modern-select-compact">
+                                            <select 
+                                                className="form-select form-select-sm"
+                                                value={filterType}
+                                                onChange={(e) => setFilterType(e.target.value)}
+                                            >
+                                                <option value="all">Tất cả nội dung</option>
+                                                <option value="has_feedback">Mục có góp ý</option>
+                                                <option value="unresolved">Chưa giải trình</option>
+                                                <option value="resolved">Đã xong</option>
+                                            </select>
+                                        </div>
                                     </div>
-                                    <Input 
-                                        type="select" 
-                                        className="form-select form-select-sm"
-                                        value={filterType}
-                                        onChange={(e) => setFilterType(e.target.value)}
-                                    >
-                                        <option value="all">Tất cả nội dung</option>
-                                        <option value="has_feedback">Mục có góp ý</option>
-                                        <option value="unresolved">Chưa giải trình xong</option>
-                                        <option value="resolved">Đã giải trình</option>
-                                    </Input>
-                                </CardHeader>
-                                <CardBody className="p-0 overflow-hidden">
-                                    <SimpleBar style={{ height: '100%' }} className="p-3">
+                                </div>
+                                <div className="pane-body flex-grow-1 overflow-hidden">
+                                    <SimpleBar style={{ height: '100%' }} className="px-2 py-3">
                                         {loadingStructure ? (
-                                            <div className="text-center py-4"><Spinner size="sm" color="primary" /></div>
+                                            <div className="text-center py-5"><Spinner size="sm" color="primary" /></div>
                                         ) : filteredStructure.length > 0 ? (
-                                            <>
+                                            <div className="tree-explorer">
                                                 {renderNodeTree(filteredStructure)}
                                                 
                                                 {/* Appendices Section */}
-                                                <div className="mt-4 pt-3 border-top">
-                                                    <div className="d-flex justify-content-between align-items-center mb-2 px-1">
-                                                        <h6 className="card-title mb-0 fs-12 text-uppercase fw-bold text-muted">Phụ lục kèm theo</h6>
-                                                        <Button color="soft-primary" size="sm" className="btn-icon rounded-circle" onClick={() => setShowAppendixModal(true)}>
+                                                <div className="mt-4 pt-3 border-top border-white-10">
+                                                    <div className="d-flex justify-content-between align-items-center mb-2 px-2">
+                                                        <h6 className="xsmall text-uppercase fw-800 tracking-wider text-white-40 mb-0">Phụ lục kèm theo</h6>
+                                                        <button className="btn btn-sm btn-link text-primary p-0" onClick={() => setShowAppendixModal(true)}>
                                                             <i className="ri-add-line"></i>
-                                                        </Button>
+                                                        </button>
                                                     </div>
-                                                    <div className="px-1">
+                                                    <div className="appendix-list">
                                                         {loadingAppendices ? <div className="text-center"><Spinner size="sm"/></div> : appendices.length > 0 ? (
                                                             appendices.map(app => (
-                                                                <div key={app.id} className={`d-flex align-items-center justify-content-between p-2 mb-1 rounded shadow-xs transition-all ${selectedAppendix?.id === app.id ? 'bg-primary bg-opacity-10 border border-primary-subtle' : 'bg-body-secondary hover:bg-light-subtle'}`}>
-                                                                    <div className="d-flex align-items-center overflow-hidden flex-grow-1 cursor-pointer" onClick={() => {
-                                                                        setSelectedAppendix(app);
-                                                                        setSelectedNode(null);
-                                                                        fetchAppendicesFeedbacks(app.id);
-                                                                    }}>
-                                                                        <i className={`ri-${app.file ? 'file-list-2' : 'text-spacing'} ${selectedAppendix?.id === app.id ? 'text-primary' : 'text-muted'} me-2 fs-16`}></i>
-                                                                        <span className={`text-truncate fs-12 ${selectedAppendix?.id === app.id ? 'fw-bold text-primary' : 'fw-medium'}`}>{app.name}</span>
+                                                                <div key={app.id} className={`modern-list-item ${selectedAppendix?.id === app.id ? 'active' : ''}`} onClick={() => {
+                                                                    setSelectedAppendix(app);
+                                                                    setSelectedNode(null);
+                                                                    fetchAppendicesFeedbacks(app.id);
+                                                                }}>
+                                                                    <div className="d-flex align-items-center overflow-hidden flex-grow-1">
+                                                                        <i className={`ri-${app.file ? 'file-word-2' : 'file-text'} ${selectedAppendix?.id === app.id ? 'text-primary' : 'text-white-40'} me-2`}></i>
+                                                                        <span className="node-content text-truncate">{app.name}</span>
                                                                     </div>
-                                                                    <Button color="link" size="sm" className="p-0 text-danger ms-2" onClick={(e) => { e.stopPropagation(); handleDeleteAppendix(app.id); }}>
-                                                                        <i className="ri-delete-bin-line fs-14"></i>
-                                                                    </Button>
+                                                                    <button className="action-btn text-danger opacity-0" onClick={(e) => { e.stopPropagation(); handleDeleteAppendix(app.id); }}>
+                                                                        <i className="ri-delete-bin-line"></i>
+                                                                    </button>
                                                                 </div>
                                                             ))
                                                         ) : (
-                                                            <div className="text-center text-muted fs-11 py-2 opacity-75">Chưa có phụ lục.</div>
+                                                            <div className="text-center text-muted xsmall py-3 opacity-40 italic">Chưa có phụ lục</div>
                                                         )}
                                                     </div>
                                                 </div>
-                                            </>
+                                            </div>
                                         ) : (
-                                            <div className="text-center text-muted py-4 fs-13">Không tìm thấy nội dung phù hợp.</div>
+                                            <div className="modern-empty-state mini">
+                                                <i className="ri-search-line mb-2"></i>
+                                                <p className="xsmall text-white-40">Không tìm thấy</p>
+                                            </div>
                                         )}
                                     </SimpleBar>
-                                </CardBody>
-                            </Card>
-                        </Col>
+                                </div>
+                            </Col>
 
-                        {/* MIDDLE COLUMN: CONTENT (5/12) */}
-                        <Col lg={5} className="h-100 d-flex flex-column">
-                            <Card className="h-100 border-0 shadow-sm mb-0">
-                                <CardHeader className="border-bottom p-3">
-                                    <h6 className="card-title mb-0 fw-bold"><i className="ri-file-list-3-line align-bottom me-1 text-primary"></i> Nội dung Chi tiết</h6>
-                                </CardHeader>
-                                <CardBody className="p-0 overflow-hidden bg-body-tertiary bg-opacity-50">
+                            {/* MIDDLE PANE: CONTENT EDITOR (40%) */}
+                            <Col lg={5} xl={6} className="pane-content h-100 d-flex flex-column border-end border-white-5 bg-black-10">
+                                <div className="pane-header p-3 border-bottom border-white-5 d-flex align-items-center justify-content-between bg-black-20">
+                                    <h6 className="pane-title mb-0 text-truncate">
+                                        <i className="ri-file-list-3-line text-primary me-2"></i>Nội dung Chi tiết
+                                    </h6>
+                                    {selectedNode && (
+                                        <div className="d-flex align-items-center gap-2 flex-shrink-0">
+                                            <span className="modern-badge soft-primary text-uppercase xsmall tracking-wider px-2 py-1">
+                                                {selectedNode.node_type}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                <div className="pane-body flex-grow-1 overflow-hidden">
                                     <SimpleBar style={{ height: '100%' }} className="p-4">
                                         {selectedAppendix ? (
-                                            <div className="bg-card p-4 rounded shadow-sm border border-primary-subtle border-opacity-25">
-                                                <div className="d-flex justify-content-between align-items-start mb-3 pb-2 border-bottom">
-                                                    <div>
-                                                        <h5 className="fw-bold mb-1 text-primary">{selectedAppendix.name}</h5>
-                                                        <span className="badge bg-primary-subtle text-primary fs-10 text-uppercase">Phụ lục đính kèm</span>
-                                                    </div>
-                                                    <div className="d-flex gap-2">
-                                                        {!selectedAppendix.file && (
-                                                            !isEditingNode ? (
-                                                                <Button color="light" size="sm" className="btn-icon" onClick={() => setIsEditingNode(true)}>
-                                                                    <i className="ri-pencil-line fs-14"></i>
-                                                                </Button>
-                                                            ) : (
-                                                                <div className="d-flex gap-1">
-                                                                    <Button color="success" size="sm" onClick={handleSaveNodeContent}>Lưu</Button>
-                                                                    <Button color="light" size="sm" onClick={() => setIsEditingNode(false)}>Hủy</Button>
-                                                                </div>
-                                                            )
-                                                        )}
-                                                        {selectedAppendix.file && (
-                                                            <Button color="primary" size="sm" className="btn-label" onClick={() => window.open(selectedAppendix.file, "_blank")}>
-                                                                <i className="ri-download-2-line label-icon align-middle fs-16 me-2"></i> Tải file
-                                                            </Button>
-                                                        )}
+                                            <div className="modern-content-view">
+                                                <div className="content-meta-header mb-4 p-3 rounded-3 bg-white-5 border border-white-10">
+                                                    <div className="d-flex justify-content-between align-items-start gap-3">
+                                                        <div className="overflow-hidden">
+                                                            <h4 className="fw-900 mb-1 text-white tracking-tight text-truncate">{selectedAppendix.name}</h4>
+                                                            <span className="text-primary-subtle fs-11 text-uppercase fw-bold tracking-widest">Phụ lục đính kèm</span>
+                                                        </div>
+                                                        <div className="d-flex gap-2 flex-shrink-0">
+                                                            {!selectedAppendix.file && (
+                                                                !isEditingNode ? (
+                                                                    <ModernButton variant="ghost" size="sm" onClick={() => setIsEditingNode(true)}>
+                                                                        <i className="ri-pencil-line me-1"></i> Sửa
+                                                                    </ModernButton>
+                                                                ) : (
+                                                                    <div className="d-flex gap-2">
+                                                                        <ModernButton variant="primary" size="sm" onClick={handleSaveNodeContent}>Lưu</ModernButton>
+                                                                        <ModernButton variant="ghost" size="sm" onClick={() => setIsEditingNode(false)}>Hủy</ModernButton>
+                                                                    </div>
+                                                                )
+                                                            )}
+                                                            {selectedAppendix.file && (
+                                                                <ModernButton variant="primary" size="sm" onClick={() => window.open(selectedAppendix.file, "_blank")}>
+                                                                    <i className="ri-download-2-line me-1"></i> Tải file
+                                                                </ModernButton>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <div className="fs-14 text-body lh-base" style={{ whiteSpace: 'pre-wrap' }}>
+
+                                                <div className="content-body-area fs-15 text-white-85 lh-lg">
                                                     {isEditingNode ? (
-                        <div className="space-y-4">
-                            <div className="mb-3">
-                                <label className="form-label fs-12 text-uppercase text-muted fw-bold">Tên phụ lục</label>
-                                <Input 
-                                    type="text"
-                                    className="form-control mb-2 fw-bold"
-                                    value={editedNodesData[selectedAppendix.id]?.name || ''}
-                                    onChange={(e) => setEditedNodesData({ 
-                                        ...editedNodesData, 
-                                        [selectedAppendix.id]: { ...editedNodesData[selectedAppendix.id], name: e.target.value } 
-                                    })}
-                                />
-                            </div>
-                            <div className="mb-3">
-                                <label className="form-label fs-12 text-uppercase text-muted fw-bold">Nội dung</label>
-                                <Input 
-                                    type="textarea" 
-                                    rows={20} 
-                                    className="form-control bg-white shadow-sm border-primary-subtle" 
-                                    value={editedNodesData[selectedAppendix.id]?.content || ''} 
-                                    onChange={(e) => setEditedNodesData({ 
-                                        ...editedNodesData, 
-                                        [selectedAppendix.id]: { ...editedNodesData[selectedAppendix.id], content: e.target.value } 
-                                    })}
-                                />
-                            </div>
-                        </div>
-                    ) : (
+                                                        <div className="modern-editor-container">
+                                                            <div className="mb-4">
+                                                                <label className="xsmall text-uppercase fw-800 text-white-40 mb-2">Tên phụ lục</label>
+                                                                <Input 
+                                                                    type="text"
+                                                                    className="modern-input fw-900 fs-18"
+                                                                    value={editedNodesData[selectedAppendix.id]?.name || ''}
+                                                                    onChange={(e) => setEditedNodesData({ 
+                                                                        ...editedNodesData, 
+                                                                        [selectedAppendix.id]: { ...editedNodesData[selectedAppendix.id], name: e.target.value } 
+                                                                    })}
+                                                                />
+                                                            </div>
+                                                            <div className="mb-3">
+                                                                <label className="xsmall text-uppercase fw-800 text-white-40 mb-2">Nội dung</label>
+                                                                <Input 
+                                                                    type="textarea" 
+                                                                    rows={20} 
+                                                                    className="modern-input fs-14" 
+                                                                    value={editedNodesData[selectedAppendix.id]?.content || ''} 
+                                                                    onChange={(e) => setEditedNodesData({ 
+                                                                        ...editedNodesData, 
+                                                                        [selectedAppendix.id]: { ...editedNodesData[selectedAppendix.id], content: e.target.value } 
+                                                                    })}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    ) : (
                                                         selectedAppendix.file ? (
-                                                            <div className="text-center py-5">
-                                                                <div className="avatar-lg mx-auto mb-3">
-                                                                    <div className="avatar-title bg-light text-primary rounded-circle display-6">
-                                                                        <i className="ri-file-word-2-line"></i>
-                                                                    </div>
+                                                            <div className="modern-file-placeholder py-5 text-center bg-white-5 rounded-4 border border-white-5">
+                                                                <div className="placeholder-icon mb-3">
+                                                                    <i className="ri-file-word-2-fill text-primary display-4"></i>
                                                                 </div>
-                                                                <h6 className="fw-bold">{selectedAppendix.name}</h6>
-                                                                <p className="text-muted small mb-4">Nội dung nằm trong tệp tin đính kèm</p>
-                                                                <Button color="soft-primary" onClick={() => window.open(selectedAppendix.file, "_blank")}>
-                                                                    Xem chi tiết file
-                                                                </Button>
+                                                                <h5 className="fw-900 text-white">{selectedAppendix.name}</h5>
+                                                                <p className="text-white-40 mb-4 px-5">Tệp tin Word đính kèm.</p>
+                                                                <ModernButton variant="primary" className="rounded-pill px-4" onClick={() => window.open(selectedAppendix.file, "_blank")}>
+                                                                    <i className="ri-external-link-line me-2"></i>Mở tệp
+                                                                </ModernButton>
                                                             </div>
                                                         ) : (
-                                                            selectedAppendix.content || <div className="text-muted italic">Không có nội dung văn bản.</div>
+                                                            <div className="document-text-render px-2" style={{ whiteSpace: 'pre-wrap' }}>
+                                                                {selectedAppendix.content || <em className="text-white-20 italic">Văn bản chưa có nội dung.</em>}
+                                                            </div>
                                                         )
                                                     )}
                                                 </div>
                                             </div>
                                         ) : selectedNode ? (
-                                            <div className="bg-card p-4 rounded shadow-sm border border-light-subtle">
-                                                <h5 className="fw-bold mb-3 pb-2 border-bottom border-light d-flex justify-content-between align-items-center">
-                                                    <span>
-                                                        {(() => {
-                                                            const nodeLabel = (selectedNode.node_label || "").trim();
-                                                            const firstLine = (selectedNode.content || "").split('\n')[0].trim();
-                                                            
-                                                            // Chuẩn hóa để so sánh (bỏ dấu cách, dấu chấm, dấu hai chấm, hoa thường)
-                                                            const normalize = (s) => s.toLowerCase().replace(/[:.\s]/g, '');
-                                                            const normalizedLabel = normalize(nodeLabel);
-                                                            const normalizedFirstLine = normalize(firstLine);
-                                                            
-                                                            let displayTitle = "";
-                                                            if (normalizedFirstLine.startsWith(normalizedLabel)) {
-                                                                // Nếu dòng đầu đã chứa nhãn (VD: "Điều 1. ...") thì lấy luôn dòng đó
-                                                                displayTitle = firstLine;
-                                                            } else if (normalizedLabel.startsWith(normalizedFirstLine)) {
-                                                                // Ngược lại nếu nhãn chứa dòng đầu (VD: Nhãn="Phụ lục I: ABC", dòng đầu="Phụ lục I")
-                                                                displayTitle = nodeLabel;
-                                                            } else {
-                                                                // Ngược lại ghép nhãn vào trước
-                                                                displayTitle = `${nodeLabel}${firstLine ? ': ' + firstLine : ''}`;
-                                                            }
-                                                            
-                                                            if (selectedNode.node_type === 'Khoản') {
-                                                                const parentLabel = selectedNode.parent_label || 'Văn bản';
-                                                                const parentTitle = (selectedNode.parent_content || "").split('\n')[0].trim();
-                                                                return `${parentLabel}. ${parentTitle}`;
-                                                            }
-                                                            
-                                                            return displayTitle;
-                                                        })()}
-                                                    </span>
-                                                    <div className="d-flex align-items-center gap-2">
-                                                        {!isEditingNode ? (
-                                                            <Button color="light" size="sm" className="btn-icon" onClick={() => setIsEditingNode(true)}>
-                                                                <i className="ri-pencil-line fs-14"></i>
-                                                            </Button>
-                                                        ) : (
-                                                            <div className="d-flex gap-1">
-                                                                <Button color="success" size="sm" onClick={handleSaveNodeContent}>Lưu</Button>
-                                                                <Button color="light" size="sm" onClick={() => setIsEditingNode(false)}>Hủy</Button>
-                                                            </div>
-                                                        )}
-                                                        <span className="badge bg-light-subtle text-muted border border-light-subtle">{selectedNode.node_type}</span>
-                                                    </div>
-                                                </h5>
-                                                <div className="fs-14 text-body lh-base">
-                                                    {isEditingNode ? (
-                                                        <div className="space-y-4">
-                                                            {/* Edit Main Node (Điều hoặc Khoản đơn lẻ) */}
-                                                            <div className="mb-4">
-                                                                <div className="d-flex align-items-center gap-2 mb-2">
-                                                                    <label className="form-label fs-12 text-uppercase text-muted fw-bold mb-0" style={{ minWidth: '80px' }}>Tiêu đề:</label>
-                                                                    <Input 
-                                                                        type="text"
-                                                                        className="form-control form-control-sm w-50 fw-bold border-info-subtle"
-                                                                        value={editedNodesData[selectedNode.id]?.label || ''}
-                                                                        onChange={(e) => setEditedNodesData({ 
-                                                                            ...editedNodesData, 
-                                                                            [selectedNode.id]: { ...editedNodesData[selectedNode.id], label: e.target.value } 
-                                                                        })}
-                                                                    />
+                                            <div className="modern-content-view">
+                                                <div className="content-meta-header mb-4 p-3 rounded-3 bg-white-5 border border-white-10">
+                                                    <div className="d-flex justify-content-between align-items-center gap-3">
+                                                        <h5 className="fw-900 mb-0 text-white tracking-tight text-truncate">
+                                                            {(() => {
+                                                                const nodeLabel = (selectedNode.node_label || "").trim();
+                                                                const firstLine = (selectedNode.content || "").split('\n')[0].trim();
+                                                                const normalize = (s) => s.toLowerCase().replace(/[:.\s]/g, '');
+                                                                if (normalize(firstLine).startsWith(normalize(nodeLabel))) return firstLine;
+                                                                return `${nodeLabel}${firstLine ? ': ' + firstLine : ''}`;
+                                                            })()}
+                                                        </h5>
+                                                        <div className="d-flex align-items-center gap-2 flex-shrink-0">
+                                                            {!isEditingNode ? (
+                                                                <ModernButton variant="ghost" size="sm" className="btn-icon rounded-circle" onClick={() => setIsEditingNode(true)}>
+                                                                    <i className="ri-pencil-line"></i>
+                                                                </ModernButton>
+                                                            ) : (
+                                                                <div className="d-flex gap-2">
+                                                                    <ModernButton variant="primary" size="sm" onClick={handleSaveNodeContent}>Lưu</ModernButton>
+                                                                    <ModernButton variant="ghost" size="sm" onClick={() => setIsEditingNode(false)}>Hủy</ModernButton>
                                                                 </div>
-                                                                <label className="form-label fs-12 text-uppercase text-muted fw-bold">Nội dung chính</label>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="content-body-area">
+                                                    {isEditingNode ? (
+                                                        <div className="modern-editor-container">
+                                                            <div className="mb-4 pb-4 border-bottom border-white-10">
+                                                                <div className="row g-3 mb-3">
+                                                                    <div className="col-md-4">
+                                                                        <label className="xsmall text-uppercase fw-800 text-white-40 mb-2">Nhãn:</label>
+                                                                        <Input 
+                                                                            type="text"
+                                                                            className="modern-input fw-bold"
+                                                                            value={editedNodesData[selectedNode.id]?.label || ''}
+                                                                            onChange={(e) => setEditedNodesData({ 
+                                                                                ...editedNodesData, 
+                                                                                [selectedNode.id]: { ...editedNodesData[selectedNode.id], label: e.target.value } 
+                                                                            })}
+                                                                        />
+                                                                    </div>
+                                                                    <div className="col-md-8">
+                                                                        <label className="xsmall text-uppercase fw-800 text-white-40 mb-2">Loại:</label>
+                                                                        <div className="modern-badge soft-primary d-block py-2 text-center text-uppercase tracking-widest">{selectedNode.node_type}</div>
+                                                                    </div>
+                                                                </div>
+                                                                <label className="xsmall text-uppercase fw-800 text-white-40 mb-2">Nội dung chính</label>
                                                                 <Input 
                                                                     type="textarea" 
-                                                                    rows={selectedNode.node_type === 'Điều' ? 3 : 10} 
-                                                                    className="form-control bg-white shadow-sm border-info-subtle" 
+                                                                    rows={selectedNode.node_type === 'Điều' ? 4 : 15} 
+                                                                    className="modern-input fs-14" 
                                                                     value={editedNodesData[selectedNode.id]?.content || ''} 
                                                                     onChange={(e) => setEditedNodesData({ 
                                                                         ...editedNodesData, 
@@ -1035,14 +1049,13 @@ const DocumentDetails = () => {
                                                                 />
                                                             </div>
 
-                                                            {/* Edit Sub-nodes (Nếu là Điều có các Khoản) */}
                                                             {selectedNode.node_type === 'Điều' && selectedNode.children && selectedNode.children.map(child => (
-                                                                <div key={child.id} className="mb-3 ps-3 border-start border-info border-2">
-                                                                    <div className="d-flex align-items-center gap-2 mb-2">
-                                                                        <label className="form-label fs-11 text-uppercase text-muted fw-bold mb-0" style={{ minWidth: '60px' }}>{child.node_type}:</label>
+                                                                <div key={child.id} className="mb-4 p-3 bg-white-5 rounded-3 border-start border-primary border-3">
+                                                                    <div className="d-flex align-items-center gap-2 mb-3">
+                                                                        <span className="xsmall text-uppercase fw-900 text-primary">{child.node_type}</span>
                                                                         <Input 
                                                                             type="text"
-                                                                            className="form-control form-control-sm w-25 border-light"
+                                                                            className="modern-input-sm w-50"
                                                                             value={editedNodesData[child.id]?.label || ''}
                                                                             onChange={(e) => setEditedNodesData({ 
                                                                                 ...editedNodesData, 
@@ -1052,8 +1065,8 @@ const DocumentDetails = () => {
                                                                     </div>
                                                                     <Input 
                                                                         type="textarea" 
-                                                                        rows={4} 
-                                                                        className="form-control bg-white shadow-sm" 
+                                                                        rows={5} 
+                                                                        className="modern-input fs-13" 
                                                                         value={editedNodesData[child.id]?.content || ''} 
                                                                         onChange={(e) => setEditedNodesData({ 
                                                                             ...editedNodesData, 
@@ -1064,605 +1077,602 @@ const DocumentDetails = () => {
                                                             ))}
                                                         </div>
                                                     ) : (
-                                                        selectedNode.node_type === 'Khoản' ? (
-                                                            <div style={{ whiteSpace: 'pre-wrap' }}>
-                                                                <span className="text-body me-2">{(selectedNode.node_label || "").replace('Khoản ', '')}.</span>{selectedNode.content}
-                                                            </div>
-                                                        ) : (
-                                                            <div className="space-y-3" style={{ whiteSpace: 'pre-wrap' }}>
-                                                                {(selectedNode.content || "").split('\n').map((line, idx) => {
-                                                                    if (selectedNode.node_type === 'Điều' && idx === 0) return null;
-                                                                    return <p key={idx} className="mb-1">{line}</p>;
-                                                                })}
-                                                                {selectedNode.children && selectedNode.children.map(child => (
-                                                                    <div key={child.id} className="ms-3 mt-2 pb-2 border-bottom border-light border-opacity-50 border-dashed">
-                                                                        <span className="text-body me-2">{child.node_label.replace('Khoản ', '')}.</span>
-                                                                        <span>{child.content}</span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )
+                                                        <div className="document-text-render px-2 fs-15 text-white-85 lh-lg">
+                                                            {selectedNode.node_type === 'Khoản' ? (
+                                                                <div style={{ whiteSpace: 'pre-wrap' }}>
+                                                                    <span className="text-primary fw-900 me-2 fs-18">{(selectedNode.node_label || "").replace('Khoản ', '')}.</span>
+                                                                    {selectedNode.content}
+                                                                </div>
+                                                            ) : (
+                                                                <div className="space-y-4" style={{ whiteSpace: 'pre-wrap' }}>
+                                                                    {(selectedNode.content || "").split('\n').map((line, idx) => {
+                                                                        if (selectedNode.node_type === 'Điều' && idx === 0) return null;
+                                                                        return <p key={idx} className="mb-4">{line}</p>;
+                                                                    })}
+                                                                    {selectedNode.children && selectedNode.children.map(child => (
+                                                                        <div key={child.id} className="ms-4 mt-4 pb-4 border-bottom border-white-5 border-dashed">
+                                                                            <div className="d-flex align-items-start gap-2">
+                                                                                <span className="text-primary fw-900 fs-17 mt-1" style={{ minWidth: '24px' }}>{child.node_label.replace('Khoản ', '')}.</span>
+                                                                                <span className="flex-grow-1 opacity-90">{child.content}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>
                                         ) : (
-                                            <div className="d-flex flex-column justify-content-center align-items-center h-100 text-muted">
-                                                <div className="avatar-md mb-3">
-                                                    <div className="avatar-title bg-light-subtle text-primary rounded-circle fs-24">
-                                                        <i className="ri-article-line"></i>
-                                                    </div>
+                                            <div className="modern-empty-state h-100 d-flex flex-column justify-content-center">
+                                                <div className="empty-icon-circle mx-auto mb-4">
+                                                    <i className="ri-article-line display-4 text-white-20"></i>
                                                 </div>
-                                                <h5>Chưa chọn Điều/Khoản</h5>
-                                                <p className="fs-13">Vui lòng chọn một mục bên trái để xem nội dung.</p>
+                                                <h5 className="text-white fw-bold">Trình biên tập Dự thảo</h5>
+                                                <p className="text-white-40 max-w-300 mx-auto">Chọn một Điều, Khoản hoặc Phụ lục từ danh sách bên trái để bắt đầu xem nội dung và xử lý góp ý.</p>
                                             </div>
                                         )}
                                     </SimpleBar>
-                                </CardBody>
-                            </Card>
-                        </Col>
+                                </div>
+                            </Col>
 
-                        {/* RIGHT COLUMN: FEEDBACKS (4/12) */}
-                        <Col lg={4} className="h-100 d-flex flex-column">
-                            <Card className="h-100 border-0 shadow-sm mb-0">
-                                <CardHeader className="border-bottom p-3">
-                                    <div className="d-flex justify-content-between align-items-center">
-                                        <h6 className="card-title mb-0 fw-bold">
-                                            <i className="ri-discuss-line align-bottom me-1 text-primary"></i> 
-                                            Ý kiến & Giải trình ({nodeFeedbacks.length})
+                            {/* RIGHT PANE: FEEDBACKS (35%) */}
+                            <Col lg={4} className="pane-detail h-100 d-flex flex-column bg-black-20">
+                                <div className="pane-header p-3 border-bottom border-white-5 bg-black-40">
+                                    <div className="d-flex align-items-center justify-content-between mb-2">
+                                        <h6 className="pane-title mb-0">
+                                            <i className="ri-discuss-line text-primary me-2"></i>Góp ý & Giải trình
                                         </h6>
-                                        <div>
-                                            <Button 
-                                                color="success" 
-                                                size="sm" 
-                                                className="btn-label waves-effect waves-light me-2"
-                                                onClick={() => setShowImportModal(true)}
-                                            >
-                                                <i className="ri-file-excel-2-line label-icon align-middle fs-16 me-2"></i> Nhập từ bảng tính
-                                            </Button>
-                                            <Button 
-                                                color="primary" 
-                                                size="sm" 
-                                                className="btn-label waves-effect waves-light"
-                                                onClick={() => setShowFeedbackModal(true)}
-                                                disabled={!selectedNode && !selectedAppendix}
-                                                title={(!selectedNode && !selectedAppendix) ? "Vui lòng chọn Điều/Khoản hoặc Phụ lục để thêm góp ý" : "Thêm góp ý thủ công"}
-                                            >
-                                                <i className="ri-add-line label-icon align-middle fs-16 me-2"></i> Thêm góp ý
-                                            </Button>
+                                        <div className="d-flex gap-2">
+                                            <ModernBadge color="primary" variant="soft" className="px-2 py-1 fs-11">
+                                                {nodeFeedbacks.length} ý kiến
+                                            </ModernBadge>
                                         </div>
                                     </div>
-                                </CardHeader>
-                                <CardBody className="p-0 d-flex flex-column overflow-hidden bg-body-tertiary">
-                                    {/* Feedbacks List (Vertical Chat Thread) */}
-                                    <div className="flex-grow-1 overflow-hidden">
-                                        <SimpleBar style={{ height: '100%' }} className="p-3">
-                                            {loadingFeedbacks ? (
-                                                <div className="text-center py-3"><Spinner size="sm" color="primary"/></div>
-                                            ) : nodeFeedbacks.length > 0 ? (
-                                                <div className="d-flex flex-column gap-3">
-                                                    {nodeFeedbacks.map(fb => (
-                                                        <div key={fb.id} className="feedback-thread">
-                                                            {/* Feedback Bubble (The "Question") */}
-                                                            <div className="d-flex justify-content-start mb-2">
-                                                                <div className="card border-0 mb-0 shadow-sm overflow-hidden" style={{ maxWidth: '85%', borderRadius: '15px 15px 15px 2px' }}>
-                                                                    <div className="card-header py-1 px-3 bg-light-subtle border-0">
-                                                                        <div className="d-flex justify-content-between align-items-center">
-                                                                            <span className="fw-bold fs-11 text-uppercase text-info">{fb.contributing_agency}</span>
-                                                                            <span className="fs-10 text-muted ms-2">{new Date(fb.created_at).toLocaleDateString()}</span>
-                                                                        </div>
+                                    <div className="row g-2 mt-1">
+                                        <div className="col-6">
+                                            <ModernButton 
+                                                variant="ghost" 
+                                                size="sm" 
+                                                className="w-100 fs-11"
+                                                onClick={() => setShowImportModal(true)}
+                                            >
+                                                <i className="ri-file-excel-2-line me-1"></i>Nhập Excel
+                                            </ModernButton>
+                                        </div>
+                                        <div className="col-6">
+                                            <ModernButton 
+                                                variant="primary" 
+                                                size="sm" 
+                                                className="w-100 fs-11"
+                                                onClick={() => setShowFeedbackModal(true)}
+                                                disabled={!selectedNode && !selectedAppendix}
+                                            >
+                                                <i className="ri-add-line me-1"></i>Thêm Góp ý
+                                            </ModernButton>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="pane-body flex-grow-1 overflow-hidden">
+                                    <SimpleBar style={{ height: '100%' }} className="p-3">
+                                        {loadingFeedbacks ? (
+                                            <div className="text-center py-5"><Spinner size="sm" color="primary"/></div>
+                                        ) : nodeFeedbacks.length > 0 ? (
+                                            <div className="feedback-stream d-flex flex-column gap-4">
+                                                {nodeFeedbacks.map(fb => (
+                                                    <div key={fb.id} className="feedback-group">
+                                                        {/* Agency Feedback Card */}
+                                                        <div className="modern-card p-3 bg-white-5 border border-white-5 mb-2 hover-glow" style={{ borderRadius: '16px 16px 16px 4px' }}>
+                                                            <div className="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom border-white-10">
+                                                                <div className="d-flex align-items-center gap-2 overflow-hidden">
+                                                                    <div className="avatar-xs rounded-circle bg-primary-opacity d-flex align-items-center justify-content-center flex-shrink-0">
+                                                                        <span className="text-primary fw-bold fs-10">{fb.contributing_agency?.charAt(0)}</span>
                                                                     </div>
-                                                                    <div className="card-body p-3 border-top border-light-subtle">
-                                                                        <p className="fs-13 mb-2 text-body">"{fb.content}"</p>
-                                                                        <div className="d-flex gap-2 align-items-center">
-                                                                            <Button 
-                                                                                color="link" 
-                                                                                size="sm" 
-                                                                                className="p-0 text-decoration-none fs-12 fw-medium"
-                                                                                onClick={() => {
-                                                                                    if (replyingToId === fb.id) {
-                                                                                        setReplyingToId(null);
-                                                                                    } else {
-                                                                                        setReplyingToId(fb.id);
-                                                                                        setExplanationContent(fb.explanation || '');
-                                                                                    }
-                                                                                }}
-                                                                            >
-                                                                                <i className="ri-reply-line me-1"></i> Phản hồi
-                                                                            </Button>
-                                                                            <Button 
-                                                                                color="link" 
-                                                                                size="sm" 
-                                                                                className="p-0 text-decoration-none fs-12 fw-medium text-info"
-                                                                                onClick={() => {
-                                                                                    setReplyingToId(fb.id);
-                                                                                    handleAISuggestForID(fb);
-                                                                                }}
-                                                                                disabled={isSuggestingAI}
-                                                                            >
-                                                                                <i className="ri-magic-line me-1"></i> AI Gợi ý
-                                                                            </Button>
-                                                                            <Button 
-                                                                                color="link" 
-                                                                                size="sm" 
-                                                                                className="p-0 text-decoration-none fs-12 fw-medium text-warning"
-                                                                                onClick={() => handleOpenReassignModal(fb)}
-                                                                            >
-                                                                                <i className="ri-drag-move-line me-1"></i> Gắn lại
-                                                                            </Button>
-                                                                            <Button 
-                                                                                color="link" 
-                                                                                size="sm" 
-                                                                                className="p-0 text-decoration-none fs-12 fw-medium text-danger"
-                                                                                onClick={() => handleEditFeedback(fb)}
-                                                                            >
-                                                                                <i className="ri-edit-2-line me-1"></i> Sửa
-                                                                            </Button>
-                                                                            <span className={`badge ${fb.status === 'approved' ? 'bg-success-subtle text-success' : fb.status === 'reviewed' ? 'bg-info-subtle text-info' : 'bg-warning-subtle text-warning'} ms-auto fs-10`}>
-                                                                                {fb.status === 'approved' ? 'Đã duyệt' : fb.status === 'reviewed' ? 'Đã thẩm định' : 'Chờ xử lý'}
-                                                                            </span>
-                                                                        </div>
+                                                                    <span className="fw-900 text-white-85 fs-11 text-truncate text-uppercase tracking-wider">{fb.contributing_agency}</span>
+                                                                </div>
+                                                                <span className="fs-10 text-white-40">{new Date(fb.created_at).toLocaleDateString()}</span>
+                                                            </div>
+                                                            <div className="feedback-content mb-3">
+                                                                <p className="fs-13 mb-0 text-white-90 lh-base italic">"{fb.content}"</p>
+                                                            </div>
+                                                            <div className="feedback-actions d-flex gap-3 align-items-center">
+                                                                <button className="modern-btn-minimal" onClick={() => { setReplyingToId(fb.id === replyingToId ? null : fb.id); setExplanationContent(fb.explanation || ''); }}>
+                                                                    <i className="ri-reply-line"></i> Phản hồi
+                                                                </button>
+                                                                <button className="modern-btn-minimal text-primary" onClick={() => { setReplyingToId(fb.id); handleAISuggestForID(fb); }} disabled={isSuggestingAI}>
+                                                                    <i className={isSuggestingAI && replyingToId === fb.id ? "ri-loader-4-line spinner" : "ri-magic-line"}></i> AI
+                                                                </button>
+                                                                <button className="modern-btn-minimal text-warning" onClick={() => handleEditFeedback(fb)}>
+                                                                    <i className="ri-edit-2-line"></i> Sửa
+                                                                </button>
+                                                                <div className="ms-auto">
+                                                                    <ModernBadge color={fb.status === 'approved' ? 'success' : fb.status === 'reviewed' ? 'info' : 'warning'} className="rounded-pill p-1 px-2">
+                                                                        {fb.status === 'approved' ? 'Hoàn thành' : 'Đang xử lý'}
+                                                                    </ModernBadge>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* Reply/Explanation Box */}
+                                                        {replyingToId === fb.id && (
+                                                            <div className="reply-editor mb-3 animate-slide-down">
+                                                                <div className="modern-card p-3 border-primary bg-primary-opacity shadow-neon-soft">
+                                                                    <label className="xsmall text-uppercase fw-900 text-info mb-2">Soạn thảo giải trình</label>
+                                                                    <Input 
+                                                                        type="textarea" 
+                                                                        rows={4} 
+                                                                        className="modern-input fs-13 mb-3" 
+                                                                        placeholder="Nhập nội dung tiếp thu/giải trình..." 
+                                                                        value={explanationContent} 
+                                                                        onChange={(e) => setExplanationContent(e.target.value)} 
+                                                                        autoFocus 
+                                                                    />
+                                                                    <div className="d-flex gap-2">
+                                                                        <ModernButton variant="primary" size="sm" onClick={() => handleSaveExplanationForID(fb.id)} loading={savingExplanation}>Cập nhật</ModernButton>
+                                                                        <ModernButton variant="ghost" size="sm" onClick={() => setReplyingToId(null)}>Hủy bỏ</ModernButton>
                                                                     </div>
                                                                 </div>
                                                             </div>
+                                                        )}
 
-                                                            {/* Inline Input (If replying) */}
-                                                            {replyingToId === fb.id && (
-                                                                <div className="ms-5 mb-3 mt-1">
-                                                                    <Input
-                                                                        type="textarea"
-                                                                        rows={2}
-                                                                        className="form-control form-control-sm border-info-subtle shadow-sm mb-2"
-                                                                        placeholder="Nhập nội dung giải tiếp thu/giải trình..."
-                                                                        value={explanationContent}
-                                                                        onChange={(e) => setExplanationContent(e.target.value)}
-                                                                        autoFocus
-                                                                    />
-                                                                    <div className="d-flex gap-2">
-                                                                        <Button 
-                                                                            color="primary" 
-                                                                            size="sm" 
-                                                                            className="px-3"
-                                                                            onClick={() => handleSaveExplanationForID(fb.id)}
-                                                                            disabled={savingExplanation}
-                                                                        >
-                                                                            {savingExplanation ? <Spinner size="sm"/> : "Lưu giải trình"}
-                                                                        </Button>
-                                                                        <Button color="light" size="sm" onClick={() => setReplyingToId(null)}>Hủy</Button>
+                                                        {/* Staff Explanation Card */}
+                                                        {fb.explanation && replyingToId !== fb.id && (
+                                                            <div className="d-flex justify-content-end animate-fade-in mb-2">
+                                                                <div className="modern-card p-3 bg-success-opacity border-success-subtle shadow-sm" style={{ maxWidth: '90%', borderRadius: '16px 16px 4px 16px' }}>
+                                                                    <div className="d-flex align-items-center mb-2">
+                                                                        <i className="ri-shield-check-line text-success me-2 fs-14"></i>
+                                                                        <span className="fw-900 fs-10 text-uppercase text-success tracking-widest">Tiếp thu / Giải trình</span>
+                                                                    </div>
+                                                                    <p className="fs-13 mb-2 text-white-90 lh-base">{fb.explanation}</p>
+                                                                    <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-white-5">
+                                                                        <span className="xsmall text-white-40 italic">Đã giải trình</span>
+                                                                        <button className="modern-btn-minimal xsmall text-white-60" onClick={() => { setReplyingToId(fb.id); setExplanationContent(fb.explanation); }}>
+                                                                            <i className="ri-edit-line me-1"></i>Sửa nhanh
+                                                                        </button>
                                                                     </div>
                                                                 </div>
-                                                            )}
-
-                                                            {/* Explanation Bubble (The "Reply") - If exists */}
-                                                            {fb.explanation && replyingToId !== fb.id && (
-                                                                <div className="d-flex justify-content-end mt-1">
-                                                                    <div className="card border-0 mb-0 shadow-xs bg-light-subtle rounded-3" style={{ maxWidth: '85%', borderRadius: '15px 15px 2px 15px' }}>
-                                                                        <div className="card-body p-3">
-                                                                            <div className="d-flex align-items-center mb-1">
-                                                                                <i className="ri-shield-user-line text-info me-1 fs-12"></i>
-                                                                                <span className="fw-bold fs-11 text-uppercase text-info">Cơ quan soạn thảo</span>
-                                                                            </div>
-                                                                            <p className="fs-13 mb-0 text-muted lh-base">
-                                                                                {fb.explanation}
-                                                                            </p>
-                                                                            <div className="mt-2 text-end">
-                                                                                <Button 
-                                                                                    color="link" 
-                                                                                    size="sm" 
-                                                                                    className="p-0 text-decoration-none fs-11 text-muted"
-                                                                                    onClick={() => {
-                                                                                        setReplyingToId(fb.id);
-                                                                                        setExplanationContent(fb.explanation);
-                                                                                    }}
-                                                                                >
-                                                                                    Sửa giải trình
-                                                                                </Button>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="modern-empty-state mini py-5">
+                                                <div className="empty-icon-circle mx-auto mb-3">
+                                                    <i className="ri-chat-off-line"></i>
                                                 </div>
-                                            ) : (
-                                                <div className="text-center text-muted py-5 fs-14 bg-card rounded border-dashed border">
-                                                    <i className="ri-chat-off-line fs-24 d-block mb-2 opacity-25"></i>
-                                                    Không có ý kiến cho mục này.
-                                                </div>
-                                            )}
-                                        </SimpleBar>
-                                    </div>
-                                </CardBody>
-                            </Card>
-                        </Col>
-                        
-                    </Row>
-                </Container>
-            </div>
+                                                <h6 className="text-white-60">Không có ý kiến</h6>
+                                                <p className="xsmall text-white-40">Mục này hiện chưa có góp ý nào từ các đơn vị.</p>
+                                                <ModernButton 
+                                                    variant="ghost" 
+                                                    size="sm" 
+                                                    className="mt-2"
+                                                    onClick={() => setShowFeedbackModal(true)}
+                                                    disabled={!selectedNode && !selectedAppendix}
+                                                >
+                                                    Thêm ý kiến đầu tiên
+                                                </ModernButton>
+                                            </div>
+                                        )}
+                                    </SimpleBar>
+                                </div>
+                            </Col>
+                            
+                        </Row>
+                    </Container>
 
             {/* Manual Feedback Modal */}
-            <div className={`modal fade ${showFeedbackModal ? 'show d-block' : ''}`} tabIndex="-1" style={{ background: showFeedbackModal ? 'rgba(0,0,0,0.5)' : 'none' }}>
-                <div className="modal-dialog modal-dialog-centered">
-                    <div className="modal-content border-0 shadow">
-                        <div className="modal-header bg-primary p-3">
-                            <h5 className="modal-title text-white">Thêm góp ý mới</h5>
-                            <button type="button" className="btn-close btn-close-white" onClick={() => setShowFeedbackModal(false)}></button>
+            <Modal isOpen={showFeedbackModal} toggle={() => setShowFeedbackModal(false)} centered contentClassName="designkit-wrapper border-0">
+                <div className="modern-modal-content">
+                    <div className="modal-header-primary p-3 d-flex justify-content-between align-items-center">
+                        <h5 className="modal-title xsmall text-uppercase fw-800 tracking-widest text-white">
+                            <i className="ri-add-circle-line me-2"></i>Thêm góp ý mới
+                        </h5>
+                        <button type="button" className="btn-close btn-close-white" onClick={() => setShowFeedbackModal(false)}></button>
+                    </div>
+                    <div className="modal-body p-4 bg-black-20">
+                        {selectedNode || selectedAppendix ? (
+                            <div className="mb-4 p-3 bg-white-5 rounded-3 border border-white-10">
+                                <span className="xsmall text-uppercase text-white-40 d-block mb-1">Đang góp ý cho:</span>
+                                <span className="fw-bold text-primary">{selectedNode?.node_label || selectedAppendix?.name}</span>
+                            </div>
+                        ) : null}
+                        
+                        <div className="mb-3">
+                            <label className="form-label xsmall text-uppercase fw-700 text-white-60">Cơ quan góp ý</label>
+                            <CreatableSelect
+                                isClearable
+                                options={agencies}
+                                styles={selectStyles}
+                                value={newFeedbackData.agency}
+                                onChange={(newValue) => {
+                                    if (newValue && newValue.__isNew__) {
+                                        setNewAgencyName(newValue.label);
+                                        setAgencyModal(true);
+                                        setNewFeedbackData({ ...newFeedbackData, agency: newValue });
+                                    } else {
+                                        setNewFeedbackData({ ...newFeedbackData, agency: newValue });
+                                    }
+                                }}
+                                placeholder="Chọn hoặc gõ tên đơn vị..."
+                                formatCreateLabel={(inputValue) => `Thêm nhanh: "${inputValue}"`}
+                            />
                         </div>
-                        <div className="modal-body p-4">
-                            {selectedNode || selectedAppendix ? (
-                                <p className="text-muted mb-4 fs-13">
-                                    Góp ý cho: <span className="fw-bold text-primary">{selectedNode?.node_label || selectedAppendix?.name}</span>
-                                </p>
-                            ) : null}
-                            <div className="mb-3">
-                                <label className="form-label fw-bold small">Cơ quan góp ý</label>
+                        
+                        <div className="mb-0">
+                            <label className="form-label xsmall text-uppercase fw-700 text-white-60">Nội dung góp ý chi tiết</label>
+                            <Input 
+                                type="textarea" 
+                                rows={6} 
+                                className="modern-input" 
+                                placeholder="Nhập nội dung góp ý tại đây..." 
+                                value={newFeedbackData.content}
+                                onChange={(e) => setNewFeedbackData({ ...newFeedbackData, content: e.target.value })}
+                            />
+                        </div>
+                    </div>
+                    <div className="modal-footer bg-black-40 p-3 border-top border-white-10">
+                        <ModernButton variant="ghost" onClick={() => setShowFeedbackModal(false)}>Hủy bỏ</ModernButton>
+                        <ModernButton variant="primary" onClick={handleSaveNewFeedback}>Lưu góp ý</ModernButton>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Reassign Node Modal */}
+            <Modal isOpen={isReassignModalOpen} toggle={() => setIsReassignModalOpen(!isReassignModalOpen)} centered contentClassName="designkit-wrapper border-0">
+                <div className="modern-modal-content">
+                    <div className="modal-header-warning p-3 d-flex justify-content-between align-items-center">
+                        <h5 className="modal-title xsmall text-uppercase fw-800 tracking-widest text-white">
+                            <i className="ri-drag-move-line me-2"></i>Chuyển Điều khoản góp ý
+                        </h5>
+                        <button type="button" className="btn-close btn-close-white" onClick={() => setIsReassignModalOpen(false)}></button>
+                    </div>
+                    <div className="modal-body p-4 bg-black-20">
+                        <p className="xsmall text-white-60 mb-3">
+                            Bạn đang chuyển góp ý của <strong className="text-info">{feedbackToReassign?.contributing_agency}</strong> sang một điều khoản khác.
+                        </p>
+                        <div className="mb-3">
+                            <label className="form-label xsmall text-uppercase fw-700 text-white-40">Chọn Điều/Khoản đích</label>
+                            <select 
+                                className="form-select modern-input" 
+                                value={targetNodeId} 
+                                onChange={(e) => setTargetNodeId(e.target.value)}
+                            >
+                                <option value="">-- Chọn Điều/Khoản --</option>
+                                {nodeOptions.map(opt => (
+                                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                    <div className="modal-footer bg-black-40 p-3 border-top border-white-10">
+                        <ModernButton variant="ghost" onClick={() => setIsReassignModalOpen(false)}>Hủy</ModernButton>
+                        <ModernButton variant="warning" onClick={handleReassignFeedback} loading={reassigning} disabled={!targetNodeId}>
+                            Xác nhận chuyển
+                        </ModernButton>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Edit Feedback Modal */}
+            <Modal id="editFeedbackModal" isOpen={isEditModalOpen} toggle={() => setIsEditModalOpen(!isEditModalOpen)} centered size="lg" contentClassName="designkit-wrapper border-0">
+                <div className="modern-modal-content">
+                    <div className="modal-header-warning p-3 d-flex justify-content-between align-items-center">
+                        <h5 className="modal-title xsmall text-uppercase fw-800 tracking-widest text-white">
+                            <i className="ri-edit-box-line me-2"></i>Chỉnh sửa & Gán lại Góp ý
+                        </h5>
+                        <button type="button" className="btn-close btn-close-white" onClick={() => setIsEditModalOpen(false)}></button>
+                    </div>
+                    <div className="modal-body p-4 bg-black-20">
+                        <Row className="g-3">
+                            <Col lg={12}>
+                                <label className="form-label xsmall text-uppercase fw-700 text-white-40">Gán lại vào Điều/Khoản:</label>
+                                <select 
+                                    className={`form-select modern-input ${validationErrors.node ? 'is-invalid' : ''}`}
+                                    value={editNodeId}
+                                    onChange={(e) => setEditNodeId(e.target.value)}
+                                >
+                                    <option value="">-- Chọn vị trí mới --</option>
+                                    {nodeOptions.map(opt => (
+                                        <option key={opt.id} value={opt.id}>{opt.label}</option>
+                                    ))}
+                                </select>
+                                {validationErrors.node && <FormFeedback className="text-danger">{validationErrors.node[0]}</FormFeedback>}
+                            </Col>
+                            
+                            <Col lg={8}>
+                                <label className="form-label xsmall text-uppercase fw-700 text-white-40">Cơ quan góp ý:</label>
                                 <CreatableSelect
                                     isClearable
                                     options={agencies}
                                     styles={selectStyles}
-                                    value={newFeedbackData.agency}
+                                    value={editAgencyId}
                                     onChange={(newValue) => {
                                         if (newValue && newValue.__isNew__) {
                                             setNewAgencyName(newValue.label);
                                             setAgencyModal(true);
-                                            // Bridge the choice to newFeedbackData after potential modal save
-                                            // Handle this in handleQuickAgencySave or set it here
-                                            setNewFeedbackData({ ...newFeedbackData, agency: newValue });
                                         } else {
-                                            setNewFeedbackData({ ...newFeedbackData, agency: newValue });
+                                            setEditAgencyId(newValue);
                                         }
                                     }}
                                     placeholder="Chọn hoặc gõ tên đơn vị mới..."
                                     formatCreateLabel={(inputValue) => `Thêm nhanh đơn vị: "${inputValue}"`}
                                 />
-                            </div>
-                            <div className="mb-0">
-                                <label className="form-label fw-bold small">Nội dung góp ý</label>
+                            </Col>
+                            
+                            <Col lg={4}>
+                                <label className="form-label xsmall text-uppercase fw-700 text-white-40">Số hiệu CV:</label>
                                 <Input 
-                                    type="textarea" 
-                                    rows={5} 
-                                    className="form-control" 
-                                    placeholder="Nhập nội dung góp ý chi tiết..." 
-                                    value={newFeedbackData.content}
-                                    onChange={(e) => setNewFeedbackData({ ...newFeedbackData, content: e.target.value })}
+                                    type="text" 
+                                    className={`modern-input ${validationErrors.official_doc_number ? 'is-invalid' : ''}`}
+                                    placeholder="Số hiệu CV..." 
+                                    value={editDocNumber}
+                                    onChange={(e) => setEditDocNumber(e.target.value)}
                                 />
-                            </div>
-                        </div>
-                        <div className="modal-footer bg-light p-3">
-                            <Button color="light" onClick={() => setShowFeedbackModal(false)}>Hủy</Button>
-                            <Button color="primary" onClick={handleSaveNewFeedback}>Lưu góp ý</Button>
-                        </div>
+                                {validationErrors.official_doc_number && <FormFeedback className="text-danger">{validationErrors.official_doc_number[0]}</FormFeedback>}
+                            </Col>
+                            
+                            <Col lg={12}>
+                                <label className="form-label xsmall text-uppercase fw-700 text-white-40">Nội dung góp ý gốc:</label>
+                                <Input
+                                    type="textarea"
+                                    rows={6}
+                                    className={`modern-input ${validationErrors.content ? 'is-invalid' : ''}`}
+                                    value={editContent}
+                                    onChange={(e) => setEditContent(e.target.value)}
+                                />
+                                {validationErrors.content && <FormFeedback className="text-danger">{validationErrors.content[0]}</FormFeedback>}
+                            </Col>
+                        </Row>
+                    </div>
+                    <div className="modal-footer bg-black-40 p-3 border-top border-white-10">
+                        <ModernButton variant="ghost" onClick={() => setIsEditModalOpen(false)}>Hủy bỏ</ModernButton>
+                        <ModernButton variant="warning" onClick={saveFeedbackEdit} loading={isSavingEdit}>
+                            <i className="ri-save-line me-1"></i> Lưu thay đổi
+                        </ModernButton>
                     </div>
                 </div>
-            </div>
-
-            {/* Reassign Node Modal */}
-            <Modal isOpen={isReassignModalOpen} toggle={() => setIsReassignModalOpen(!isReassignModalOpen)} centered>
-                <ModalHeader toggle={() => setIsReassignModalOpen(!isReassignModalOpen)} className="bg-warning-subtle text-warning">
-                    <i className="ri-drag-move-line align-bottom me-1"></i> Chuyển Điều khoản góp ý
-                </ModalHeader>
-                <ModalBody>
-                    <p className="fs-13 text-muted mb-3">
-                        Bạn đang chuyển nội dung góp ý của <strong>{feedbackToReassign?.contributing_agency}</strong> sang một điều khoản khác.
-                    </p>
-                    <div className="mb-3">
-                        <label className="form-label fw-bold small">Chọn Điều/Khoản đích</label>
-                        <select 
-                            className="form-select" 
-                            value={targetNodeId} 
-                            onChange={(e) => setTargetNodeId(e.target.value)}
-                        >
-                            <option value="">-- Chọn Điều/Khoản --</option>
-                            {nodeOptions.map(opt => (
-                                <option key={opt.id} value={opt.id}>{opt.label}</option>
-                            ))}
-                        </select>
-                    </div>
-                </ModalBody>
-                <ModalFooter>
-                    <Button color="light" onClick={() => setIsReassignModalOpen(false)}>Hủy</Button>
-                    <Button color="warning" onClick={handleReassignFeedback} disabled={reassigning || !targetNodeId}>
-                        {reassigning ? <Spinner size="sm"/> : "Xác nhận chuyển"}
-                    </Button>
-                </ModalFooter>
-            </Modal>
-
-            {/* Edit Feedback Modal */}
-            <Modal id="editFeedbackModal" isOpen={isEditModalOpen} toggle={() => setIsEditModalOpen(!isEditModalOpen)} centered size="lg">
-                <ModalHeader className="bg-light p-3" toggle={() => setIsEditModalOpen(!isEditModalOpen)}>
-                    <i className="ri-edit-box-line align-bottom me-1"></i> Chỉnh sửa & Gắn lại Góp ý
-                </ModalHeader>
-                <ModalBody>
-                    <Row className="g-3">
-                        <Col lg={12}>
-                            <Label className="form-label fw-bold small text-muted text-uppercase">Gán lại vào Điều/Khoản:</Label>
-                            <select 
-                                className={`form-select ${validationErrors.node ? 'is-invalid' : ''}`}
-                                value={editNodeId}
-                                onChange={(e) => setEditNodeId(e.target.value)}
-                            >
-                                <option value="">-- Chọn vị trí mới --</option>
-                                {nodeOptions.map(opt => (
-                                    <option key={opt.id} value={opt.id}>{opt.label}</option>
-                                ))}
-                            </select>
-                            {validationErrors.node && <FormFeedback>{validationErrors.node[0]}</FormFeedback>}
-                        </Col>
-                        
-                        <Col lg={8}>
-                            <Label className="form-label fw-bold small text-muted text-uppercase">Cơ quan góp ý:</Label>
-                            <CreatableSelect
-                                isClearable
-                                options={agencies}
-                                styles={selectStyles}
-                                value={editAgencyId}
-                                onChange={(newValue) => {
-                                    if (newValue && newValue.__isNew__) {
-                                        setNewAgencyName(newValue.label);
-                                        setAgencyModal(true);
-                                    } else {
-                                        setEditAgencyId(newValue);
-                                    }
-                                }}
-                                placeholder="Chọn hoặc gõ tên đơn vị mới..."
-                                formatCreateLabel={(inputValue) => `Thêm nhanh đơn vị: "${inputValue}"`}
-                            />
-                        </Col>
-                        
-                        <Col lg={4}>
-                            <Label className="form-label fw-bold small text-muted text-uppercase">Số hiệu CV:</Label>
-                            <Input 
-                                type="text" 
-                                className={validationErrors.official_doc_number ? 'is-invalid' : ''}
-                                placeholder="Số hiệu CV..." 
-                                value={editDocNumber}
-                                onChange={(e) => setEditDocNumber(e.target.value)}
-                            />
-                            {validationErrors.official_doc_number && <FormFeedback>{validationErrors.official_doc_number[0]}</FormFeedback>}
-                        </Col>
-                        
-                        <Col lg={12}>
-                            <Label className="form-label fw-bold small text-muted text-uppercase">Nội dung góp ý gốc:</Label>
-                            <Input
-                                type="textarea"
-                                rows={6}
-                                className={validationErrors.content ? 'is-invalid' : ''}
-                                value={editContent}
-                                onChange={(e) => setEditContent(e.target.value)}
-                            />
-                            {validationErrors.content && <FormFeedback>{validationErrors.content[0]}</FormFeedback>}
-                        </Col>
-                    </Row>
-                </ModalBody>
-                <ModalFooter className="bg-light">
-                    <Button color="link" className="link-success fw-medium shadow-none" onClick={() => setIsEditModalOpen(false)}>Hủy bỏ</Button>
-                    <Button color="warning" onClick={saveFeedbackEdit} disabled={isSavingEdit}>
-                        {isSavingEdit ? <Spinner size="sm"/> : <><i className="ri-save-line align-bottom me-1"></i> Lưu thay đổi</>}
-                    </Button>
-                </ModalFooter>
             </Modal>
 
             {/* Quick Add Agency Modal */}
-            <Modal isOpen={agencyModal} toggle={() => setAgencyModal(false)} centered>
-                <ModalHeader toggle={() => setAgencyModal(false)}>Thêm nhanh đơn vị mới</ModalHeader>
-                <ModalBody>
-                    <div className="mb-3">
-                        <Label>Tên đơn vị</Label>
-                        <Input value={newAgencyName} onChange={(e) => setNewAgencyName(e.target.value)} />
+            <Modal isOpen={agencyModal} toggle={() => setAgencyModal(false)} centered contentClassName="designkit-wrapper border-0">
+                <div className="modern-modal-content">
+                    <div className="modal-header-primary p-3 d-flex justify-content-between align-items-center">
+                        <h5 className="modal-title xsmall text-uppercase fw-800 tracking-widest text-white">Thêm nhanh đơn vị mới</h5>
+                        <button type="button" className="btn-close btn-close-white" onClick={() => setAgencyModal(false)}></button>
                     </div>
-                    <div className="mb-3">
-                        <Label>Phân loại đơn vị</Label>
-                        <CreatableSelect
-                            isClearable
-                            options={categories}
-                            styles={selectStyles}
-                            value={newAgencyCategory}
-                            onChange={(v) => setNewAgencyCategory(v)}
-                            placeholder="Chọn hoặc tạo phân loại..."
-                        />
+                    <div className="modal-body p-4 bg-black-20">
+                        <div className="mb-3">
+                            <label className="form-label xsmall text-uppercase fw-700 text-white-40">Tên đơn vị</label>
+                            <Input className="modern-input" value={newAgencyName} onChange={(e) => setNewAgencyName(e.target.value)} />
+                        </div>
+                        <div className="mb-3">
+                            <label className="form-label xsmall text-uppercase fw-700 text-white-40">Phân loại đơn vị</label>
+                            <CreatableSelect
+                                isClearable
+                                options={categories}
+                                styles={selectStyles}
+                                value={newAgencyCategory}
+                                onChange={(v) => setNewAgencyCategory(v)}
+                                placeholder="Chọn hoặc tạo phân loại..."
+                            />
+                        </div>
                     </div>
-                </ModalBody>
-                <ModalFooter>
-                    <Button color="light" onClick={() => setAgencyModal(false)}>Hủy</Button>
-                    <Button color="primary" onClick={handleQuickAgencySave} disabled={addingAgency || !newAgencyName}>
-                        {addingAgency ? <Spinner size="sm" /> : "Lưu đơn vị"}
-                    </Button>
-                </ModalFooter>
+                    <div className="modal-footer bg-black-40 p-3 border-top border-white-10">
+                        <ModernButton variant="ghost" onClick={() => setAgencyModal(false)}>Hủy</ModernButton>
+                        <ModernButton variant="primary" onClick={handleQuickAgencySave} loading={addingAgency} disabled={!newAgencyName}>
+                            Lưu đơn vị
+                        </ModernButton>
+                    </div>
+                </div>
             </Modal>
 
             {/* Add Appendix Modal */}
-            <Modal isOpen={showAppendixModal} toggle={() => setShowAppendixModal(!showAppendixModal)} centered size="lg">
-                <ModalHeader toggle={() => setShowAppendixModal(!showAppendixModal)} className="bg-primary text-white">
-                    <i className="ri-file-add-line align-bottom me-1"></i> Thêm Phụ lục mới
-                </ModalHeader>
-                <ModalBody>
-                    <div className="mb-3">
-                        <Label className="fw-bold fs-13 text-muted text-uppercase">Hình thức bổ sung</Label>
-                        <div className="d-flex gap-4 mt-2 p-3 bg-light rounded-3 border">
-                            <div className="form-check custom-radio">
-                                <Input className="form-check-input" type="radio" name="appType" id="typeText" checked={appendixType === 'text'} onChange={() => {
-                                    setAppendixType('text');
-                                    setParsedAppendices([]);
-                                }} />
-                                <Label className="form-check-label fw-medium" for="typeText">Nhập văn bản thủ công</Label>
-                            </div>
-                            <div className="form-check custom-radio">
-                                <Input className="form-check-input" type="radio" name="appType" id="typeFile" checked={appendixType === 'file'} onChange={() => setAppendixType('file')} />
-                                <Label className="form-check-label fw-medium" for="typeFile">Đính kèm tệp tin (.docx)</Label>
+            <Modal isOpen={showAppendixModal} toggle={() => setShowAppendixModal(!showAppendixModal)} centered size="lg" contentClassName="designkit-wrapper border-0">
+                <div className="modern-modal-content">
+                    <div className="modal-header-primary p-3 d-flex justify-content-between align-items-center">
+                        <h5 className="modal-title xsmall text-uppercase fw-800 tracking-widest text-white">
+                            <i className="ri-file-add-line me-2"></i>Thêm Phụ lục mới
+                        </h5>
+                        <button type="button" className="btn-close btn-close-white" onClick={() => setShowAppendixModal(false)}></button>
+                    </div>
+                    <div className="modal-body p-4 bg-black-20">
+                        <div className="mb-4">
+                            <label className="form-label xsmall text-uppercase fw-700 text-white-40">Hình thức bổ sung</label>
+                            <div className="d-flex gap-4 mt-2 p-3 bg-white-5 rounded-3 border border-white-10">
+                                <div className="form-check custom-radio">
+                                    <Input className="form-check-input" type="radio" name="appType" id="typeText" checked={appendixType === 'text'} onChange={() => {
+                                        setAppendixType('text');
+                                        setParsedAppendices([]);
+                                    }} />
+                                    <label className="form-check-label fw-medium text-white-80 ms-1" htmlFor="typeText">Nhập bản văn bản</label>
+                                </div>
+                                <div className="form-check custom-radio">
+                                    <Input className="form-check-input" type="radio" name="appType" id="typeFile" checked={appendixType === 'file'} onChange={() => setAppendixType('file')} />
+                                    <label className="form-check-label fw-medium text-white-80 ms-1" htmlFor="typeFile">Đính kèm tệp (.docx)</label>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    {appendixType === 'text' ? (
-                        <>
-                            <div className="mb-3">
-                                <Label className="fw-bold">Tên phụ lục</Label>
-                                <Input 
-                                    value={newAppendixData.name} 
-                                    onChange={(e) => setNewAppendixData({ ...newAppendixData, name: e.target.value })} 
-                                    placeholder="Ví dụ: Phụ lục I - Danh mục chi tiết..."
-                                />
-                            </div>
-                            <div className="mb-3">
-                                <Label className="fw-bold">Nội dung phụ lục</Label>
-                                <Input 
-                                    type="textarea" 
-                                    rows={10} 
-                                    value={newAppendixData.content} 
-                                    onChange={(e) => setNewAppendixData({ ...newAppendixData, content: e.target.value })} 
-                                    placeholder="Nhập nội dung phụ lục tại đây..."
-                                />
-                            </div>
-                        </>
-                    ) : (
-                        <div className="mb-3">
-                            <div className="p-4 border-2 border-dashed rounded-3 text-center bg-light mb-3">
-                                <i className="ri-upload-cloud-2-line fs-1 display-5 text-muted mb-2"></i>
-                                <h5 className="fs-14">Chọn tệp văn bản Phụ lục</h5>
-                                <p className="text-muted fs-12">Hệ thống sẽ tự động tách các Phụ lục trong tệp</p>
-                                <Input 
-                                    type="file" 
-                                    accept=".docx"
-                                    className="d-none"
-                                    id="appendix-file-upload"
-                                    onChange={(e) => handleFilePreview(e.target.files[0])} 
-                                />
-                                <label size="sm" className="btn btn-primary mt-2" htmlFor="appendix-file-upload">
-                                    <i className="ri-file-search-line align-bottom me-1"></i> Chọn tệp .docx
-                                </label>
-                            </div>
-
-                            {isParsing && (
-                                <div className="text-center my-4">
-                                    <Spinner size="sm" className="me-2" />
-                                    <span className="text-muted">Đang phân tích cấu trúc file...</span>
+                        {appendixType === 'text' ? (
+                            <div className="animate-fade-in">
+                                <div className="mb-3">
+                                    <label className="form-label xsmall text-uppercase fw-700 text-white-40">Tên phụ lục</label>
+                                    <Input 
+                                        className="modern-input"
+                                        value={newAppendixData.name} 
+                                        onChange={(e) => setNewAppendixData({ ...newAppendixData, name: e.target.value })} 
+                                        placeholder="Ví dụ: Phụ lục I - Danh mục chi tiết..."
+                                    />
                                 </div>
-                            )}
+                                <div className="mb-3">
+                                    <label className="form-label xsmall text-uppercase fw-700 text-white-40">Nội dung phụ lục</label>
+                                    <Input 
+                                        type="textarea" 
+                                        rows={10} 
+                                        className="modern-input"
+                                        value={newAppendixData.content} 
+                                        onChange={(e) => setNewAppendixData({ ...newAppendixData, content: e.target.value })} 
+                                        placeholder="Nhập nội dung phụ lục tại đây..."
+                                    />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="animate-fade-in">
+                                <div className="p-4 border-2 border-dashed rounded-3 text-center bg-white-5 border-white-10 mb-3 modern-hover-card">
+                                    <i className="ri-upload-cloud-2-line fs-1 display-5 text-primary mb-2"></i>
+                                    <h5 className="fs-14 text-white">Chọn tệp văn bản Phụ lục</h5>
+                                    <p className="text-white-40 xsmall">Hệ thống sẽ tự động tách các Phụ lục trong tệp</p>
+                                    <Input 
+                                        type="file" 
+                                        accept=".docx"
+                                        className="d-none"
+                                        id="appendix-file-upload"
+                                        onChange={(e) => handleFilePreview(e.target.files[0])} 
+                                    />
+                                    <label className="btn btn-primary mt-2 rounded-pill px-4" htmlFor="appendix-file-upload">
+                                        <i className="ri-file-search-line align-bottom me-1"></i> Chọn tệp .docx
+                                    </label>
+                                </div>
 
-                            {parsedAppendices.length > 0 && (
-                                <div className="mt-4">
-                                    <div className="d-flex align-items-center justify-content-between mb-2">
-                                        <h6 className="fw-bold mb-0">Đề xuất trích xuất ({parsedAppendices.length})</h6>
-                                        <small className="text-muted italic">Bạn có thể chỉnh sửa trước khi lưu</small>
+                                {isParsing && (
+                                    <div className="text-center my-4 animate-pulse">
+                                        <Spinner size="sm" className="me-2 text-primary" />
+                                        <span className="text-white-60 xsmall text-uppercase">Đang phân tích cấu trúc file...</span>
                                     </div>
-                                    <div className="table-responsive border rounded" style={{ maxHeight: '400px' }}>
-                                        <table className="table table-nowrap table-hover mb-0">
-                                            <thead className="table-light sticky-top">
-                                                <tr>
-                                                    <th style={{ width: '40px' }}>#</th>
-                                                    <th>Tên phụ lục</th>
-                                                    <th>Xem trước nội dung</th>
-                                                    <th style={{ width: '80px' }}>Lưu?</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {parsedAppendices.map((app, idx) => (
-                                                    <tr key={idx}>
-                                                        <td className="align-middle">{idx + 1}</td>
-                                                        <td>
-                                                            <Input 
-                                                                size="sm" 
-                                                                value={app.name} 
-                                                                onChange={(e) => {
-                                                                    const newList = [...parsedAppendices];
-                                                                    newList[idx].name = e.target.value;
-                                                                    setParsedAppendices(newList);
-                                                                }}
-                                                            />
-                                                        </td>
-                                                        <td>
-                                                            <Input 
-                                                                type="textarea"
-                                                                rows={1}
-                                                                size="sm"
-                                                                style={{ fontSize: '11px' }}
-                                                                value={app.content}
-                                                                onChange={(e) => {
-                                                                    const newList = [...parsedAppendices];
-                                                                    newList[idx].content = e.target.value;
-                                                                    setParsedAppendices(newList);
-                                                                }}
-                                                            />
-                                                        </td>
-                                                        <td className="text-center align-middle">
-                                                            <div className="form-check form-switch form-switch-right">
+                                )}
+
+                                {parsedAppendices.length > 0 && (
+                                    <div className="mt-4 animate-slide-up">
+                                        <div className="d-flex align-items-center justify-content-between mb-2">
+                                            <h6 className="xsmall text-uppercase fw-800 text-white-60 mb-0">Đề xuất trích xuất ({parsedAppendices.length})</h6>
+                                        </div>
+                                        <div className="table-responsive border border-white-10 rounded-3 overflow-hidden" style={{ maxHeight: '400px' }}>
+                                            <table className="table modern-table-dark mb-0">
+                                                <thead className="xsmall text-uppercase tracking-wider">
+                                                    <tr>
+                                                        <th style={{ width: '40px' }}>#</th>
+                                                        <th>Tên phụ lục</th>
+                                                        <th>Nội dung</th>
+                                                        <th style={{ width: '80px' }}>Lưu?</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="fs-12">
+                                                    {parsedAppendices.map((app, idx) => (
+                                                        <tr key={idx} className="border-bottom border-white-5">
+                                                            <td className="align-middle text-white-40">{idx + 1}</td>
+                                                            <td>
                                                                 <Input 
-                                                                    className="form-check-input" 
-                                                                    type="checkbox" 
-                                                                    checked={app.selected}
+                                                                    className="modern-input-minimal"
+                                                                    value={app.name} 
                                                                     onChange={(e) => {
                                                                         const newList = [...parsedAppendices];
-                                                                        newList[idx].selected = e.target.checked;
+                                                                        newList[idx].name = e.target.value;
                                                                         setParsedAppendices(newList);
                                                                     }}
                                                                 />
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                                            </td>
+                                                            <td>
+                                                                <Input 
+                                                                    type="textarea"
+                                                                    rows={1}
+                                                                    className="modern-input-minimal xsmall"
+                                                                    value={app.content}
+                                                                    onChange={(e) => {
+                                                                        const newList = [...parsedAppendices];
+                                                                        newList[idx].content = e.target.value;
+                                                                        setParsedAppendices(newList);
+                                                                    }}
+                                                                />
+                                                            </td>
+                                                            <td className="text-center align-middle">
+                                                                <div className="form-check form-switch modern-switch">
+                                                                    <Input 
+                                                                        className="form-check-input" 
+                                                                        type="checkbox" 
+                                                                        checked={app.selected}
+                                                                        onChange={(e) => {
+                                                                            const newList = [...parsedAppendices];
+                                                                            newList[idx].selected = e.target.checked;
+                                                                            setParsedAppendices(newList);
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </ModalBody>
-                <ModalFooter className="bg-light">
-                    <Button color="link" className="link-danger fw-medium shadow-none" onClick={() => setShowAppendixModal(false)}>Hủy</Button>
-                    {appendixType === 'text' ? (
-                        <Button color="primary" onClick={handleSaveAppendix} disabled={isSavingAppendix}>
-                            {isSavingAppendix ? <Spinner size="sm"/> : "Lưu phụ lục"}
-                        </Button>
-                    ) : (
-                        <Button color="success" onClick={handleSaveBulkAppendices} disabled={isSavingAppendix || parsedAppendices.length === 0}>
-                            {isSavingAppendix ? <Spinner size="sm"/> : `Lưu ${parsedAppendices.filter(a => a.selected).length} phụ lục`}
-                        </Button>
-                    )}
-                </ModalFooter>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                    <div className="modal-footer bg-black-40 p-3 border-top border-white-10">
+                        <ModernButton variant="ghost" onClick={() => setShowAppendixModal(false)}>Hủy</ModernButton>
+                        {appendixType === 'text' ? (
+                            <ModernButton variant="primary" onClick={handleSaveAppendix} loading={isSavingAppendix}>
+                                Lưu phụ lục
+                            </ModernButton>
+                        ) : (
+                            <ModernButton variant="success" onClick={handleSaveBulkAppendices} loading={isSavingAppendix} disabled={parsedAppendices.length === 0}>
+                                Lưu {parsedAppendices.filter(a => a.selected).length} phụ lục
+                            </ModernButton>
+                        )}
+                    </div>
+                </div>
             </Modal>
 
             {/* Add Node Modal */}
-            <Modal isOpen={showAddNodeModal} toggle={() => setShowAddNodeModal(!showAddNodeModal)} centered>
-                <ModalHeader toggle={() => setShowAddNodeModal(!showAddNodeModal)} className="bg-info text-white">
-                    <i className="ri-add-circle-line align-bottom me-1"></i> Thêm Tiết/Điều/Khoản mới
-                </ModalHeader>
-                <ModalBody>
-                    <div className="mb-3">
-                        <Label className="fw-bold">Loại nội dung</Label>
-                        <select className="form-select" value={newNodeData.node_type} onChange={(e) => setNewNodeData({ ...newNodeData, node_type: e.target.value })}>
-                            <option value="Chương">Chương</option>
-                            <option value="Điều">Điều</option>
-                            <option value="Khoản">Khoản</option>
-                            <option value="Điểm">Điểm</option>
-                            <option value="Phụ lục">Phụ lục (trong văn bản)</option>
-                            <option value="Vấn đề khác">Vấn đề khác</option>
-                        </select>
+            <Modal isOpen={showAddNodeModal} toggle={() => setShowAddNodeModal(!showAddNodeModal)} centered contentClassName="designkit-wrapper border-0">
+                <div className="modern-modal-content">
+                    <div className="modal-header-info p-3 d-flex justify-content-between align-items-center">
+                        <h5 className="modal-title xsmall text-uppercase fw-800 tracking-widest text-white">
+                            <i className="ri-add-circle-line me-2"></i>Thêm Tiết/Điều/Khoản mới
+                        </h5>
+                        <button type="button" className="btn-close btn-close-white" onClick={() => setShowAddNodeModal(false)}></button>
                     </div>
-                    <div className="mb-3">
-                        <Label className="fw-bold">Nhãn (Tiêu đề ngắn)</Label>
-                        <Input value={newNodeData.node_label} onChange={(e) => setNewNodeData({ ...newNodeData, node_label: e.target.value })} placeholder="VD: Điều 12, Khoản 3..." />
+                    <div className="modal-body p-4 bg-black-20">
+                        <Row className="g-3">
+                            <Col lg={6}>
+                                <label className="form-label xsmall text-uppercase fw-700 text-white-40">Loại nội dung</label>
+                                <select className="form-select modern-input" value={newNodeData.node_type} onChange={(e) => setNewNodeData({ ...newNodeData, node_type: e.target.value })}>
+                                    <option value="Chương">Chương</option>
+                                    <option value="Điều">Điều</option>
+                                    <option value="Khoản">Khoản</option>
+                                    <option value="Điểm">Điểm</option>
+                                    <option value="Phụ lục">Phụ lục (trong văn bản)</option>
+                                    <option value="Vấn đề khác">Vấn đề khác</option>
+                                </select>
+                            </Col>
+                            <Col lg={6}>
+                                <label className="form-label xsmall text-uppercase fw-700 text-white-40">Nhãn (Tiêu đề ngắn)</label>
+                                <Input className="modern-input" value={newNodeData.node_label} onChange={(e) => setNewNodeData({ ...newNodeData, node_label: e.target.value })} placeholder="VD: Điều 12, Khoản 3..." />
+                            </Col>
+                            <Col lg={12}>
+                                <label className="form-label xsmall text-uppercase fw-700 text-white-40">Nội dung</label>
+                                <Input type="textarea" rows={5} className="modern-input" value={newNodeData.content} onChange={(e) => setNewNodeData({ ...newNodeData, content: e.target.value })} placeholder="Nhập nội dung chi tiết..." />
+                            </Col>
+                            <Col lg={12}>
+                                <label className="form-label xsmall text-uppercase fw-700 text-white-40">Gắn vào mục cấp trên (nếu có)</label>
+                                <select className="form-select modern-input" value={newNodeData.parent_id || ""} onChange={(e) => setNewNodeData({ ...newNodeData, parent_id: e.target.value || null })}>
+                                    <option value="">-- Cấp gốc (Không có cha) --</option>
+                                    {nodeOptions.map(opt => (
+                                        <option key={opt.id} value={opt.id}>{opt.label}</option>
+                                    ))}
+                                </select>
+                            </Col>
+                        </Row>
                     </div>
-                    <div className="mb-3">
-                        <Label className="fw-bold">Nội dung</Label>
-                        <Input type="textarea" rows={5} value={newNodeData.content} onChange={(e) => setNewNodeData({ ...newNodeData, content: e.target.value })} placeholder="Nhập nội dung chi tiết..." />
+                    <div className="modal-footer bg-black-40 p-3 border-top border-white-10">
+                        <ModernButton variant="ghost" onClick={() => setShowAddNodeModal(false)}>Hủy</ModernButton>
+                        <ModernButton variant="info" onClick={handleAddNode} loading={isAddingNode}>
+                            Xác nhận thêm
+                        </ModernButton>
                     </div>
-                    <div className="mb-3">
-                        <Label className="fw-bold">Gắn vào mục cấp trên (nếu có)</Label>
-                        <select className="form-select" value={newNodeData.parent_id || ""} onChange={(e) => setNewNodeData({ ...newNodeData, parent_id: e.target.value || null })}>
-                            <option value="">-- Cấp gốc (Không có cha) --</option>
-                            {nodeOptions.map(opt => (
-                                <option key={opt.id} value={opt.id}>{opt.label}</option>
-                            ))}
-                        </select>
-                    </div>
-                </ModalBody>
-                <ModalFooter>
-                    <Button color="light" onClick={() => setShowAddNodeModal(false)}>Hủy</Button>
-                    <Button color="info" onClick={handleAddNode} disabled={isAddingNode}>
-                        {isAddingNode ? <Spinner size="sm"/> : "Xác nhận thêm"}
-                    </Button>
-                </ModalFooter>
+                </div>
             </Modal>
             <ToastContainer />
 
@@ -1677,6 +1687,8 @@ const DocumentDetails = () => {
                     fetchStructure();
                 }}
             />
+        </div>
+        </div>
         </React.Fragment>
     );
 };

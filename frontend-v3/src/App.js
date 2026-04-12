@@ -6,6 +6,7 @@ import './assets/scss/modern_skin.scss';
 
 //imoprt Route
 import Route from './Routes';
+import ErrorBoundary from './Components/Common/ErrorBoundary';
 
 // Import Firebase Configuration file
 // import { initFirebaseBackend } from "./helpers/firebase_helper";
@@ -33,7 +34,9 @@ fakeBackend();
 function App() {
   return (
     <React.Fragment>
-      <Route />
+      <ErrorBoundary>
+        <Route />
+      </ErrorBoundary>
     </React.Fragment>
   );
 }
