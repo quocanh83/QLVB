@@ -179,9 +179,9 @@ const ProjectAssignmentModern = () => {
                                         
                                         <td data-label="Dự thảo" data-full-width="true">
                                             {/* Mobile Header: Title + Actions */}
-                                            <div className="mobile-top-bar d-md-none mb-2">
-                                                <div className="mobile-title mb-0" style={{ fontSize: '1rem' }}>{doc.project_name}</div>
-                                                <div className="d-flex gap-1" style={{ position: 'absolute', top: '1.25rem', right: '1.25rem' }}>
+                                            <div className="mobile-top-bar d-md-none d-flex justify-content-between align-items-start mb-2 gap-3">
+                                                <div className="mobile-title mb-0" style={{ fontSize: '1rem', flex: 1, paddingRight: '10px' }}>{doc.project_name}</div>
+                                                <div className="d-flex gap-1 flex-shrink-0">
                                                     {isAdmin && (
                                                         <ModernButton 
                                                             variant="ghost" 
@@ -213,14 +213,14 @@ const ProjectAssignmentModern = () => {
                                                 <span style={{ fontSize: '0.75rem', opacity: 0.6, fontWeight: 500 }}>ID: #{doc.id}</span>
                                                 
                                                 {/* Specialists Count integrated for Mobile */}
-                                                <div className="d-md-none d-flex align-items-center gap-1 ms-auto" style={{ 
+                                                <div className="d-md-none d-flex align-items-center gap-1 ms-2" style={{ 
                                                     background: 'rgba(255,255,255,0.05)', 
                                                     padding: '2px 8px', 
                                                     borderRadius: '6px',
                                                     border: '1px solid rgba(255,255,255,0.1)'
                                                 }}>
                                                     <i className="ri-team-line text-primary" style={{ fontSize: '0.9rem' }}></i>
-                                                    <span className="fw-bold fs-12">{doc.specialists_count || 0} chuyên viên</span>
+                                                    <span className="fw-bold fs-12">{doc.specialists_count || 0} c.viên</span>
                                                 </div>
                                             </div>
 
