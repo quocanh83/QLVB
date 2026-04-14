@@ -154,41 +154,42 @@ const Layout = (props) => {
         }
     };
 
-    const [headerClass, setHeaderClass] = useState("");
-    // class add remove in header
-    useEffect(() => {
-        window.addEventListener("scroll", scrollNavigation, true);
-    });
-    function scrollNavigation() {
-        var scrollup = document.documentElement.scrollTop;
-        if (scrollup > 50) {
-            setHeaderClass("topbar-shadow");
-        } else {
-            setHeaderClass("");
-        }
-    }
 
-    useEffect(() => {
-        if (sidebarVisibilitytype === 'show' || layoutType === "vertical" || layoutType === "twocolumn") {
-            document.querySelector(".hamburger-icon").classList.remove('open');
+    const [mobileMenu, setMobileMenu] = useState(false);
+
+    const toggleMobileMenu = () => {
+        setMobileMenu(!mobileMenu);
+        if (!mobileMenu) {
+            document.body.classList.add("vertical-sidebar-enable");
         } else {
-            document.querySelector(".hamburger-icon").classList.add('open');
+            document.body.classList.remove("vertical-sidebar-enable");
         }
-    }, [sidebarVisibilitytype, layoutType]);
+    };
+
+    // Close mobile menu on route change
+    useEffect(() => {
+        setMobileMenu(false);
+        document.body.classList.remove("vertical-sidebar-enable");
+    }, [props.router.location]);
 
     return (
         <React.Fragment>
-            <div id="layout-wrapper">
-                <Header
-                    headerClass={headerClass}
-                    layoutModeType={layoutModeType}
-                    onChangeLayoutMode={onChangeLayoutMode} />
+            <div id="layout-wrapper" className="designkit-wrapper">
+                <div 
+                    className="mobile-menu-toggle d-lg-none" 
+                    onClick={toggleMobileMenu}
+                    title="Mở Menu"
+                >
+                    <i className={mobileMenu ? "ri-close-fill" : "ri-menu-2-fill"}></i>
+                </div>
+                
                 <Sidebar layoutType={layoutType} />
                 <div className="main-content">{props.children}
                     <Footer />
                 </div>
                 <MobileBottomNav items={mobileNavConfig} />
             </div>
+            <div className="vertical-overlay" onClick={toggleMobileMenu}></div>
         </React.Fragment>
 
     );

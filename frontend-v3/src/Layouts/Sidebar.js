@@ -15,7 +15,13 @@ import { useSelector, useDispatch } from "react-redux";
 import { changeLayout } from "../slices/thunks";
 import { createSelector } from 'reselect';
 
+import SearchOption from '../Components/Common/SearchOption';
+import { useProfile } from "../Components/Hooks/UserHooks";
+import { logoutUser } from "../slices/auth/login/thunk";
+import avatarDefault from "../assets/images/users/user-dummy-img.jpg";
+
 const Sidebar = ({ layoutType }) => {
+  const { userProfile } = useProfile();
 
   useEffect(() => {
     var verticalOverlay = document.getElementsByClassName("vertical-overlay");
@@ -55,31 +61,32 @@ const Sidebar = ({ layoutType }) => {
     <React.Fragment>
       <div className="app-menu navbar-menu">
         <div className="navbar-brand-box">
-          <Link to="/" className="logo logo-dark">
-            <span className="logo-sm">
-              <img src={logoSm} alt="" height="22" />
-            </span>
-            <span className="logo-lg">
-              <img src={logoDark} alt="" height="17" />
-            </span>
-          </Link>
+          <div className="sidebar-user-section-top">
+            <div className="user-card-content">
+                <div className="user-info">
+                    <span className="user-name">{userProfile?.first_name || "Quốc Anh"}</span>
+                </div>
+                <button 
+                    className="logout-btn" 
+                    title="Đăng xuất"
+                    onClick={() => dispatch(logoutUser())}
+                >
+                    <i className="ri-logout-box-r-line"></i>
+                </button>
+            </div>
+          </div>
 
-          <Link to="/" className="logo logo-light">
-            <span className="logo-sm">
-              <img src={logoSm} alt="" height="22" />
-            </span>
-            <span className="logo-lg">
-              <img src={logoLight} alt="" height="17" />
-            </span>
-          </Link>
           <button
             onClick={addEventListenerOnSmHoverMenu}
             type="button"
             className="btn btn-sm p-0 fs-20 header-item float-end btn-vertical-sm-hover"
             id="vertical-hover"
           >
-            <i className="ri-record-circle-line"></i>
           </button>
+        </div>
+
+        <div className="sidebar-search-container">
+            <SearchOption />
         </div>
         {layoutType === "horizontal" ? (
           <div id="scrollbar">

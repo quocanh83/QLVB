@@ -84,7 +84,7 @@ const useNavData = () => {
   const [sidebarJSONConfig, setSidebarJSONConfig] = useState(JSON.parse(localStorage.getItem('sidebarJSONConfig') || '[]'));
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const CURRENT_SIDEBAR_VERSION = "5.0.0";
+  const CURRENT_SIDEBAR_VERSION = "5.1.0";
 
     useEffect(() => {
       const fetchSidebarConfig = async () => {
@@ -219,19 +219,6 @@ const useNavData = () => {
   ]);
   const menuItems = menuMaster.map(item => {
     // Add specific click handlers
-    if (item.id === 'dashboard') {
-      return {
-        ...item,
-        stateVariables: isDashboard,
-        click: function (e) {
-          e.preventDefault();
-          setIsDashboard(!isDashboard);
-          setIscurrentState("Dashboard");
-          updateIconSidebar(e);
-          history("/dashboard-analytics");
-        }
-      };
-    }
     if (item.id === 'documents_group') {
       return {
         ...item,

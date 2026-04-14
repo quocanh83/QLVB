@@ -21,7 +21,7 @@ export const loginUser = (user, history) => async (dispatch) => {
       localStorage.setItem("authUser", JSON.stringify(data));
       
       dispatch(loginSuccess(data));
-      history('/dashboard-analytics');
+      history('/documents-modern');
     } else {
       dispatch(apiError("Đăng nhập thất bại. Kiểm tra lại thông tin."));
     }
@@ -67,7 +67,7 @@ export const socialLogin = (type, history) => async (dispatch) => {
     if (socialdata) {
       sessionStorage.setItem("authUser", JSON.stringify(response));
       dispatch(loginSuccess(response));
-      history('/dashboard-analytics')
+      history('/documents-modern')
     }
 
   } catch (error) {

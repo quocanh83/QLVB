@@ -183,10 +183,7 @@ const DocumentListModern = () => {
     return (
         <React.Fragment>
             <div className="designkit-wrapper designkit-layout-root">
-                <div className="modern-page-content">
-                    <div className="mb-3 d-none d-lg-block">
-                        <BreadCrumb title="Danh sách Dự thảo" pageTitle="Quản lý Văn bản" />
-                    </div>
+                <div className="modern-page-content mt-4">
 
                     <ModernHeader 
                         title="Hệ thống Dự thảo" 
